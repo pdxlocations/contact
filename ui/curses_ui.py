@@ -49,40 +49,22 @@ def handle_resize(stdscr, firstrun):
 
 
     else:
-        # # Ensure all windows are initialized before using them
-        # if entry_win is None:
-        #     entry_win = curses.newwin(3, width, 0, 0)
-        # if channel_win is None:
-        #     channel_win = curses.newwin(height - 6, channel_width, 3, 0)
-        # if messages_win is None:
-        #     messages_win = curses.newwin(height - 6, messages_width, 3, channel_width)
-        # if nodes_win is None:
-        #     nodes_win = curses.newwin(height - 6, nodes_width, 3, channel_width + messages_width)
-        # if function_win is None:
-        #     function_win = curses.newwin(3, width, height - 3, 0)
-        # if packetlog_win is None:
-        #     packetlog_win = curses.newwin(int(height / 3), messages_width, height - int(height / 3) - 3, channel_width)
-
-        # # Ensure pads are initialized
-        # if messages_pad is None:
-        #     messages_pad = curses.newpad(1,1)
-        # if nodes_pad is None:
-        #     nodes_pad = curses.newpad(1,1)
-        # if channel_pad is None:
-        #     channel_pad = curses.newpad(1,1)
-
-
         for win in [entry_win, channel_win, messages_win, nodes_win, function_win, packetlog_win]:
             win.erase()
 
         entry_win.resize(3, width)
+
         channel_win.resize(height - 6, channel_width)
+
         messages_win.resize(height - 6, messages_width)
         messages_win.mvwin(3, channel_width)
+
         nodes_win.resize(height - 6, nodes_width)
         nodes_win.mvwin(3, channel_width + messages_width)
+
         function_win.resize(3, width)
         function_win.mvwin(height - 3, 0)
+
         packetlog_win.resize(int(height / 3), messages_width)
         packetlog_win.mvwin(height - int(height / 3) - 3, channel_width)
 
@@ -434,8 +416,9 @@ def draw_messages_window(scroll_to_bottom = False):
 
 def draw_node_list():
     global nodes_pad
-    if nodes_pad is None:
-        nodes_pad = curses.newpad(1, 1)
+
+    # if nodes_pad is None:
+    #     nodes_pad = curses.newpad(1, 1)
 
     try:
         nodes_pad.erase()
@@ -665,6 +648,8 @@ def get_msg_window_lines():
     return messages_win.getmaxyx()[0] - 2 - packetlog_height
 
 def refresh_pad(window):
+    global messages_pad, nodes_pad, channel_pad 
+    
     win_height = channel_win.getmaxyx()[0]
 
     if(window == 1):
