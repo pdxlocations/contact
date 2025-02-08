@@ -149,9 +149,10 @@ def init_nodedb():
             return  # No nodes to initialize
 
         ensure_node_table_exists()  # Ensure the table exists before insertion
+        nodes_snapshot = list(globals.interface.nodes.values())
 
         # Insert or update all nodes
-        for node in globals.interface.nodes.values():
+        for node in nodes_snapshot:
             update_node_info_in_db(
                 user_id=node['num'],
                 long_name=node['user'].get('longName', ''),
