@@ -35,23 +35,18 @@ def handle_resize(stdscr, firstrun):
         nodes_pad = curses.newpad(1,1)
         channel_pad = curses.newpad(1,1)
 
-        entry_win.bkgd(get_color("background"))
-        channel_win.bkgd(get_color("background"))
-        messages_win.bkgd(get_color("background"))
-        nodes_win.bkgd(get_color("background"))
-        function_win.bkgd(get_color("background"))
-        packetlog_win.bkgd(get_color("background"))
+        # Set background colors for windows
+        for win in [entry_win, channel_win, messages_win, nodes_win, function_win, packetlog_win]:
+            win.bkgd(get_color("background"))
 
-        messages_pad.bkgd(get_color("background"))
-        nodes_pad.bkgd(get_color("background"))
-        channel_pad.bkgd(get_color("background"))
+        # Set background colors for pads
+        for pad in [messages_pad, nodes_pad, channel_pad]:
+            pad.bkgd(get_color("background"))
 
+        # Set colors for window frames
+        for win in [channel_win, entry_win, nodes_win, messages_win, function_win]:
+            win.attrset(get_color("window_frame"))
 
-        channel_win.attrset(get_color("window_frame"))
-        entry_win.attrset(get_color("window_frame"))
-        nodes_win.attrset(get_color("window_frame"))
-        messages_win.attrset(get_color("window_frame"))
-        function_win.attrset(get_color("window_frame"))
 
     else:
         # Ensure all windows are initialized before using them
@@ -76,12 +71,10 @@ def handle_resize(stdscr, firstrun):
         if channel_pad is None:
             channel_pad = curses.newpad(1,1)
 
-        entry_win.erase()
-        channel_win.erase()
-        messages_win.erase()
-        nodes_win.erase()
-        function_win.erase()
-        packetlog_win.erase()
+
+        for win in [entry_win, channel_win, messages_win, nodes_win, function_win, packetlog_win]:
+            win.erase()
+
         entry_win.resize(3, width)
         channel_win.resize(height - 6, channel_width)
         messages_win.resize(height - 6, messages_width)
@@ -93,27 +86,12 @@ def handle_resize(stdscr, firstrun):
         packetlog_win.resize(int(height / 3), messages_width)
         packetlog_win.mvwin(height - int(height / 3) - 3, channel_width)
 
-        # Reinitialize `nodes_pad` in case it was lost during a resize.
-        # We shouldn't need this but nodes_pad keeps throwing and error in draw_node_list so...
-        try:
-            nodes_pad.getmaxyx()  # Check if it's still valid
-        except:
-            nodes_pad = curses.newpad(1, 1)  # Recreate if needed
 
+    # Draw window borders
+    for win in [channel_win, entry_win, nodes_win, messages_win, function_win]:
+        win.box()
+        win.refresh()
 
-    channel_win.box()
-    entry_win.box()
-    nodes_win.box()
-    messages_win.box()
-
-    function_win.box()
-
-    # Refresh all windows
-    entry_win.refresh()
-    channel_win.refresh()
-    function_win.refresh()
-    nodes_win.refresh()
-    messages_win.refresh()
 
     entry_win.keypad(True)
     curses.curs_set(1)
