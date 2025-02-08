@@ -417,8 +417,8 @@ def draw_messages_window(scroll_to_bottom = False):
 def draw_node_list():
     global nodes_pad
 
-    # if nodes_pad is None:
-    #     nodes_pad = curses.newpad(1, 1)
+    if nodes_pad is None:
+        nodes_pad = curses.newpad(1, 1)
 
     try:
         nodes_pad.erase()
@@ -648,7 +648,7 @@ def get_msg_window_lines():
     return messages_win.getmaxyx()[0] - 2 - packetlog_height
 
 def refresh_pad(window):
-    global messages_pad, nodes_pad, channel_pad 
+    # global messages_pad, nodes_pad, channel_pad 
     
     win_height = channel_win.getmaxyx()[0]
 
