@@ -11,8 +11,6 @@ import default_config as config
 import ui.dialog
 import globals
 
-messages_pad = messages_win = nodes_pad = nodes_win = channel_pad = channel_win = function_win = packetlog_win = entry_win = None
-
 def handle_resize(stdscr, firstrun):
     global messages_pad, messages_win, nodes_pad, nodes_win, channel_pad, channel_win, function_win, packetlog_win, entry_win
 
