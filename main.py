@@ -11,7 +11,6 @@ from pubsub import pub
 import os
 import logging
 import traceback
-import time
 
 from utilities.arg_parser import setup_parser
 from utilities.interfaces import initialize_interface

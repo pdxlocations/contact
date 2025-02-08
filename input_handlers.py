@@ -207,19 +207,19 @@ def get_list_input(prompt, current_option, list_options):
             return current_option
 
 
-def move_highlight(old_idx, new_idx, options, enum_win, enum_pad):
+def move_highlight(old_idx, new_idx, options, list_win, list_pad):
     if old_idx == new_idx:
         return # no-op
 
-    enum_pad.chgat(old_idx, 0, enum_pad.getmaxyx()[1], get_color("settings_default"))
-    enum_pad.chgat(new_idx, 0, enum_pad.getmaxyx()[1], get_color("settings_default", reverse = True))
+    list_pad.chgat(old_idx, 0, list_pad.getmaxyx()[1], get_color("settings_default"))
+    list_pad.chgat(new_idx, 0, list_pad.getmaxyx()[1], get_color("settings_default", reverse = True))
 
-    enum_win.refresh()
+    list_win.refresh()
 
-    start_index = max(0, new_idx - (enum_win.getmaxyx()[0] - 4))
+    start_index = max(0, new_idx - (list_win.getmaxyx()[0] - 4))
 
-    enum_win.refresh()
-    enum_pad.refresh(start_index, 0,
-                     enum_win.getbegyx()[0] + 3, enum_win.getbegyx()[1] + 4,
-                     enum_win.getbegyx()[0] + enum_win.getmaxyx()[0] - 2, enum_win.getbegyx()[1] + 4 + enum_win.getmaxyx()[1] - 4)
+    list_win.refresh()
+    list_pad.refresh(start_index, 0,
+                     list_win.getbegyx()[0] + 3, list_win.getbegyx()[1] + 4,
+                     list_win.getbegyx()[0] + list_win.getmaxyx()[0] - 2, list_win.getbegyx()[1] + 4 + list_win.getmaxyx()[1] - 4)
     
