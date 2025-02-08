@@ -54,7 +54,7 @@ def handle_resize(stdscr, firstrun):
         function_win.attrset(get_color("window_frame"))
 
     else:
-            # Ensure all windows are initialized before using them
+        # Ensure all windows are initialized before using them
         if entry_win is None:
             entry_win = curses.newwin(3, width, 0, 0)
         if channel_win is None:
@@ -68,13 +68,14 @@ def handle_resize(stdscr, firstrun):
         if packetlog_win is None:
             packetlog_win = curses.newwin(int(height / 3), messages_width, height - int(height / 3) - 3, channel_width)
 
-    # Ensure pads are initialized
-    if messages_pad is None:
-        messages_pad = curses.newpad(1,1)
-    if nodes_pad is None:
-        nodes_pad = curses.newpad(1,1)
-    if channel_pad is None:
-        channel_pad = curses.newpad(1,1)
+        # Ensure pads are initialized
+        if messages_pad is None:
+            messages_pad = curses.newpad(1,1)
+        if nodes_pad is None:
+            nodes_pad = curses.newpad(1,1)
+        if channel_pad is None:
+            channel_pad = curses.newpad(1,1)
+
         entry_win.erase()
         channel_win.erase()
         messages_win.erase()
