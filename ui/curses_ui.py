@@ -11,7 +11,7 @@ import default_config as config
 import ui.dialog
 import globals
 
-
+messages_pad = messages_win = nodes_pad = nodes_win = channel_pad = channel_win = function_win = packetlog_win = entry_win = None
 
 def handle_resize(stdscr, firstrun):
     global messages_pad, messages_win, nodes_pad, nodes_win, channel_pad, channel_win, function_win, packetlog_win, entry_win
@@ -435,6 +435,10 @@ def draw_messages_window(scroll_to_bottom = False):
     draw_packetlog_win()
 
 def draw_node_list():
+    global nodes_pad
+    if nodes_pad is None:
+        nodes_pad = curses.newpad(1, 1)
+
     try:
         nodes_pad.erase()
         box_width = nodes_win.getmaxyx()[1]
