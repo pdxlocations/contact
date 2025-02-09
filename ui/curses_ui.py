@@ -417,8 +417,8 @@ def draw_messages_window(scroll_to_bottom = False):
 def draw_node_list():
     global nodes_pad
 
-    if nodes_pad is None:
-        nodes_pad = curses.newpad(1, 1)
+    # if nodes_pad is None:
+    nodes_pad = curses.newpad(1, 1)
 
     try:
         nodes_pad.erase()

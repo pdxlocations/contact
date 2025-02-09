@@ -39,6 +39,8 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
+globals.lock = threading.Lock()
+
 def main(stdscr):
     try:
         draw_splash(stdscr)
@@ -46,8 +48,7 @@ def main(stdscr):
         args = parser.parse_args()
 
         logging.info("Initializing interface %s", args)
-        lock = threading.Lock()
-        with lock: 
+        with globals.lock: 
             globals.interface = initialize_interface(args)
             logging.info("Interface initialized")
             globals.myNodeNum = get_nodeNum()
