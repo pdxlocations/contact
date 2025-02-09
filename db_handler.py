@@ -71,76 +71,75 @@ def update_ack_nak(channel, timestamp, message, ack):
 
 def load_messages_from_db():
     """Load messages from the database for all channels and update globals.all_messages and globals.channel_list."""
-    with globals.lock:
-        try:
-            with sqlite3.connect(config.db_file_path) as db_connection:
-                db_cursor = db_connection.cursor()
+    try:
+        with sqlite3.connect(config.db_file_path) as db_connection:
+            db_cursor = db_connection.cursor()
 
-                query = "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE ?"
-                db_cursor.execute(query, (f"{str(globals.myNodeNum)}_%_messages",))
-                tables = [row[0] for row in db_cursor.fetchall()]
+            query = "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE ?"
+            db_cursor.execute(query, (f"{str(globals.myNodeNum)}_%_messages",))
+            tables = [row[0] for row in db_cursor.fetchall()]
 
-                # Iterate through each table and fetch its messages
-                for table_name in tables:
-                    quoted_table_name = f'"{table_name}"'  # Quote the table name because we begin with numerics and contain spaces
-                    table_columns = [i[1] for i in db_cursor.execute(f'PRAGMA table_info({quoted_table_name})')]
-                    if "ack_type" not in table_columns:
-                        update_table_query = f"ALTER TABLE {quoted_table_name} ADD COLUMN ack_type TEXT"
-                        db_cursor.execute(update_table_query)
+            # Iterate through each table and fetch its messages
+            for table_name in tables:
+                quoted_table_name = f'"{table_name}"'  # Quote the table name because we begin with numerics and contain spaces
+                table_columns = [i[1] for i in db_cursor.execute(f'PRAGMA table_info({quoted_table_name})')]
+                if "ack_type" not in table_columns:
+                    update_table_query = f"ALTER TABLE {quoted_table_name} ADD COLUMN ack_type TEXT"
+                    db_cursor.execute(update_table_query)
 
-                    query = f'SELECT user_id, message_text, timestamp, ack_type FROM {quoted_table_name}'
+                query = f'SELECT user_id, message_text, timestamp, ack_type FROM {quoted_table_name}'
 
-                    try:
-                        # Fetch all messages from the table
-                        db_cursor.execute(query)
-                        db_messages = [(row[0], row[1], row[2], row[3]) for row in db_cursor.fetchall()]  # Save as tuples
+                try:
+                    # Fetch all messages from the table
+                    db_cursor.execute(query)
+                    db_messages = [(row[0], row[1], row[2], row[3]) for row in db_cursor.fetchall()]  # Save as tuples
+                    
+                    # Extract the channel name from the table name
+                    channel = table_name.split("_")[1]
+                    
+                    # Convert the channel to an integer if it's numeric, otherwise keep it as a string (nodenum vs channel name)
+                    channel = int(channel) if channel.isdigit() else channel
+                    
+                    # Add the channel to globals.channel_list if not already present
+                    if channel not in globals.channel_list and not is_chat_archived(channel):
+                        globals.channel_list.append(channel)
+
+                    # Ensure the channel exists in globals.all_messages
+                    if channel not in globals.all_messages:
+                        globals.all_messages[channel] = []
+
+                    # Add messages to globals.all_messages grouped by hourly timestamp
+                    hourly_messages = {}
+                    for user_id, message, timestamp, ack_type in db_messages:
+                        hour = datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:00')
+                        if hour not in hourly_messages:
+                            hourly_messages[hour] = []
                         
-                        # Extract the channel name from the table name
-                        channel = table_name.split("_")[1]
+                        ack_str = config.ack_unknown_str
+                        if ack_type == "Implicit":
+                            ack_str = config.ack_implicit_str
+                        elif ack_type == "Ack":
+                            ack_str = config.ack_str
+                        elif ack_type == "Nak":
+                            ack_str = config.nak_str
+
+                        if user_id == str(globals.myNodeNum):
+                            formatted_message = (f"{config.sent_message_prefix}{ack_str}: ", message)
+                        else:
+                            formatted_message = (f"{config.message_prefix} {get_name_from_database(int(user_id), 'short')}: ", message)
                         
-                        # Convert the channel to an integer if it's numeric, otherwise keep it as a string (nodenum vs channel name)
-                        channel = int(channel) if channel.isdigit() else channel
-                        
-                        # Add the channel to globals.channel_list if not already present
-                        if channel not in globals.channel_list and not is_chat_archived(channel):
-                            globals.channel_list.append(channel)
+                        hourly_messages[hour].append(formatted_message)
 
-                        # Ensure the channel exists in globals.all_messages
-                        if channel not in globals.all_messages:
-                            globals.all_messages[channel] = []
+                    # Flatten the hourly messages into globals.all_messages[channel]
+                    for hour, messages in sorted(hourly_messages.items()):
+                        globals.all_messages[channel].append((f"-- {hour} --", ""))
+                        globals.all_messages[channel].extend(messages)
 
-                        # Add messages to globals.all_messages grouped by hourly timestamp
-                        hourly_messages = {}
-                        for user_id, message, timestamp, ack_type in db_messages:
-                            hour = datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:00')
-                            if hour not in hourly_messages:
-                                hourly_messages[hour] = []
-                            
-                            ack_str = config.ack_unknown_str
-                            if ack_type == "Implicit":
-                                ack_str = config.ack_implicit_str
-                            elif ack_type == "Ack":
-                                ack_str = config.ack_str
-                            elif ack_type == "Nak":
-                                ack_str = config.nak_str
+                except sqlite3.Error as e:
+                    logging.error(f"SQLite error while loading messages from table '{table_name}': {e}")
 
-                            if user_id == str(globals.myNodeNum):
-                                formatted_message = (f"{config.sent_message_prefix}{ack_str}: ", message)
-                            else:
-                                formatted_message = (f"{config.message_prefix} {get_name_from_database(int(user_id), 'short')}: ", message)
-                            
-                            hourly_messages[hour].append(formatted_message)
-
-                        # Flatten the hourly messages into globals.all_messages[channel]
-                        for hour, messages in sorted(hourly_messages.items()):
-                            globals.all_messages[channel].append((f"-- {hour} --", ""))
-                            globals.all_messages[channel].extend(messages)
-
-                    except sqlite3.Error as e:
-                        logging.error(f"SQLite error while loading messages from table '{table_name}': {e}")
-
-        except sqlite3.Error as e:
-            logging.error(f"SQLite error in load_messages_from_db: {e}")
+    except sqlite3.Error as e:
+        logging.error(f"SQLite error in load_messages_from_db: {e}")
 
 
 def init_nodedb():
