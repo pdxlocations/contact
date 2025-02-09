@@ -11,6 +11,10 @@ from pubsub import pub
 import os
 import logging
 import traceback
+<<<<<<< HEAD
+=======
+import threading
+>>>>>>> cd74a32 (try a threading lock)
 
 from utilities.arg_parser import setup_parser
 from utilities.interfaces import initialize_interface
@@ -45,8 +49,11 @@ def main(stdscr):
         args = parser.parse_args()
 
         logging.info("Initializing interface %s", args)
-        globals.interface = initialize_interface(args)
+        lock = threading.Lock()
+        with lock: 
+            globals.interface = initialize_interface(args)
         logging.info("Interface initialized")
+        
         globals.myNodeNum = get_nodeNum()
         globals.channel_list = get_channels()
         globals.node_list = get_node_list()
