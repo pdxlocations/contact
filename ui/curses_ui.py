@@ -417,9 +417,12 @@ def draw_messages_window(scroll_to_bottom = False):
 def draw_node_list():
     global nodes_pad
 
+    # This didn't work, for some reason an error is thown on startup, so we just create the pad every time
     # if nodes_pad is None:
+        # nodes_pad = curses.newpad(1, 1)
     nodes_pad = curses.newpad(1, 1)
 
+    
     try:
         nodes_pad.erase()
         box_width = nodes_win.getmaxyx()[1]
