@@ -17,7 +17,9 @@ from utilities.arg_parser import setup_parser
 from utilities.interfaces import initialize_interface
 from message_handlers.rx_handler import on_receive
 from ui.curses_ui import main_ui, draw_splash
+from input_handlers import get_list_input
 from utilities.utils import get_channels, get_node_list, get_nodeNum
+from settings import set_region
 from db_handler import init_nodedb, load_messages_from_db
 import default_config as config
 import globals
@@ -50,6 +52,7 @@ def main(stdscr):
         logging.info("Initializing interface %s", args)
         with globals.lock: 
             globals.interface = initialize_interface(args)
+
             logging.info("Interface initialized")
             globals.myNodeNum = get_nodeNum()
             globals.channel_list = get_channels()
@@ -58,6 +61,14 @@ def main(stdscr):
             init_nodedb()
             load_messages_from_db()
             logging.info("Starting main UI")
+
+        if globals.interface.localNode.localConfig.lora.region == 0:
+            confirmation = get_list_input("Your region is UNSET.  Set it now?", "Yes",  ["Yes", "No"])
+            if confirmation == "Yes":
+                set_region()
+                globals.interface.close()
+                globals.interface = initialize_interface(args)
+            
         main_ui(stdscr)
     except Exception as e:
         logging.error("An error occurred: %s", e)

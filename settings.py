@@ -9,6 +9,7 @@ from ui.menus import generate_menu_from_protobuf
 from ui.colors import setup_colors, get_color
 from utilities.arg_parser import setup_parser
 from utilities.interfaces import initialize_interface
+from ui.dialog import dialog
 from user_config import json_editor
 import globals
 
@@ -348,6 +349,14 @@ def settings_menu(stdscr, interface):
             menu_win.refresh()
             break
 
+def set_region():
+    node = globals.interface.getNode('^local')
+    device_config = node.localConfig
+    regions = [region.name for region in device_config.lora.DESCRIPTOR.fields_by_name["region"].enum_type.values]
+    new_region = get_list_input('Select your region:', 'UNSET', regions)
+    node.localConfig.lora.region = new_region
+    node.writeConfig("lora")
+    
 
 def main(stdscr):
     logging.basicConfig( # Run `tail -f client.log` in another terminal to view live
