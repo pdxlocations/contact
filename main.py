@@ -56,6 +56,8 @@ def main(stdscr):
                 confirmation = get_list_input("Your region is UNSET.  Set it now?", "Yes",  ["Yes", "No"])
                 if confirmation == "Yes":
                     set_region()
+                    globals.interface.close()
+                    globals.interface = initialize_interface(args)
             logging.info("Interface initialized")
             globals.myNodeNum = get_nodeNum()
             globals.channel_list = get_channels()
