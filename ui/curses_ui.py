@@ -74,7 +74,6 @@ def handle_resize(stdscr, firstrun):
         win.box()
         win.refresh()
 
-
     entry_win.keypad(True)
     curses.curs_set(1)
 
@@ -90,13 +89,12 @@ def handle_resize(stdscr, firstrun):
 
 
 def main_ui(stdscr):
-
+    global input_text
+    input_text = ""
     stdscr.keypad(True)
     get_channels()
-    
     handle_resize(stdscr, True)
 
-    input_text = ""
     while True:
         draw_text_field(entry_win, f"Input: {input_text[-(stdscr.getmaxyx()[1] - 10):]}", get_color("input"))
 
@@ -444,6 +442,11 @@ def draw_node_list():
 
     refresh_pad(2)
 
+    # Restore cursor to input field
+    entry_win.move(1, len("Input: ") + len(input_text)+1)
+    entry_win.refresh()
+    curses.curs_set(1)
+
 def select_channel(idx):
     old_selected_channel = globals.selected_channel
     globals.selected_channel = max(0, min(idx, len(globals.channel_list) - 1))
@@ -539,6 +542,11 @@ def draw_packetlog_win():
         packetlog_win.attrset(get_color("window_frame"))
         packetlog_win.box()
         packetlog_win.refresh()
+
+    # Restore cursor to input field
+    entry_win.move(1, len("Input: ") + len(input_text)+1)
+    entry_win.refresh()
+    curses.curs_set(1)
 
 def search(win):
     start_idx = globals.selected_node
