@@ -152,7 +152,7 @@ def settings_menu(stdscr, interface):
             menu_win.erase()
             menu_win.refresh()
             if show_save_option and selected_index == len(options):
-                save_changes(interface, menu_path, modified_settings)
+                save_changes(menu_path, modified_settings)
                 modified_settings.clear()
                 logging.info("Changes Saved")
 

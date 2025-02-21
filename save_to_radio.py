@@ -5,7 +5,7 @@ import base64
 from db_handler import update_node_info_in_db
 import globals
 
-def save_changes(interface, menu_path, modified_settings):
+def save_changes(menu_path, modified_settings):
     """
     Save changes to the device based on modified settings.
     :param interface: Meshtastic interface instance
@@ -17,7 +17,7 @@ def save_changes(interface, menu_path, modified_settings):
             logging.info("No changes to save. modified_settings is empty.")
             return
         
-        node = interface.getNode('^local')
+        node = globals.interface.getNode('^local')
 
         if menu_path[1] ==  "Radio Settings" or menu_path[1] == "Module Settings":
             config_category = menu_path[2].lower() # for radio and module configs
@@ -27,7 +27,7 @@ def save_changes(interface, menu_path, modified_settings):
                 lon = float(modified_settings.get('longitude', 0.0))
                 alt = int(modified_settings.get('altitude', 0))
 
-                interface.localNode.setFixedPosition(lat, lon, alt)
+                globals.interface.localNode.setFixedPosition(lat, lon, alt)
                 logging.info(f"Updated {config_category} with Latitude: {lat} and Longitude {lon} and Altitude {alt}")
                 return
 
