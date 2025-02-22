@@ -4,38 +4,58 @@ import logging
 import base64
 
 
-def extract_fields(message_instance, current_config=None):
+FIELD_EXCLUSION_MAP = {
+    "global": {"sessionkey"},
+    "channel": {"channel_num", "id"},
+    "radio": {"ignore_incoming"},
+    "module": None
+}
+
+def extract_fields(message_instance, current_config=None, parent_context=None, exclusion_map=None):
     if isinstance(current_config, dict):  # Handle dictionaries
         return {key: (None, current_config.get(key, "Not Set")) for key in current_config}
     
     if not hasattr(message_instance, "DESCRIPTOR"):
         return {}
-    
+
+    if exclusion_map is None:
+        exclusion_map = FIELD_EXCLUSION_MAP  # Use default if not provided
+
+    # Combine global exclusions with context-specific exclusions
+    global_exclusions = exclusion_map.get("global", set())
+    context_exclusions = exclusion_map.get(parent_context, set())
+    total_exclusions = global_exclusions.union(context_exclusions)
+
     menu = {}
     fields = message_instance.DESCRIPTOR.fields
+
     for field in fields:
-        if field.name in {"sessionkey", "channel_num", "id", "ignore_incoming"}:  # Skip certain fields
+        if field.name in total_exclusions:
             continue
 
         if field.message_type:  # Nested message
             nested_instance = getattr(message_instance, field.name)
             nested_config = getattr(current_config, field.name, None) if current_config else None
-            menu[field.name] = extract_fields(nested_instance, nested_config)
+            menu[field.name] = extract_fields(
+                nested_instance,
+                nested_config,
+                parent_context=parent_context,
+                exclusion_map=exclusion_map
+            )
         elif field.enum_type:  # Handle enum fields
             current_value = getattr(current_config, field.name, "Not Set") if current_config else "Not Set"
-            if isinstance(current_value, int):  # If the value is a number, map it to its name
+            if isinstance(current_value, int):  # Map enum number to name
                 enum_value = field.enum_type.values_by_number.get(current_value)
-                if enum_value:  # Check if the enum value exists
-                    current_value_name = f"{enum_value.name}"
-                else:
-                    current_value_name = f"Unknown ({current_value})"
+                current_value_name = f"{enum_value.name}" if enum_value else f"Unknown ({current_value})"
                 menu[field.name] = (field, current_value_name)
             else:
-                menu[field.name] = (field, current_value)  # Non-integer values
-        else:  # Handle other field types
+                menu[field.name] = (field, current_value)
+        else:  # Other field types
             current_value = getattr(current_config, field.name, "Not Set") if current_config else "Not Set"
             menu[field.name] = (field, current_value)
+
     return menu
+
 
 def generate_menu_from_protobuf(interface):
 # Function to generate the menu structure from protobuf messages
@@ -68,9 +88,18 @@ def generate_menu_from_protobuf(interface):
         for i in range(8):
             current_channel = interface.localNode.getChannelByChannelIndex(i)
             if current_channel:
-                channel_config = extract_fields(channel, current_channel.settings)
-                # Convert 'psk' field to Base64
-                channel_config["psk"] = (channel_config["psk"][0], base64.b64encode(channel_config["psk"][1]).decode('utf-8'))
+                # Apply 'channel' context here
+                channel_config = extract_fields(
+                    channel,
+                    current_channel.settings,
+                    parent_context="channel",  # Dynamic context
+                    exclusion_map=FIELD_EXCLUSION_MAP  # Pass exclusion map
+                )
+                # Convert 'psk' to Base64
+                channel_config["psk"] = (
+                    channel_config["psk"][0],
+                    base64.b64encode(channel_config["psk"][1]).decode('utf-8')
+                )
                 menu_structure["Main Menu"]["Channels"][f"Channel {i + 1}"] = channel_config
 
     # Add Radio Settings
@@ -99,14 +128,23 @@ def generate_menu_from_protobuf(interface):
             ordered_position_menu[key] = value
 
     # Update the menu with the new order
-    menu_structure["Main Menu"]["Radio Settings"]["position"] = ordered_position_menu
-
+    menu_structure["Main Menu"]["Radio Settings"] = extract_fields(
+        radio,
+        current_radio_config,
+        parent_context="radio",
+        exclusion_map=FIELD_EXCLUSION_MAP
+    )
 
     # Add Module Settings
     module = module_config_pb2.ModuleConfig()
     current_module_config = interface.localNode.moduleConfig if interface else None
-    menu_structure["Main Menu"]["Module Settings"] = extract_fields(module, current_module_config)
 
+    menu_structure["Main Menu"]["Module Settings"] = extract_fields(
+        module,
+        current_module_config,
+        parent_context="module",  # Apply 'module' context
+        exclusion_map=FIELD_EXCLUSION_MAP
+)
     # Add App Settings
     menu_structure["Main Menu"]["App Settings"] = {"Open": "app_settings"}
 
