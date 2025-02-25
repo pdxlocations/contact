@@ -2,6 +2,7 @@ from datetime import datetime
 import google.protobuf.json_format
 from meshtastic import BROADCAST_NUM
 from meshtastic.protobuf import mesh_pb2, portnums_pb2
+import logging
 
 from db_handler import save_message_to_db, update_ack_nak, get_name_from_database, is_chat_archived, update_node_info_in_db
 import default_config as config
@@ -119,55 +120,64 @@ def on_response_traceroute(packet):
 
 
 def send_message(message, destination=BROADCAST_NUM, channel=0):
-    myid = globals.myNodeNum
-    send_on_channel = 0
-    channel_id = globals.channel_list[channel]
-    if isinstance(channel_id, int):
+    # Check if the interface is initialized and connected
+    if not globals.interface or not getattr(globals.interface, 'isConnected', False):
+        logging.error("Cannot send message: No active connection to Meshtastic device.")
+        return  # Or raise an exception if you prefer
+
+    try:
+        myid = globals.myNodeNum
         send_on_channel = 0
-        destination = channel_id
-    elif isinstance(channel_id, str):
-        send_on_channel = channel
+        channel_id = globals.channel_list[channel]
+        if isinstance(channel_id, int):
+            send_on_channel = 0
+            destination = channel_id
+        elif isinstance(channel_id, str):
+            send_on_channel = channel
 
-    sent_message_data = globals.interface.sendText(
-        text=message,
-        destinationId=destination,
-        wantAck=True,
-        wantResponse=False,
-        onResponse=onAckNak,
-        channelIndex=send_on_channel,
-    )
+        # Attempt to send the message
+        sent_message_data = globals.interface.sendText(
+            text=message,
+            destinationId=destination,
+            wantAck=True,
+            wantResponse=False,
+            onResponse=onAckNak,
+            channelIndex=send_on_channel,
+        )
 
-    # Add sent message to the messages dictionary
-    if channel_id not in globals.all_messages:
-        globals.all_messages[channel_id] = []
+        # Add sent message to the messages dictionary
+        if channel_id not in globals.all_messages:
+            globals.all_messages[channel_id] = []
 
-    # Handle timestamp logic
-    current_timestamp = int(datetime.now().timestamp())  # Get current timestamp
-    current_hour = datetime.fromtimestamp(current_timestamp).strftime('%Y-%m-%d %H:00')
+        # Handle timestamp logic
+        current_timestamp = int(datetime.now().timestamp())
+        current_hour = datetime.fromtimestamp(current_timestamp).strftime('%Y-%m-%d %H:00')
 
-    # Retrieve the last timestamp if available
-    channel_messages = globals.all_messages[channel_id]
-    if channel_messages:
-        # Check the last entry for a timestamp
+        channel_messages = globals.all_messages[channel_id]
+        last_hour = None
         for entry in reversed(channel_messages):
             if entry[0].startswith("--"):
                 last_hour = entry[0].strip("- ").strip()
                 break
-        else:
-            last_hour = None
-    else:
-        last_hour = None
 
-    # Add a new timestamp if it's a new hour
-    if last_hour != current_hour:
-        globals.all_messages[channel_id].append((f"-- {current_hour} --", ""))
+        if last_hour != current_hour:
+            globals.all_messages[channel_id].append((f"-- {current_hour} --", ""))
 
-    globals.all_messages[channel_id].append((config.sent_message_prefix + config.ack_unknown_str + ": ", message))
+        globals.all_messages[channel_id].append((config.sent_message_prefix + config.ack_unknown_str + ": ", message))
 
-    timestamp = save_message_to_db(channel_id, myid, message)
+        timestamp = save_message_to_db(channel_id, myid, message)
 
-    ack_naks[sent_message_data.id] = {'channel': channel_id, 'messageIndex': len(globals.all_messages[channel_id]) - 1, 'timestamp': timestamp}
+        ack_naks[sent_message_data.id] = {
+            'channel': channel_id,
+            'messageIndex': len(globals.all_messages[channel_id]) - 1,
+            'timestamp': timestamp
+        }
 
+    except Exception as e:
+        # Catch any error and log it
+        logging.error(f"Failed to send message due to unexpected error: {e}", exc_info=True)
+
+        
 def send_traceroute():
     r = mesh_pb2.RouteDiscovery()
     globals.interface.sendData(
