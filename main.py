@@ -12,6 +12,7 @@ import os
 import logging
 import traceback
 import threading
+import contextlib
 
 from utilities.arg_parser import setup_parser
 from utilities.interfaces import initialize_interface
@@ -74,8 +75,9 @@ def main(stdscr):
         raise
 
 if __name__ == "__main__":
-    try:
-        curses.wrapper(main)
-    except Exception as e:
-        logging.error("Fatal error in curses wrapper: %s", e)
-        logging.error("Traceback: %s", traceback.format_exc())
+    with open(os.devnull, 'w') as fnull, contextlib.redirect_stderr(fnull), contextlib.redirect_stdout(fnull):
+        try:
+            curses.wrapper(main)
+        except Exception as e:
+            logging.error("Fatal error in curses wrapper: %s", e)
+            logging.error("Traceback: %s", traceback.format_exc())
