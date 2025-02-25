@@ -12,6 +12,7 @@ import os
 import logging
 import traceback
 import threading
+import asyncio
 
 from utilities.arg_parser import setup_parser
 from utilities.interfaces import initialize_interface
@@ -19,6 +20,7 @@ from message_handlers.rx_handler import on_receive
 from ui.curses_ui import main_ui, draw_splash
 from input_handlers import get_list_input
 from utilities.utils import get_channels, get_node_list, get_nodeNum
+from utilities.watchdog import watchdog
 from settings import set_region
 from db_handler import init_nodedb, load_messages_from_db
 import default_config as config
@@ -37,7 +39,7 @@ if os.environ.get("COLORTERM") == "gnome-terminal":
 # Run `tail -f client.log` in another terminal to view live
 logging.basicConfig(
     filename=config.log_file_path,
-    level=logging.INFO,  # DEBUG, INFO, WARNING, ERROR, CRITICAL)
+    level=logging.WARNING,  # DEBUG, INFO, WARNING, ERROR, CRITICAL)
     format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
@@ -50,14 +52,20 @@ def main(stdscr):
         args = parser.parse_args()
 
         logging.info("Initializing interface %s", args)
-        with globals.lock: 
+        with globals.lock:
             globals.interface = initialize_interface(args)
+
+            # Run watchdog in a separate thread
+            threading.Thread(target=lambda: asyncio.run(watchdog(args)), daemon=True).start()
+
+            # Continue with the rest of the initialization
             if globals.interface.localNode.localConfig.lora.region == 0:
-                confirmation = get_list_input("Your region is UNSET.  Set it now?", "Yes",  ["Yes", "No"])
+                confirmation = get_list_input("Your region is UNSET. Set it now?", "Yes", ["Yes", "No"])
                 if confirmation == "Yes":
                     set_region()
                     globals.interface.close()
                     globals.interface = initialize_interface(args)
+
             logging.info("Interface initialized")
             globals.myNodeNum = get_nodeNum()
             globals.channel_list = get_channels()

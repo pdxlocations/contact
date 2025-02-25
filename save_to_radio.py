@@ -1,7 +1,7 @@
-from meshtastic.protobuf import channel_pb2
-from google.protobuf.message import Message
 import logging
 import base64
+from google.protobuf.message import Message
+from meshtastic.protobuf import channel_pb2
 from db_handler import update_node_info_in_db
 import globals
 

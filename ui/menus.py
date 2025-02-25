@@ -1,7 +1,7 @@
 from collections import OrderedDict
-from meshtastic.protobuf import config_pb2, module_config_pb2, channel_pb2
 import logging
 import base64
+from meshtastic.protobuf import config_pb2, module_config_pb2, channel_pb2
 
 
 def extract_fields(message_instance, current_config=None):
