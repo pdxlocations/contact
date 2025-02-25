@@ -9,6 +9,7 @@ V 1.2.1
 import curses
 from pubsub import pub
 import os
+import contextlib
 import logging
 import traceback
 import threading
@@ -82,8 +83,9 @@ def main(stdscr):
         raise
 
 if __name__ == "__main__":
-    try:
-        curses.wrapper(main)
-    except Exception as e:
-        logging.error("Fatal error in curses wrapper: %s", e)
-        logging.error("Traceback: %s", traceback.format_exc())
+    with open(os.devnull, 'w') as fnull, contextlib.redirect_stderr(fnull), contextlib.redirect_stdout(fnull):
+        try:
+            curses.wrapper(main)
+        except Exception as e:
+            logging.error("Fatal error in curses wrapper: %s", e)
+            logging.error("Traceback: %s", traceback.format_exc())
