@@ -8,7 +8,7 @@ from .interfaces import initialize_interface
 import globals
 
 
-test_connection_seconds = 10
+test_connection_seconds = 20
 retry_connection_seconds = 3
 
 # Function to get firmware version
