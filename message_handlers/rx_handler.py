@@ -1,5 +1,7 @@
 import logging
 import time
+from datetime import datetime
+
 from utilities.utils import refresh_node_list
 from datetime import datetime
 from ui.curses_ui import draw_packetlog_win, draw_node_list, draw_messages_window, draw_channel_list, add_notification
@@ -7,8 +9,6 @@ from db_handler import save_message_to_db, maybe_store_nodeinfo_in_db, get_name_
 import default_config as config
 import globals
 
-
-from datetime import datetime
 
 def on_receive(packet, interface):
 

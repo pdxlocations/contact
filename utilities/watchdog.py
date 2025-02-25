@@ -3,7 +3,6 @@ import io
 import contextlib
 import socket
 import logging
-import logging
 
 from .interfaces import initialize_interface
 import globals
@@ -26,21 +25,27 @@ def getNodeFirmware(interface):
 
         return -1
     except (socket.error, BrokenPipeError, ConnectionResetError, Exception) as e:
-        logging.info(f"Error retrieving firmware: {e}")
+        logging.warning(f"Error retrieving firmware: {e}")
         raise e  # Propagate the error to handle reconnection
 
 # Async function to retry connection
 async def retry_interface(args):
-    logging.info("Retrying connection to the interface...")
+    logging.warning("Retrying connection to the interface...")
     await asyncio.sleep(retry_connection_seconds)  # Wait before retrying
 
     try:
         globals.interface = initialize_interface(args)
+        if globals.interface and hasattr(globals.interface, 'localNode'):
+            logging.warning("Interface reinitialized successfully.")
+            return globals.interface
+        else:
+            logging.error("Failed to reinitialize interface: Missing localNode or invalid interface.")
+            globals.interface = None  # Clear invalid interface
+            return None
 
-        logging.info("Interface reinitialized successfully.")
-        return globals.interface
     except (ConnectionRefusedError, socket.error, Exception) as e:
         logging.error(f"Failed to reinitialize interface: {e}")
+        globals.interface = None
         return None
 
 # Function to check connection and reconnect if needed
@@ -60,6 +65,7 @@ async def check_and_reconnect(args):
 
     except (socket.error, BrokenPipeError, ConnectionResetError, Exception) as e:
         logging.error(f"Error with the interface, setting to None and attempting reconnect: {e}")
+        globals.interface = None
         return await retry_interface(args)
 
 # Main watchdog loop
@@ -71,5 +77,3 @@ async def watchdog(args):
             pass  # Interface is connected
         else:
             logging.error("Interface connection failed. Retrying...")
-
-
