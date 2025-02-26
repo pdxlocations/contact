@@ -9,6 +9,7 @@ V 1.2.1
 import curses
 from pubsub import pub
 import os
+import sys
 import logging
 import traceback
 import threading
@@ -24,8 +25,6 @@ from settings import set_region
 from db_handler import init_nodedb, load_messages_from_db
 import default_config as config
 import globals
-
-import os
 
 # Set ncurses compatibility settings
 os.environ["NCURSES_NO_UTF8_ACS"] = "1"
@@ -75,8 +74,13 @@ def main(stdscr):
         raise
 
 if __name__ == "__main__":
-    log_file = config.log_file_path 
-    with open(log_file, "a") as log_f, contextlib.redirect_stderr(log_f), contextlib.redirect_stdout(log_f):
+    log_file = config.log_file_path
+    log_f = open(log_file, "a", buffering=1)  # Enable line-buffering for immediate log writes
+    
+    sys.stdout = log_f
+    sys.stderr = log_f
+
+    with contextlib.redirect_stderr(log_f), contextlib.redirect_stdout(log_f):
         try:
             curses.wrapper(main)
         except Exception as e:
