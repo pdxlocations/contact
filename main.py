@@ -75,7 +75,8 @@ def main(stdscr):
         raise
 
 if __name__ == "__main__":
-    with open(os.devnull, 'w') as fnull, contextlib.redirect_stderr(fnull), contextlib.redirect_stdout(fnull):
+    log_file = config.log_file_path 
+    with open(log_file, "a") as log_f, contextlib.redirect_stderr(log_f), contextlib.redirect_stdout(log_f):
         try:
             curses.wrapper(main)
         except Exception as e:
