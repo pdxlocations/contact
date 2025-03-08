@@ -6,27 +6,27 @@ Powered by Meshtastic.org
 V 1.2.1
 '''
 
+import contextlib
 import curses
-from pubsub import pub
 import os
-import io
+from pubsub import pub
 import sys
+import io
 import logging
 import traceback
 import threading
-import contextlib
 
-from utilities.arg_parser import setup_parser
-from utilities.interfaces import initialize_interface
+from db_handler import init_nodedb, load_messages_from_db
 from message_handlers.rx_handler import on_receive
+from settings import set_region
 from ui.curses_ui import main_ui
 from ui.colors import setup_colors
 from ui.splash import draw_splash
+import ui.default_config as config
+from utilities.arg_parser import setup_parser
+from utilities.interfaces import initialize_interface
 from utilities.input_handlers import get_list_input
 from utilities.utils import get_channels, get_node_list, get_nodeNum
-from settings import set_region
-from db_handler import init_nodedb, load_messages_from_db
-import ui.default_config as config
 import globals
 
 # Set ncurses compatibility settings
@@ -63,7 +63,7 @@ def main(stdscr):
                 if globals.interface.localNode.localConfig.lora.region == 0:
                     confirmation = get_list_input("Your region is UNSET. Set it now?", "Yes", ["Yes", "No"])
                     if confirmation == "Yes":
-                        set_region()
+                        set_region(globals.interface)
                         globals.interface.close()
                         globals.interface = initialize_interface(args)
 
