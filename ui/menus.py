@@ -106,6 +106,9 @@ def generate_menu_from_protobuf(interface):
     module = module_config_pb2.ModuleConfig()
     current_module_config = interface.localNode.moduleConfig if interface else None
     menu_structure["Main Menu"]["Module Settings"] = extract_fields(module, current_module_config)
+    
+    # Add App Settings
+    menu_structure["Main Menu"]["App Settings"] = {"Open": "app_settings"}
 
     # Additional settings options
     menu_structure["Main Menu"].update({
