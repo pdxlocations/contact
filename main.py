@@ -22,11 +22,11 @@ from message_handlers.rx_handler import on_receive
 from ui.curses_ui import main_ui
 from ui.colors import setup_colors
 from ui.splash import draw_splash
-from input_handlers import get_list_input
+from utilities.input_handlers import get_list_input
 from utilities.utils import get_channels, get_node_list, get_nodeNum
 from settings import set_region
 from db_handler import init_nodedb, load_messages_from_db
-import default_config as config
+import ui.default_config as config
 import globals
 
 # Set ncurses compatibility settings

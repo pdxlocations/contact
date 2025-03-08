@@ -2,8 +2,8 @@ import os
 import json
 import curses
 from ui.colors import get_color, setup_colors, COLOR_MAP
-from default_config import format_json_single_line_arrays, loaded_config
-from input_handlers import get_list_input
+from ui.default_config import format_json_single_line_arrays, loaded_config
+from utilities.input_handlers import get_list_input
 
 width = 60
 save_option_text = "Save Changes"

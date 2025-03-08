@@ -4,7 +4,7 @@ import logging
 from datetime import datetime
 
 from utilities.utils import decimal_to_hex
-import default_config as config
+import ui.default_config as config
 import globals
 
 def get_table_name(channel):

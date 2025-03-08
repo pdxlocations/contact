@@ -1,5 +1,5 @@
 import curses
-import default_config as config
+import ui.default_config as config
 
 COLOR_MAP = {
     "black": curses.COLOR_BLACK,

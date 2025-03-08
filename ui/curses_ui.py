@@ -7,7 +7,7 @@ from settings import settings_menu
 from message_handlers.tx_handler import send_message, send_traceroute
 from ui.colors import setup_colors, get_color
 from db_handler import get_name_from_database, update_node_info_in_db, is_chat_archived
-import default_config as config
+import ui.default_config as config
 import ui.dialog
 import globals
 
