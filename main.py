@@ -16,7 +16,7 @@ import logging
 import traceback
 import threading
 
-from db_handler import init_nodedb, load_messages_from_db
+from utilities.db_handler import init_nodedb, load_messages_from_db
 from message_handlers.rx_handler import on_receive
 from settings import set_region
 from ui.curses_ui import main_ui
