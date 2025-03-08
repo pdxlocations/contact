@@ -463,12 +463,12 @@ def settings_menu(stdscr, interface):
                     logging.info(f"Factory Reset Requested by menu")
                 continue
 
-            # elif selected_option == "App Settings":
-            #     menu_win.clear()
-            #     menu_win.refresh()
-            #     json_editor(stdscr)  # Open the App Settings menu
-            #     continue
-            #     # need_redraw = True
+            elif selected_option == "App Settings":
+                menu_win.clear()
+                menu_win.refresh()
+                json_editor(stdscr)  # Open the App Settings menu
+                continue
+                # need_redraw = True
                 
             field_info = current_menu.get(selected_option)
             if isinstance(field_info, tuple):
