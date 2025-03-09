@@ -8,3 +8,6 @@ client.log
 settings.log
 config.json
 default_config.log
+client.db-shm
+client.db-wal
+client.db.bk
