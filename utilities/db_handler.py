@@ -1,17 +1,42 @@
 import sqlite3
 import time
 import logging
+import re
 from datetime import datetime
 
 from utilities.utils import decimal_to_hex
 import ui.default_config as config
 import globals
 
+
+def get_db_connection():
+    """Get a SQLite connection with optimized PRAGMA settings."""
+    db_connection = sqlite3.connect(config.db_file_path, check_same_thread=False)
+    db_cursor = db_connection.cursor()
+
+    # Check if journal_mode is already set to WAL
+    db_cursor.execute("PRAGMA journal_mode;")
+    current_journal_mode = db_cursor.fetchone()[0]
+
+    if current_journal_mode != "wal":
+        db_cursor.execute("PRAGMA journal_mode=WAL;")
+
+    # Apply remaining PRAGMA settings (these are fine to execute every time)
+    db_cursor.executescript("""
+        PRAGMA synchronous=NORMAL;
+        PRAGMA cache_size=-64000;
+        PRAGMA temp_store=MEMORY;
+        PRAGMA foreign_keys=ON;
+    """)
+
+    return db_connection
+
+
 def get_table_name(channel):
-    # Construct the table name
-    table_name = f"{str(globals.myNodeNum)}_{channel}_messages"
-    quoted_table_name = f'"{table_name}"'  # Quote the table name becuase we begin with numerics and contain spaces
-    return quoted_table_name
+    """Returns a properly formatted and safe table name."""
+    safe_channel = re.sub(r'[^a-zA-Z0-9_]', '', str(channel))
+    table_name = f"{globals.myNodeNum}_{safe_channel}_messages"
+    return f'"{table_name}"'
 
 
 def save_message_to_db(channel, user_id, message_text):
@@ -27,7 +52,7 @@ def save_message_to_db(channel, user_id, message_text):
         '''
         ensure_table_exists(quoted_table_name, schema)
 
-        with sqlite3.connect(config.db_file_path) as db_connection:
+        with get_db_connection() as db_connection:
             db_cursor = db_connection.cursor()
             timestamp = int(time.time())
 
@@ -49,7 +74,7 @@ def save_message_to_db(channel, user_id, message_text):
 
 def update_ack_nak(channel, timestamp, message, ack):
     try:
-        with sqlite3.connect(config.db_file_path) as db_connection:
+        with get_db_connection() as db_connection:
             db_cursor = db_connection.cursor()
             update_query = f"""
                 UPDATE {get_table_name(channel)}
@@ -72,7 +97,7 @@ def update_ack_nak(channel, timestamp, message, ack):
 def load_messages_from_db():
     """Load messages from the database for all channels and update globals.all_messages and globals.channel_list."""
     try:
-        with sqlite3.connect(config.db_file_path) as db_connection:
+        with get_db_connection() as db_connection:
             db_cursor = db_connection.cursor()
 
             query = "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE ?"
@@ -196,7 +221,7 @@ def update_node_info_in_db(user_id, long_name=None, short_name=None, hw_model=No
     try:
         ensure_node_table_exists()  # Ensure the table exists before any operation
 
-        with sqlite3.connect(config.db_file_path) as db_connection:
+        with get_db_connection() as db_connection:
             db_cursor = db_connection.cursor()
             table_name = f'"{globals.myNodeNum}_nodedb"'  # Quote in case of numeric names
 
@@ -223,16 +248,16 @@ def update_node_info_in_db(user_id, long_name=None, short_name=None, hw_model=No
 
             # Upsert logic
             upsert_query = f'''
-                INSERT INTO {table_name} (user_id, long_name, short_name, hw_model, is_licensed, role, public_key, chat_archived)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(user_id) DO UPDATE SET
-                    long_name = excluded.long_name,
-                    short_name = excluded.short_name,
-                    hw_model = excluded.hw_model,
-                    is_licensed = excluded.is_licensed,
-                    role = excluded.role,
-                    public_key = excluded.public_key,
-                    chat_archived = excluded.chat_archived
+            INSERT INTO {table_name} (user_id, long_name, short_name, hw_model, is_licensed, role, public_key, chat_archived)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(user_id) DO UPDATE SET
+                long_name = excluded.long_name,
+                short_name = excluded.short_name,
+                hw_model = excluded.hw_model,
+                is_licensed = excluded.is_licensed,
+                role = excluded.role,
+                public_key = excluded.public_key,
+                chat_archived = COALESCE(excluded.chat_archived, chat_archived);
             '''
             db_cursor.execute(upsert_query, (user_id, long_name, short_name, hw_model, is_licensed, role, public_key, chat_archived))
             db_connection.commit()
@@ -262,7 +287,7 @@ def ensure_node_table_exists():
 def ensure_table_exists(table_name, schema):
     """Ensure the given table exists in the database."""
     try:
-        with sqlite3.connect(config.db_file_path) as db_connection:
+        with get_db_connection() as db_connection:
             db_cursor = db_connection.cursor()
             create_table_query = f"CREATE TABLE IF NOT EXISTS {table_name} ({schema})"
             db_cursor.execute(create_table_query)
@@ -273,31 +298,32 @@ def ensure_table_exists(table_name, schema):
         logging.error(f"Unexpected error in ensure_table_exists({table_name}): {e}")
 
 
+name_cache = {}
+
 def get_name_from_database(user_id, type="long"):
-    """
-    Retrieve a user's name (long or short) from the node database.
-    
-    :param user_id: The user ID to look up.
-    :param type: "long" for long name, "short" for short name.
-    :return: The retrieved name or the hex of the user id
-    """
+    """Retrieve a user's name from the node database with caching."""
+    # Check if we already cached both long and short names
+    if user_id in name_cache and type in name_cache[user_id]:
+        return name_cache[user_id][type]
+
     try:
-        with sqlite3.connect(config.db_file_path) as db_connection:
+        with get_db_connection() as db_connection:
             db_cursor = db_connection.cursor()
-
-            # Construct table name
             table_name = f"{str(globals.myNodeNum)}_nodedb"
-            nodeinfo_table = f'"{table_name}"'  # Quote table name for safety
-            
-            # Determine the correct column to fetch
-            column_name = "long_name" if type == "long" else "short_name"
+            nodeinfo_table = f'"{table_name}"'
 
-            # Query the database
-            query = f"SELECT {column_name} FROM {nodeinfo_table} WHERE user_id = ?"
-            db_cursor.execute(query, (user_id,))
+            # Fetch both long and short names in one query
+            db_cursor.execute(f"SELECT long_name, short_name FROM {nodeinfo_table} WHERE user_id = ?", (user_id,))
             result = db_cursor.fetchone()
 
-            return result[0] if result else decimal_to_hex(user_id)
+            if result:
+                long_name, short_name = result or ("Unknown", "Unknown")  # Handle empty result
+                name_cache[user_id] = {"long": long_name, "short": short_name}
+                return name_cache[user_id][type]
+
+            # If no result, store a fallback value in the cache to avoid future DB queries
+            name_cache[user_id] = {"long": decimal_to_hex(user_id), "short": decimal_to_hex(user_id)}
+            return name_cache[user_id][type]
 
     except sqlite3.Error as e:
         logging.error(f"SQLite error in get_name_from_database: {e}")
@@ -306,10 +332,12 @@ def get_name_from_database(user_id, type="long"):
     except Exception as e:
         logging.error(f"Unexpected error in get_name_from_database: {e}")
         return "Unknown"
+    
 
 def is_chat_archived(user_id):
+    """Check if a chat is archived, returning 0 (False) if not found."""
     try:
-        with sqlite3.connect(config.db_file_path) as db_connection:
+        with get_db_connection() as db_connection:
             db_cursor = db_connection.cursor()
             table_name = f"{str(globals.myNodeNum)}_nodedb"
             nodeinfo_table = f'"{table_name}"'
@@ -321,9 +349,8 @@ def is_chat_archived(user_id):
 
     except sqlite3.Error as e:
         logging.error(f"SQLite error in is_chat_archived: {e}")
-        return "Unknown"
+        return 0
 
     except Exception as e:
         logging.error(f"Unexpected error in is_chat_archived: {e}")
-        return "Unknown"
-
+        return 0
