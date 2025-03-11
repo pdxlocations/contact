@@ -190,11 +190,15 @@ def maybe_store_nodeinfo_in_db(packet):
     except Exception as e:
         logging.error(f"Unexpected error in maybe_store_nodeinfo_in_db: {e}")
 
-
-def update_node_info_in_db(user_id, long_name=None, short_name=None, hw_model=None, is_licensed=None, role=None, public_key=None, chat_archived=None):
+def update_node_info_in_db(user_id, long_name=None, short_name=None, hw_model="UNSET", is_licensed=0, role="CLIENT", public_key="", chat_archived=0):
     """Update or insert node information into the database, preserving unchanged fields."""
     try:
         ensure_node_table_exists()  # Ensure the table exists before any operation
+
+        if long_name == None:
+            long_name = "Meshtastic " + str(decimal_to_hex(user_id)[-4:])
+        if short_name == None:
+            short_name = str(decimal_to_hex(user_id)[-4:])
 
         with sqlite3.connect(config.db_file_path) as db_connection:
             db_cursor = db_connection.cursor()
