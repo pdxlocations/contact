@@ -100,7 +100,13 @@ def display_menu(current_menu, menu_path, selected_index, show_save_option, help
         menu_win.getbegyx()[1] + menu_win.getmaxyx()[1] - 8
     )
 
+    max_index = num_items + (1 if show_save_option else 0) - 1
+    visible_height = menu_win.getmaxyx()[0] - 5 - (2 if show_save_option else 0)
+
+    draw_arrows(menu_win, visible_height, max_index, start_index, show_save_option)
+
     return menu_win, menu_pad
+
 
 def draw_help_window(menu_start_y, menu_start_x, menu_height, max_help_lines, current_menu, selected_index, transformed_path):
     global help_win
@@ -149,7 +155,6 @@ def update_help_window(help_win, help_text, transformed_path, selected_option, m
 
     help_win.refresh()
     return help_win
-
 
 
 def get_wrapped_help_text(help_text, transformed_path, selected_option, width, max_lines):
@@ -252,10 +257,13 @@ def move_highlight(old_idx, new_idx, options, show_save_option, menu_win, menu_p
     visible_height = menu_win.getmaxyx()[0] - 5 - (2 if show_save_option else 0)
 
     # Adjust start_index only when moving out of visible range
-    if new_idx < start_index[-1]:  # Moving above the visible area
+    if new_idx == max_index and show_save_option:
+        pass
+    elif new_idx < start_index[-1]:  # Moving above the visible area
         start_index[-1] = new_idx
     elif new_idx >= start_index[-1] + visible_height:  # Moving below the visible area
-        start_index[-1] = new_idx - visible_height 
+        start_index[-1] = new_idx - visible_height
+    pass
 
     # Ensure start_index is within bounds
     start_index[-1] = max(0, min(start_index[-1], max_index - visible_height + 1))
@@ -278,7 +286,7 @@ def move_highlight(old_idx, new_idx, options, show_save_option, menu_win, menu_p
     menu_pad.refresh(start_index[-1], 0,
                      menu_win.getbegyx()[0] + 3, menu_win.getbegyx()[1] + 4,
                      menu_win.getbegyx()[0] + 3 + visible_height, 
-                     menu_win.getbegyx()[1] + menu_win.getmaxyx()[1] - 8)
+                     menu_win.getbegyx()[1] + menu_win.getmaxyx()[1] - 4)
 
     # Update help window
     transformed_path = transform_menu_path(menu_path)
@@ -286,6 +294,25 @@ def move_highlight(old_idx, new_idx, options, show_save_option, menu_win, menu_p
     help_y = menu_win.getbegyx()[0] + menu_win.getmaxyx()[0]
     help_win = update_help_window(help_win, help_text, transformed_path, selected_option, max_help_lines, width, help_y, menu_win.getbegyx()[1])
 
+    draw_arrows(menu_win, visible_height, max_index, start_index, show_save_option)
+
+
+def draw_arrows(win, visible_height, max_index, start_index, show_save_option):
+
+    # vh = visible_height + (1 if show_save_option else 0)
+    mi = max_index - (2 if show_save_option else 0) 
+
+    if visible_height < mi:
+        if start_index[-1] > 0:
+            win.addstr(3, 2, "▲", get_color("settings_default"))
+        else:
+            win.addstr(3, 2, " ", get_color("settings_default"))
+
+        if mi - start_index[-1] >= visible_height + (0 if show_save_option else 1) :
+            win.addstr(visible_height + 3, 2, "▼", get_color("settings_default"))
+        else:
+            win.addstr(visible_height + 3, 2, " ", get_color("settings_default"))
+        
 
 def settings_menu(stdscr, interface):
     curses.update_lines_cols()
