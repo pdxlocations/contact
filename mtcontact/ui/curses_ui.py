@@ -2,14 +2,14 @@ import curses
 import textwrap
 import logging
 import traceback
-from utilities.utils import get_channels, get_readable_duration, get_time_ago, refresh_node_list
-from settings import settings_menu
-from message_handlers.tx_handler import send_message, send_traceroute
-from ui.colors import setup_colors, get_color
-from utilities.db_handler import get_name_from_database, update_node_info_in_db, is_chat_archived
-import ui.default_config as config
-import ui.dialog
-import globals
+from mtcontact.utilities.utils import get_channels, get_readable_duration, get_time_ago, refresh_node_list
+from mtcontact.settings import settings_menu
+from mtcontact.message_handlers.tx_handler import send_message, send_traceroute
+from mtcontact.ui.colors import setup_colors, get_color
+from mtcontact.utilities.db_handler import get_name_from_database, update_node_info_in_db, is_chat_archived
+import mtcontact.ui.default_config as config
+import mtcontact.ui.dialog
+import mtcontact.globals as globals
 
 def handle_resize(stdscr, firstrun):
     global messages_pad, messages_win, nodes_pad, nodes_win, channel_pad, channel_win, function_win, packetlog_win, entry_win
@@ -212,7 +212,7 @@ def main_ui(stdscr):
         elif char == chr(20):
             send_traceroute()
             curses.curs_set(0)  # Hide cursor
-            ui.dialog.dialog(stdscr, "Traceroute Sent", "Results will appear in messages window.\nNote: Traceroute is limited to once every 30 seconds.")
+            mtcontact.ui.dialog.dialog(stdscr, "Traceroute Sent", "Results will appear in messages window.\nNote: Traceroute is limited to once every 30 seconds.")
             curses.curs_set(1)  # Show cursor again
             handle_resize(stdscr, False)
 

@@ -5,14 +5,16 @@ import os
 import re
 import sys
 
-from utilities.save_to_radio import save_changes
-from utilities.config_io import config_export, config_import
-from utilities.input_handlers import get_repeated_input, get_text_input, get_fixed32_input, get_list_input, get_admin_key_input
-from ui.menus import generate_menu_from_protobuf
-from ui.colors import get_color
-from ui.dialog import dialog
-from utilities.control_utils import parse_ini_file, transform_menu_path
-from ui.user_config import json_editor
+from mtcontact.utilities.save_to_radio import save_changes
+from mtcontact.utilities.config_io import config_export, config_import
+from mtcontact.utilities.input_handlers import get_repeated_input, get_text_input, get_fixed32_input, get_list_input, get_admin_key_input
+from mtcontact.ui.menus import generate_menu_from_protobuf
+from mtcontact.ui.colors import get_color
+from mtcontact.ui.dialog import dialog
+from mtcontact.utilities.control_utils import parse_ini_file, transform_menu_path
+from mtcontact.ui.user_config import json_editor
+
+import mtcontact.localisations
 
 # Constants
 width = 80
@@ -27,8 +29,9 @@ parent_dir = os.path.abspath(os.path.join(script_dir, os.pardir))
 
 # Paths
 locals_dir = os.path.dirname(os.path.abspath(sys.argv[0]))  # Current script directory
-translation_file = os.path.join(locals_dir, "localisations", "en.ini")
-config_folder = os.path.join(parent_dir, "node-configs")
+translation_file = os.path.join(parent_dir, "localisations", "en.ini")
+
+config_folder = os.path.join(locals_dir, "node-configs")
 
 # Load translations
 field_mapping, help_text = parse_ini_file(translation_file)

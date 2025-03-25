@@ -1,5 +1,5 @@
 import curses
-from ui.colors import get_color
+from mtcontact.ui.colors import get_color
 
 def dialog(stdscr, title, message):
     height, width = stdscr.getmaxyx()

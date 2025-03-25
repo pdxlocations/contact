@@ -3,7 +3,7 @@ import binascii
 import curses
 import ipaddress
 import re
-from ui.colors import get_color
+from mtcontact.ui.colors import get_color
 
 def wrap_text(text, wrap_width):
     """Wraps text while preserving spaces and breaking long words."""

@@ -1,5 +1,5 @@
 import curses
-import ui.default_config as config
+import mtcontact.ui.default_config as config
 
 COLOR_MAP = {
     "black": curses.COLOR_BLACK,
