@@ -38,6 +38,7 @@ field_mapping, help_text = parse_ini_file(translation_file)
 
 
 def display_menu(current_menu, menu_path, selected_index, show_save_option, help_text):
+    
     min_help_window_height = 6
     num_items = len(current_menu) + (1 if show_save_option else 0)
         # Track visible range
@@ -513,6 +514,7 @@ def settings_menu(stdscr, interface):
                 menu_win.clear()
                 menu_win.refresh()
                 json_editor(stdscr)  # Open the App Settings menu
+                start_index.pop()
                 continue
                 # need_redraw = True
                 
