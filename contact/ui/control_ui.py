@@ -13,9 +13,9 @@ from contact.ui.colors import get_color
 from contact.ui.dialog import dialog
 from contact.utilities.control_utils import parse_ini_file, transform_menu_path
 from contact.ui.user_config import json_editor
-from contact.ui.ui_state import UIState
+from contact.ui.ui_state import MenuState
 
-state = UIState()
+state = MenuState()
 
 import contact.localisations
 

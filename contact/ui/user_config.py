@@ -381,9 +381,9 @@ def save_json(file_path, data):
     setup_colors(reinit=True)
 
 def main(stdscr):
-    from contact.ui.ui_state import UIState
+    from contact.ui.ui_state import MenuState
 
-    state = UIState()
+    state = MenuState()
     if len(state.menu_path) == 0:
         state.menu_path = ["App Settings"]  # Initialize if not set
 
