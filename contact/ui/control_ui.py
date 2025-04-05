@@ -13,6 +13,9 @@ from contact.ui.colors import get_color
 from contact.ui.dialog import dialog
 from contact.utilities.control_utils import parse_ini_file, transform_menu_path
 from contact.ui.user_config import json_editor
+from contact.ui.ui_state import UIState
+
+state = UIState()
 
 import contact.localisations
 
@@ -37,14 +40,10 @@ config_folder = os.path.join(locals_dir, "node-configs")
 field_mapping, help_text = parse_ini_file(translation_file)
 
 
-def display_menu(current_menu, menu_path, selected_index, show_save_option, help_text):
-    
+def display_menu(current_menu,  selected_index, show_save_option, help_text):
+
     min_help_window_height = 6
     num_items = len(current_menu) + (1 if show_save_option else 0)
-        # Track visible range
-    global start_index
-    if 'start_index' not in globals():
-        start_index = [0]  # Initialize if not set
 
     # Determine the available height for the menu
     max_menu_height = curses.LINES 
@@ -67,12 +66,12 @@ def display_menu(current_menu, menu_path, selected_index, show_save_option, help
     menu_pad = curses.newpad(len(current_menu) + 1, width - 8)
     menu_pad.bkgd(get_color("background"))
 
-    header = " > ".join(word.title() for word in menu_path)
+    header = " > ".join(word.title() for word in state.menu_path)
     if len(header) > width - 4:
         header = header[:width - 7] + "..."
     menu_win.addstr(1, 2, header, get_color("settings_breadcrumbs", bold=True))
 
-    transformed_path = transform_menu_path(menu_path)
+    transformed_path = transform_menu_path(state.menu_path)
 
     for idx, option in enumerate(current_menu):
         field_info = current_menu[option]
@@ -98,7 +97,7 @@ def display_menu(current_menu, menu_path, selected_index, show_save_option, help
 
     menu_win.refresh()
     menu_pad.refresh(
-        start_index[-1], 0,
+        state.start_index[-1], 0,
         menu_win.getbegyx()[0] + 3, menu_win.getbegyx()[1] + 4,
         menu_win.getbegyx()[0] + 3 + menu_win.getmaxyx()[0] - 5 - (2 if show_save_option else 0),
         menu_win.getbegyx()[1] + menu_win.getmaxyx()[1] - 8
@@ -107,7 +106,7 @@ def display_menu(current_menu, menu_path, selected_index, show_save_option, help
     max_index = num_items + (1 if show_save_option else 0) - 1
     visible_height = menu_win.getmaxyx()[0] - 5 - (2 if show_save_option else 0)
 
-    draw_arrows(menu_win, visible_height, max_index, start_index, show_save_option)
+    draw_arrows(menu_win, visible_height, max_index, state, show_save_option)
 
     return menu_win, menu_pad
 
@@ -253,24 +252,24 @@ def get_wrapped_help_text(help_text, transformed_path, selected_option, width, m
     return wrapped_help
 
 
-def move_highlight(old_idx, new_idx, options, show_save_option, menu_win, menu_pad, help_win, help_text, menu_path, max_help_lines):
+def move_highlight(old_idx, new_idx, options, show_save_option, menu_win, menu_pad, help_win, help_text,  max_help_lines):
     if old_idx == new_idx:  # No-op
         return
 
     max_index = len(options) + (1 if show_save_option else 0) - 1
     visible_height = menu_win.getmaxyx()[0] - 5 - (2 if show_save_option else 0)
 
-    # Adjust start_index only when moving out of visible range
+    # Adjust state.start_index only when moving out of visible range
     if new_idx == max_index and show_save_option:
         pass
-    elif new_idx < start_index[-1]:  # Moving above the visible area
-        start_index[-1] = new_idx
-    elif new_idx >= start_index[-1] + visible_height:  # Moving below the visible area
-        start_index[-1] = new_idx - visible_height
+    elif new_idx < state.start_index[-1]:  # Moving above the visible area
+        state.start_index[-1] = new_idx
+    elif new_idx >= state.start_index[-1] + visible_height:  # Moving below the visible area
+        state.start_index[-1] = new_idx - visible_height
     pass
 
-    # Ensure start_index is within bounds
-    start_index[-1] = max(0, min(start_index[-1], max_index - visible_height + 1))
+    # Ensure state.start_index is within bounds
+    state.start_index[-1] = max(0, min(state.start_index[-1], max_index - visible_height + 1))
 
     # Clear old selection
     if show_save_option and old_idx == max_index:
@@ -287,18 +286,18 @@ def move_highlight(old_idx, new_idx, options, show_save_option, menu_win, menu_p
     menu_win.refresh()
     
     # Refresh pad only if scrolling is needed
-    menu_pad.refresh(start_index[-1], 0,
+    menu_pad.refresh(state.start_index[-1], 0,
                      menu_win.getbegyx()[0] + 3, menu_win.getbegyx()[1] + 4,
                      menu_win.getbegyx()[0] + 3 + visible_height, 
                      menu_win.getbegyx()[1] + menu_win.getmaxyx()[1] - 4)
 
     # Update help window
-    transformed_path = transform_menu_path(menu_path)
+    transformed_path = transform_menu_path(state.menu_path)
     selected_option = options[new_idx] if new_idx < len(options) else None
     help_y = menu_win.getbegyx()[0] + menu_win.getmaxyx()[0]
     help_win = update_help_window(help_win, help_text, transformed_path, selected_option, max_help_lines, width, help_y, menu_win.getbegyx()[1])
 
-    draw_arrows(menu_win, visible_height, max_index, start_index, show_save_option)
+    draw_arrows(menu_win, visible_height, max_index, state, show_save_option)
 
 
 def draw_arrows(win, visible_height, max_index, start_index, show_save_option):
@@ -307,12 +306,12 @@ def draw_arrows(win, visible_height, max_index, start_index, show_save_option):
     mi = max_index - (2 if show_save_option else 0) 
 
     if visible_height < mi:
-        if start_index[-1] > 0:
+        if state.start_index[-1] > 0:
             win.addstr(3, 2, "▲", get_color("settings_default"))
         else:
             win.addstr(3, 2, " ", get_color("settings_default"))
 
-        if mi - start_index[-1] >= visible_height + (0 if show_save_option else 1) :
+        if mi - state.start_index[-1] >= visible_height + (0 if show_save_option else 1) :
             win.addstr(visible_height + 3, 2, "▼", get_color("settings_default"))
         else:
             win.addstr(visible_height + 3, 2, " ", get_color("settings_default"))
@@ -323,7 +322,7 @@ def settings_menu(stdscr, interface):
 
     menu = generate_menu_from_protobuf(interface)
     current_menu = menu["Main Menu"]
-    menu_path = ["Main Menu"]
+    state.menu_path = ["Main Menu"]
     menu_index = []
     selected_index = 0
     modified_settings = {}
@@ -336,15 +335,15 @@ def settings_menu(stdscr, interface):
             options = list(current_menu.keys())
 
             show_save_option = (
-                len(menu_path) > 2 and ("Radio Settings" in menu_path or "Module Settings" in menu_path)
+                len(state.menu_path) > 2 and ("Radio Settings" in state.menu_path or "Module Settings" in state.menu_path)
             ) or (
-                len(menu_path) == 2 and "User Settings" in menu_path 
+                len(state.menu_path) == 2 and "User Settings" in state.menu_path 
             ) or (
-                len(menu_path) == 3 and "Channels" in menu_path
+                len(state.menu_path) == 3 and "Channels" in state.menu_path
             )
 
             # Display the menu
-            menu_win, menu_pad = display_menu(current_menu, menu_path, selected_index, show_save_option, help_text)
+            menu_win, menu_pad = display_menu(current_menu,  selected_index, show_save_option, help_text)
 
             need_redraw = False
 
@@ -357,12 +356,12 @@ def settings_menu(stdscr, interface):
         if key == curses.KEY_UP:
             old_selected_index = selected_index
             selected_index = max_index if selected_index == 0 else selected_index - 1
-            move_highlight(old_selected_index, selected_index, options, show_save_option, menu_win, menu_pad, help_win, help_text, menu_path,max_help_lines)
+            move_highlight(old_selected_index, selected_index, options, show_save_option, menu_win, menu_pad, help_win, help_text, max_help_lines)
             
         elif key == curses.KEY_DOWN:
             old_selected_index = selected_index
             selected_index = 0 if selected_index == max_index else selected_index + 1
-            move_highlight(old_selected_index, selected_index, options, show_save_option, menu_win, menu_pad, help_win, help_text, menu_path, max_help_lines)
+            move_highlight(old_selected_index, selected_index, options, show_save_option, menu_win, menu_pad, help_win, help_text,  max_help_lines)
 
         elif key == curses.KEY_RESIZE:
             need_redraw = True
@@ -377,28 +376,28 @@ def settings_menu(stdscr, interface):
         elif key == ord("\t") and show_save_option:
             old_selected_index = selected_index
             selected_index = max_index
-            move_highlight(old_selected_index, selected_index, options, show_save_option, menu_win, menu_pad, help_win, help_text, menu_path, max_help_lines)
+            move_highlight(old_selected_index, selected_index, options, show_save_option, menu_win, menu_pad, help_win, help_text,  max_help_lines)
 
         elif key == curses.KEY_RIGHT or key == ord('\n'):
             need_redraw = True
-            start_index.append(0)
+            state.start_index.append(0)
             menu_win.erase()
             help_win.erase()
 
-            # draw_help_window(menu_win.getbegyx()[0], menu_win.getbegyx()[1], menu_win.getmaxyx()[0], max_help_lines, current_menu, selected_index, transform_menu_path(menu_path))
+            # draw_help_window(menu_win.getbegyx()[0], menu_win.getbegyx()[1], menu_win.getmaxyx()[0], max_help_lines, current_menu, selected_index, transform_menu_path(state.menu_path))
 
             menu_win.refresh()
             help_win.refresh()
 
             if show_save_option and selected_index == len(options):
-                save_changes(interface, menu_path, modified_settings)
+                save_changes(interface,  modified_settings)
                 modified_settings.clear()
                 logging.info("Changes Saved")
 
-                if len(menu_path) > 1:
-                    menu_path.pop()
+                if len(state.menu_path) > 1:
+                    state.menu_path.pop()
                     current_menu = menu["Main Menu"]
-                    for step in menu_path[1:]:
+                    for step in state.menu_path[1:]:
                         current_menu = current_menu.get(step, {})
                     selected_index = 0
                 continue
@@ -412,7 +411,7 @@ def settings_menu(stdscr, interface):
                 filename = get_text_input("Enter a filename for the config file")
                 if not filename:
                     logging.info("Export aborted: No filename provided.")
-                    start_index.pop()
+                    state.start_index.pop()
                     continue  # Go back to the menu
                 if not filename.lower().endswith(".yaml"):
                     filename += ".yaml"
@@ -425,14 +424,14 @@ def settings_menu(stdscr, interface):
                         overwrite = get_list_input(f"{filename} already exists. Overwrite?", None, ["Yes", "No"])
                         if overwrite == "No":
                             logging.info("Export cancelled: User chose not to overwrite.")
-                            start_index.pop()
+                            state.start_index.pop()
                             continue  # Return to menu
                     os.makedirs(os.path.dirname(yaml_file_path), exist_ok=True)
                     with open(yaml_file_path, "w", encoding="utf-8") as file:
                         file.write(config_text)
                     logging.info(f"Config file saved to {yaml_file_path}")
                     dialog(stdscr, "Config File Saved:", yaml_file_path)
-                    start_index.pop()
+                    state.start_index.pop()
                     continue
                 except PermissionError:
                     logging.error(f"Permission denied: Unable to write to {yaml_file_path}")
@@ -440,7 +439,7 @@ def settings_menu(stdscr, interface):
                     logging.error(f"OS error while saving config: {e}")
                 except Exception as e:
                     logging.error(f"Unexpected error: {e}")
-                start_index.pop()
+                state.start_index.pop()
                 continue
                 
             elif selected_option == "Load Config File":
@@ -463,7 +462,7 @@ def settings_menu(stdscr, interface):
                     overwrite = get_list_input(f"Are you sure you want to load {filename}?", None, ["Yes", "No"])
                     if overwrite == "Yes":
                         config_import(interface, file_path)
-                start_index.pop()
+                state.start_index.pop()
                 continue
 
             elif selected_option == "Config URL":
@@ -475,7 +474,7 @@ def settings_menu(stdscr, interface):
                     if overwrite == "Yes":
                         interface.localNode.setURL(new_value)
                         logging.info(f"New Config URL sent to node")
-                start_index.pop()
+                state.start_index.pop()
                 continue
 
             elif selected_option == "Reboot":
@@ -483,7 +482,7 @@ def settings_menu(stdscr, interface):
                 if confirmation == "Yes":
                     interface.localNode.reboot()
                     logging.info(f"Node Reboot Requested by menu")
-                start_index.pop()
+                state.start_index.pop()
                 continue
 
             elif selected_option == "Reset Node DB":
@@ -491,7 +490,7 @@ def settings_menu(stdscr, interface):
                 if confirmation == "Yes":
                     interface.localNode.resetNodeDb()
                     logging.info(f"Node DB Reset Requested by menu")
-                start_index.pop()
+                state.start_index.pop()
                 continue
 
             elif selected_option == "Shutdown":
@@ -499,7 +498,7 @@ def settings_menu(stdscr, interface):
                 if confirmation == "Yes":
                     interface.localNode.shutdown()
                     logging.info(f"Node Shutdown Requested by menu")
-                start_index.pop()
+                state.start_index.pop()
                 continue
 
             elif selected_option == "Factory Reset":
@@ -507,14 +506,16 @@ def settings_menu(stdscr, interface):
                 if confirmation == "Yes":
                     interface.localNode.factoryReset()
                     logging.info(f"Factory Reset Requested by menu")
-                start_index.pop()
+                state.start_index.pop()
                 continue
 
             elif selected_option == "App Settings":
                 menu_win.clear()
                 menu_win.refresh()
-                json_editor(stdscr)  # Open the App Settings menu
-                start_index.pop()
+                state.menu_path.append("App Settings")
+                json_editor(stdscr, state)  # Open the App Settings menu
+                state.start_index.pop()
+                state.menu_path.pop()
                 continue
                 # need_redraw = True
                 
@@ -523,7 +524,7 @@ def settings_menu(stdscr, interface):
                 field, current_value = field_info
 
                 # Transform the menu path to get the full key
-                transformed_path = transform_menu_path(menu_path)
+                transformed_path = transform_menu_path(state.menu_path)
                 full_key = '.'.join(transformed_path + [selected_option])
 
                 # Fetch human-readable name from field_mapping
@@ -543,7 +544,7 @@ def settings_menu(stdscr, interface):
                     for option, (field, value) in current_menu.items():
                         modified_settings[option] = value
 
-                    start_index.pop()
+                    state.start_index.pop()
 
                 elif selected_option in ['latitude', 'longitude', 'altitude']:
                     new_value = get_text_input(f"{human_readable_name} is currently: {current_value}")
@@ -554,49 +555,49 @@ def settings_menu(stdscr, interface):
                         if option in current_menu:
                             modified_settings[option] = current_menu[option][1]
 
-                    start_index.pop()
+                    state.start_index.pop()
 
                 elif selected_option == "admin_key":
                     new_values = get_admin_key_input(current_value)
                     new_value = current_value if new_values is None else [base64.b64decode(key) for key in new_values]
-                    start_index.pop()
+                    state.start_index.pop()
 
                 elif field.type == 8:  # Handle boolean type
                     new_value = get_list_input(human_readable_name, str(current_value),  ["True", "False"])
                     new_value = new_value == "True" or new_value is True
-                    start_index.pop()
+                    state.start_index.pop()
 
                 elif field.label == field.LABEL_REPEATED:  # Handle repeated field - Not currently used
                     new_value = get_repeated_input(current_value)
                     new_value = current_value if new_value is None else new_value.split(", ")
-                    start_index.pop()
+                    state.start_index.pop()
 
                 elif field.enum_type:  # Enum field
                     enum_options = {v.name: v.number for v in field.enum_type.values}
                     new_value_name = get_list_input(human_readable_name, current_value, list(enum_options.keys()))
                     new_value = enum_options.get(new_value_name, current_value)
-                    start_index.pop()
+                    state.start_index.pop()
 
                 elif field.type == 7: # Field type 7 corresponds to FIXED32
                     new_value = get_fixed32_input(current_value)
-                    start_index.pop()
+                    state.start_index.pop()
 
                 elif field.type == 13: # Field type 13 corresponds to UINT32
                     new_value = get_text_input(f"{human_readable_name} is currently: {current_value}")
                     new_value = current_value if new_value is None else int(new_value)
-                    start_index.pop()
+                    state.start_index.pop()
 
                 elif field.type == 2: # Field type 13 corresponds to INT64
                     new_value = get_text_input(f"{human_readable_name} is currently: {current_value}")
                     new_value = current_value if new_value is None else float(new_value)
-                    start_index.pop()
+                    state.start_index.pop()
 
                 else:  # Handle other field types
                     new_value = get_text_input(f"{human_readable_name} is currently: {current_value}")
                     new_value = current_value if new_value is None else new_value
-                    start_index.pop()
+                    state.start_index.pop()
                 
-                for key in menu_path[3:]:  # Skip "Main Menu"
+                for key in state.menu_path[3:]:  # Skip "Main Menu"
                     modified_settings = modified_settings.setdefault(key, {})
 
                 # Add the new value to the appropriate level
@@ -610,7 +611,7 @@ def settings_menu(stdscr, interface):
                 current_menu[selected_option] = (field, new_value)
             else:
                 current_menu = current_menu[selected_option]
-                menu_path.append(selected_option)
+                state.menu_path.append(selected_option)
                 menu_index.append(selected_index)
                 selected_index = 0
 
@@ -622,22 +623,22 @@ def settings_menu(stdscr, interface):
             help_win.erase()
 
             # max_help_lines = 4
-            # draw_help_window(menu_win.getbegyx()[0], menu_win.getbegyx()[1], menu_win.getmaxyx()[0], max_help_lines, current_menu, selected_index, transform_menu_path(menu_path))
+            # draw_help_window(menu_win.getbegyx()[0], menu_win.getbegyx()[1], menu_win.getmaxyx()[0], max_help_lines, current_menu, selected_index, transform_menu_path(state.menu_path))
 
             menu_win.refresh()
             help_win.refresh()
 
-            if len(menu_path) < 2:
+            if len(state.menu_path) < 2:
                 modified_settings.clear()
 
             # Navigate back to the previous menu
-            if len(menu_path) > 1:
-                menu_path.pop()
+            if len(state.menu_path) > 1:
+                state.menu_path.pop()
                 current_menu = menu["Main Menu"]
-                for step in menu_path[1:]:
+                for step in state.menu_path[1:]:
                     current_menu = current_menu.get(step, {})
                 selected_index = menu_index.pop()
-                start_index.pop()
+                state.start_index.pop()
                 
         elif key == 27:  # Escape key
             menu_win.erase()
