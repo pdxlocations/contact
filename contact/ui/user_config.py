@@ -23,7 +23,7 @@ def edit_color_pair(key, current_value):
     return [fg_color, bg_color]
 
 def edit_value(key, current_value, state):
-    width = 60
+
     height = 10
     input_width = width - 16  # Allow space for "New Value: "
     start_y = (curses.LINES - height) // 2

@@ -7,7 +7,7 @@
             "request": "launch",
             "cwd": "${workspaceFolder}",
             "module": "contact.__main__",
-            "args": ["-c"]
+            "args": []
         }
     ]
 }
