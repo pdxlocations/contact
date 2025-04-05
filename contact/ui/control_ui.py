@@ -610,10 +610,20 @@ def settings_menu(stdscr, interface):
 
                 state.current_menu[selected_option] = (field, new_value)
             else:
-                state.current_menu = state.current_menu[selected_option]
+                next_menu = state.current_menu[selected_option]
+
+                if not isinstance(next_menu, dict):
+
+                    next_menu = {"__value__": next_menu}
+
+                state.current_menu = next_menu
+
+
                 state.menu_path.append(selected_option)
                 state.menu_index.append(selected_index)
                 selected_index = 0
+
+
 
 
         elif key == curses.KEY_LEFT:
