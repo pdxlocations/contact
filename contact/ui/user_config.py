@@ -98,17 +98,17 @@ def edit_value(key, current_value, state):
     return user_input if user_input else current_value
 
 
-def display_menu(current_menu, selected_index, show_save_option, state):
+def display_menu(selected_index, show_save_option, state):
     """
     Render the configuration menu with a Save button directly added to the window.
     """
-    num_items = len(current_menu) + (1 if show_save_option else 0)
+    num_items = len(state.current_menu) + (1 if show_save_option else 0)
 
     # Determine menu items based on the type of current_menu
-    if isinstance(current_menu, dict):
-        options = list(current_menu.keys())
-    elif isinstance(current_menu, list):
-        options = [f"[{i}]" for i in range(len(current_menu))]
+    if isinstance(state.current_menu, dict):
+        options = list(state.current_menu.keys())
+    elif isinstance(state.current_menu, list):
+        options = [f"[{i}]" for i in range(len(state.current_menu))]
     else:
         options = []  # Fallback in case of unexpected data types
 
@@ -139,7 +139,7 @@ def display_menu(current_menu, selected_index, show_save_option, state):
 
     # Populate the pad with menu options
     for idx, key in enumerate(options):
-        value = current_menu[key] if isinstance(current_menu, dict) else current_menu[int(key.strip("[]"))]
+        value = state.current_menu[key] if isinstance(state.current_menu, dict) else state.current_menu[int(key.strip("[]"))]
         display_key = f"{key}"[:width // 2 - 2]
         display_value = (
             f"{value}"[:width // 2 - 8]
@@ -151,7 +151,7 @@ def display_menu(current_menu, selected_index, show_save_option, state):
     # Add Save button to the main window
     if show_save_option:
         save_position = menu_height - 2
-        menu_win.addstr(save_position, (width - len(save_option)) // 2, save_option, get_color("settings_save", reverse=(selected_index == len(current_menu))))
+        menu_win.addstr(save_position, (width - len(save_option)) // 2, save_option, get_color("settings_save", reverse=(selected_index == len(state.current_menu))))
 
 
     menu_win.refresh()
@@ -239,7 +239,6 @@ def json_editor(stdscr, state):
     file_path = os.path.join(parent_dir, "config.json")
 
     show_save_option = True  # Always show the Save button
-    menu_index = []
 
     # Ensure the file exists
     if not os.path.exists(file_path):
@@ -251,15 +250,15 @@ def json_editor(stdscr, state):
         original_data = json.load(f)
 
     data = original_data  # Reference to the original data
-    current_menu = data  # Track the current level of the menu
+    state.current_menu = data  # Track the current level of the menu
 
     # Render the menu
-    menu_win, menu_pad, options = display_menu(current_menu, selected_index, show_save_option, state)
+    menu_win, menu_pad, options = display_menu(selected_index, show_save_option, state)
     need_redraw = True
 
     while True:
         if(need_redraw):
-            menu_win, menu_pad, options = display_menu(current_menu, selected_index, show_save_option, state)
+            menu_win, menu_pad, options = display_menu(selected_index, show_save_option, state)
             menu_win.refresh()
             need_redraw = False
             
@@ -298,17 +297,17 @@ def json_editor(stdscr, state):
                 selected_key = options[selected_index]
                 state.menu_path.append(str(selected_key))
                 state.start_index.append(0)
-                menu_index.append(selected_index)
+                state.menu_index.append(selected_index)
                 
 
                 # Handle nested data
-                if isinstance(current_menu, dict):
-                    if selected_key in current_menu:
-                        selected_data = current_menu[selected_key]
+                if isinstance(state.current_menu, dict):
+                    if selected_key in state.current_menu:
+                        selected_data = state.current_menu[selected_key]
                     else:
                         continue  # Skip invalid key
-                elif isinstance(current_menu, list):
-                    selected_data = current_menu[int(selected_key.strip("[]"))]
+                elif isinstance(state.current_menu, list):
+                    selected_data = state.current_menu[int(selected_key.strip("[]"))]
 
                 if isinstance(selected_data, list) and len(selected_data) == 2:
                     # Edit color pair
@@ -318,13 +317,13 @@ def json_editor(stdscr, state):
                     new_value = edit_color_pair(selected_key, selected_data)
                     state.menu_path.pop()
                     state.start_index.pop()
-                    menu_index.pop()
-                    current_menu[selected_key] = new_value
+                    state.menu_index.pop()
+                    state.current_menu[selected_key] = new_value
 
                 elif isinstance(selected_data, (dict, list)):
                     # Navigate into nested data
 
-                    current_menu = selected_data
+                    state.current_menu = selected_data
                     selected_index = 0  # Reset the selected index
 
                 else:
@@ -333,7 +332,7 @@ def json_editor(stdscr, state):
                     new_value = edit_value(selected_key, selected_data, state)
                     state.menu_path.pop()
                     state.start_index.pop()
-                    current_menu[selected_key] = new_value
+                    state.current_menu[selected_key] = new_value
                     need_redraw = True
                 
 
@@ -354,14 +353,14 @@ def json_editor(stdscr, state):
             # Navigate back in the menu
 
             if len(state.menu_path) > 2:
-                selected_index = menu_index.pop()
+                selected_index = state.menu_index.pop()
                 state.menu_path.pop()
                 state.start_index.pop()
 
 
-                current_menu = data
+                state.current_menu = data
                 for path in state.menu_path[2:]:
-                    current_menu = current_menu[path] if isinstance(current_menu, dict) else current_menu[int(path.strip("[]"))]
+                    state.current_menu = state.current_menu[path] if isinstance(state.current_menu, dict) else state.current_menu[int(path.strip("[]"))]
 
                 
 
