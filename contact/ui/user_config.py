@@ -96,11 +96,11 @@ def edit_value(key, current_value, state):
     return user_input if user_input else current_value
 
 
-def display_menu(show_save_option, state):
+def display_menu(state):
     """
     Render the configuration menu with a Save button directly added to the window.
     """
-    num_items = len(state.current_menu) + (1 if show_save_option else 0)
+    num_items = len(state.current_menu) + (1 if state.show_save_option else 0)
 
     # Determine menu items based on the type of current_menu
     if isinstance(state.current_menu, dict):
@@ -147,7 +147,7 @@ def display_menu(show_save_option, state):
         menu_pad.addstr(idx, 0, f"{display_key:<{width // 2 - 2}} {display_value}".ljust(width - 8), color)
 
     # Add Save button to the main window
-    if show_save_option:
+    if state.show_save_option:
         save_position = menu_height - 2
         menu_win.addstr(save_position, (width - len(save_option)) // 2, save_option, get_color("settings_save", reverse=(state.selected_index == len(state.current_menu))))
 
@@ -155,27 +155,27 @@ def display_menu(show_save_option, state):
     menu_pad.refresh(
         state.start_index[-1], 0,
         menu_win.getbegyx()[0] + 3, menu_win.getbegyx()[1] + 4,
-        menu_win.getbegyx()[0] + 3 + menu_win.getmaxyx()[0] - 5 - (2 if show_save_option else 0),
+        menu_win.getbegyx()[0] + 3 + menu_win.getmaxyx()[0] - 5 - (2 if state.show_save_option else 0),
         menu_win.getbegyx()[1] + menu_win.getmaxyx()[1] - 4
     )
 
-    max_index = num_items + (1 if show_save_option else 0) - 1
-    visible_height = menu_win.getmaxyx()[0] - 5 - (2 if show_save_option else 0)
+    max_index = num_items + (1 if state.show_save_option else 0) - 1
+    visible_height = menu_win.getmaxyx()[0] - 5 - (2 if state.show_save_option else 0)
 
-    draw_arrows(menu_win, visible_height, max_index, state, show_save_option)
+    draw_arrows(menu_win, visible_height, max_index, state)
 
     return menu_win, menu_pad, options
 
 
-def move_highlight(old_idx, new_idx, options, show_save_option, menu_win, menu_pad, state):
+def move_highlight(old_idx, new_idx, options, menu_win, menu_pad, state):
     if old_idx == new_idx:  # No-op
         return
 
-    max_index = len(options) + (1 if show_save_option else 0) - 1
-    visible_height = menu_win.getmaxyx()[0] - 5 - (2 if show_save_option else 0)
+    max_index = len(options) + (1 if state.show_save_option else 0) - 1
+    visible_height = menu_win.getmaxyx()[0] - 5 - (2 if state.show_save_option else 0)
 
     # Adjust state.start_index only when moving out of visible range
-    if new_idx == max_index and show_save_option:
+    if new_idx == max_index and state.show_save_option:
         pass
     elif new_idx < state.start_index[-1]:  # Moving above the visible area
         state.start_index[-1] = new_idx
@@ -187,13 +187,13 @@ def move_highlight(old_idx, new_idx, options, show_save_option, menu_win, menu_p
     state.start_index[-1] = max(0, min(state.start_index[-1], max_index - visible_height + 1))
 
     # Clear old selection
-    if show_save_option and old_idx == max_index:
+    if state.show_save_option and old_idx == max_index:
         menu_win.chgat(menu_win.getmaxyx()[0] - 2, (width - len(save_option)) // 2, len(save_option), get_color("settings_save"))
     else:
         menu_pad.chgat(old_idx, 0, menu_pad.getmaxyx()[1], get_color("settings_sensitive") if options[old_idx] in sensitive_settings else get_color("settings_default"))
 
     # Highlight new selection
-    if show_save_option and new_idx == max_index:
+    if state.show_save_option and new_idx == max_index:
         menu_win.chgat(menu_win.getmaxyx()[0] - 2, (width - len(save_option)) // 2, len(save_option), get_color("settings_save", reverse=True))
     else:
         menu_pad.chgat(new_idx, 0, menu_pad.getmaxyx()[1], get_color("settings_sensitive", reverse=True) if options[new_idx] in sensitive_settings else get_color("settings_default", reverse=True))
@@ -206,13 +206,12 @@ def move_highlight(old_idx, new_idx, options, show_save_option, menu_win, menu_p
                      menu_win.getbegyx()[0] + 3 + visible_height, 
                      menu_win.getbegyx()[1] + menu_win.getmaxyx()[1] - 4)
 
-    draw_arrows(menu_win, visible_height, max_index, state, show_save_option)
+    draw_arrows(menu_win, visible_height, max_index, state)
 
 
-def draw_arrows(win, visible_height, max_index, state, show_save_option):
+def draw_arrows(win, visible_height, max_index, state):
 
-    # vh = visible_height + (1 if show_save_option else 0)
-    mi = max_index - (2 if show_save_option else 0) 
+    mi = max_index - (2 if state.show_save_option else 0) 
 
     if visible_height < mi:
         if state.start_index[-1] > 0:
@@ -220,7 +219,7 @@ def draw_arrows(win, visible_height, max_index, state, show_save_option):
         else:
             win.addstr(3, 2, " ", get_color("settings_default"))
 
-        if mi - state.start_index[-1] >= visible_height + (0 if show_save_option else 1) :
+        if mi - state.start_index[-1] >= visible_height + (0 if state.show_save_option else 1) :
             win.addstr(visible_height + 3, 2, "▼", get_color("settings_default"))
         else:
             win.addstr(visible_height + 3, 2, " ", get_color("settings_default"))
@@ -234,7 +233,7 @@ def json_editor(stdscr, state):
     parent_dir = os.path.abspath(os.path.join(script_dir, os.pardir))
     file_path = os.path.join(parent_dir, "config.json")
 
-    show_save_option = True  # Always show the Save button
+    state.show_save_option = True  # Always show the Save button
 
     # Ensure the file exists
     if not os.path.exists(file_path):
@@ -249,34 +248,34 @@ def json_editor(stdscr, state):
     state.current_menu = data  # Track the current level of the menu
 
     # Render the menu
-    menu_win, menu_pad, options = display_menu(show_save_option, state)
+    menu_win, menu_pad, options = display_menu(state)
     need_redraw = True
 
     while True:
         if(need_redraw):
-            menu_win, menu_pad, options = display_menu(show_save_option, state)
+            menu_win, menu_pad, options = display_menu(state)
             menu_win.refresh()
             need_redraw = False
             
-        max_index = len(options) + (1 if show_save_option else 0) - 1
+        max_index = len(options) + (1 if state.show_save_option else 0) - 1
         key = menu_win.getch()
 
         if key == curses.KEY_UP:
 
             old_selected_index = state.selected_index
             state.selected_index = max_index if state.selected_index == 0 else state.selected_index - 1
-            move_highlight(old_selected_index, state.selected_index, options, show_save_option, menu_win, menu_pad,state)
+            move_highlight(old_selected_index, state.selected_index, options, state.show_save_option, menu_win, menu_pad,state)
 
         elif key == curses.KEY_DOWN:
 
             old_selected_index = state.selected_index
             state.selected_index = 0 if state.selected_index == max_index else state.selected_index + 1
-            move_highlight(old_selected_index, state.selected_index, options, show_save_option, menu_win, menu_pad, state)
+            move_highlight(old_selected_index, state.selected_index, options, menu_win, menu_pad, state)
 
-        elif key == ord("\t") and show_save_option:
+        elif key == ord("\t") and state.show_save_option:
             old_selected_index = state.selected_index
             state.selected_index = max_index
-            move_highlight(old_selected_index, state.selected_index, options, show_save_option, menu_win, menu_pad, state)
+            move_highlight(old_selected_index, state.selected_index, options, menu_win, menu_pad, state)
 
         elif key in (curses.KEY_RIGHT, 10, 13):  # 10 = \n, 13 = carriage return
 
@@ -316,6 +315,7 @@ def json_editor(stdscr, state):
                     # General value editing
                     new_value = edit_value(selected_key, selected_data, state)
                     state.menu_path.pop()
+                    state.menu_index.pop()
                     state.start_index.pop()
                     state.current_menu[selected_key] = new_value
                     need_redraw = True
