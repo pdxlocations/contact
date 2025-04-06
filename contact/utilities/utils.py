@@ -67,10 +67,9 @@ def refresh_node_list():
         return True
     return False
 
-def get_nodeNum():
-    myinfo = globals.interface.getMyNodeInfo()
-    myNodeNum = myinfo['num']
-    return myNodeNum
+def get_nodeNum(node_state):
+    myinfo = node_state.interface.getMyNodeInfo()
+    node_state.myNodeNum = myinfo['num']
 
 def decimal_to_hex(decimal_number):
     return f"!{decimal_number:08x}"

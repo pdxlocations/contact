@@ -13,7 +13,7 @@ import contact.ui.default_config as config
 import contact.ui.dialog
 import contact.globals as globals
 
-def handle_resize(stdscr, firstrun):
+def handle_resize(stdscr, firstrun, node_state):
     global messages_pad, messages_win, nodes_pad, nodes_win, channel_pad, channel_win, function_win, packetlog_win, entry_win
 
     # Calculate window max dimensions
@@ -80,17 +80,17 @@ def handle_resize(stdscr, firstrun):
     curses.curs_set(1)
 
     try:
-        draw_function_win()
-        draw_channel_list()
-        draw_messages_window(True)
-        draw_node_list()
+        draw_function_win(node_state)
+        draw_channel_list(node_state)
+        draw_messages_window(node_state, True)
+        draw_node_list(node_state)
     except:
         # Resize events can come faster than we can re-draw, which can cause a curses error.
         # In this case we'll see another curses.KEY_RESIZE in our key handler and draw again later.
         pass
 
 
-def main_ui(stdscr):
+def main_ui(stdscr, node_state):
     global input_text
     input_text = ""
     stdscr.keypad(True)
@@ -111,7 +111,7 @@ def main_ui(stdscr):
             elif globals.current_window == 1:
                 scroll_messages(-1)
             elif globals.current_window == 2:
-                scroll_nodes(-1)
+                scroll_nodes(-1, node_state)
 
         elif char == curses.KEY_DOWN:
             if globals.current_window == 0:
@@ -119,11 +119,11 @@ def main_ui(stdscr):
             elif globals.current_window == 1:
                 scroll_messages(1)
             elif globals.current_window == 2:
-                scroll_nodes(1)
+                scroll_nodes(1, node_state)
 
         elif char == curses.KEY_HOME:
             if globals.current_window == 0:
-                select_channel(0)
+                select_channel(0, node_state)
             elif globals.current_window == 1:
                 globals.selected_message = 0
                 refresh_pad(1)
@@ -132,7 +132,7 @@ def main_ui(stdscr):
 
         elif char == curses.KEY_END:
             if globals.current_window == 0:
-                select_channel(len(globals.channel_list) - 1)
+                select_channel(len(globals.channel_list) - 1, node_state)
             elif globals.current_window == 1:
                 msg_line_count = messages_pad.getmaxyx()[0]
                 globals.selected_message = max(msg_line_count - get_msg_window_lines(), 0)
@@ -142,7 +142,7 @@ def main_ui(stdscr):
 
         elif char == curses.KEY_PPAGE:
             if globals.current_window == 0:
-                select_channel(globals.selected_channel - (channel_win.getmaxyx()[0] - 2)) # select_channel will bounds check for us
+                select_channel(globals.selected_channel - (channel_win.getmaxyx()[0] - 2), node_state) # select_channel will bounds check for us
             elif globals.current_window == 1:
                 globals.selected_message = max(globals.selected_message - get_msg_window_lines(), 0)
                 refresh_pad(1)
@@ -151,7 +151,7 @@ def main_ui(stdscr):
 
         elif char == curses.KEY_NPAGE:
             if globals.current_window == 0:
-                select_channel(globals.selected_channel + (channel_win.getmaxyx()[0] - 2)) # select_channel will bounds check for us
+                select_channel(globals.selected_channel + (channel_win.getmaxyx()[0] - 2), node_state) # select_channel will bounds check for us
             elif globals.current_window == 1:
                 msg_line_count = messages_pad.getmaxyx()[0]
                 globals.selected_message = min(globals.selected_message + get_msg_window_lines(), msg_line_count - get_msg_window_lines())
@@ -169,7 +169,7 @@ def main_ui(stdscr):
                 channel_win.attrset(get_color("window_frame"))
                 channel_win.box()
                 channel_win.refresh()
-                highlight_line(False, 0, globals.selected_channel)
+                highlight_line(False, 0, globals.selected_channel, node_state)
                 refresh_pad(0)
             if old_window == 1:
                 messages_win.attrset(get_color("window_frame"))
@@ -177,11 +177,11 @@ def main_ui(stdscr):
                 messages_win.refresh()
                 refresh_pad(1)
             elif old_window == 2:
-                draw_function_win()
+                draw_function_win(node_state)
                 nodes_win.attrset(get_color("window_frame"))
                 nodes_win.box()
                 nodes_win.refresh()
-                highlight_line(False, 2, globals.selected_node)
+                highlight_line(False, 2, globals.selected_node, node_state)
                 refresh_pad(2)
 
             if globals.current_window == 0:
@@ -189,7 +189,7 @@ def main_ui(stdscr):
                 channel_win.box()
                 channel_win.attrset(get_color("window_frame"))
                 channel_win.refresh()
-                highlight_line(True, 0, globals.selected_channel)
+                highlight_line(True, 0, globals.selected_channel, node_state)
                 refresh_pad(0)
             elif globals.current_window == 1:
                 messages_win.attrset(get_color("window_frame_selected"))
@@ -198,12 +198,12 @@ def main_ui(stdscr):
                 messages_win.refresh()
                 refresh_pad(1)
             elif globals.current_window == 2:
-                draw_function_win()
+                draw_function_win(node_state)
                 nodes_win.attrset(get_color("window_frame_selected"))
                 nodes_win.box()
                 nodes_win.attrset(get_color("window_frame"))
                 nodes_win.refresh()
-                highlight_line(True, 2, globals.selected_node)
+                highlight_line(True, 2, globals.selected_node, node_state)
                 refresh_pad(2)
 
         # Check for Esc
@@ -212,7 +212,7 @@ def main_ui(stdscr):
 
         # Check for Ctrl + t
         elif char == chr(20):
-            send_traceroute()
+            send_traceroute(node_state)
             curses.curs_set(0)  # Hide cursor
             contact.ui.dialog.dialog(stdscr, "Traceroute Sent", "Results will appear in messages window.\nNote: Traceroute is limited to once every 30 seconds.")
             curses.curs_set(1)  # Show cursor again
@@ -229,20 +229,20 @@ def main_ui(stdscr):
 
                 globals.selected_channel = globals.channel_list.index(node_list[globals.selected_node])
 
-                if(is_chat_archived(globals.channel_list[globals.selected_channel])):
+                if(is_chat_archived(globals.channel_list[globals.selected_channel], node_state)):
                     update_node_info_in_db(globals.channel_list[globals.selected_channel], chat_archived=False)
 
                 globals.selected_node = 0
                 globals.current_window = 0
 
-                draw_node_list()
-                draw_channel_list()
-                draw_messages_window(True)
+                draw_node_list(node_state)
+                draw_channel_list(node_state)
+                draw_messages_window(node_state, True)
 
             elif len(input_text) > 0:
                 # Enter key pressed, send user input as message
-                send_message(input_text, channel=globals.selected_channel)
-                draw_messages_window(True)
+                send_message(input_text, node_state, channel=globals.selected_channel)
+                draw_messages_window(node_state, True)
 
                 # Clear entry window and reset input text
                 input_text = ""
@@ -259,7 +259,7 @@ def main_ui(stdscr):
             
         elif char == "`": # ` Launch the settings interface
             curses.curs_set(0)
-            settings_menu(stdscr, globals.interface)
+            settings_menu(stdscr, node_state.interface)
             curses.curs_set(1)
             refresh_node_list()
             handle_resize(stdscr, False)
@@ -268,11 +268,11 @@ def main_ui(stdscr):
             # Display packet log
             if globals.display_log is False:
                 globals.display_log = True
-                draw_messages_window(True)
+                draw_messages_window(node_state, True)
             else:
                 globals.display_log = False
                 packetlog_win.erase()
-                draw_messages_window(True)
+                draw_messages_window(node_state, True)
 
         elif char == curses.KEY_RESIZE:
             input_text = ""
@@ -291,29 +291,29 @@ def main_ui(stdscr):
 
                     del globals.channel_list[globals.selected_channel]
                     globals.selected_channel = min(globals.selected_channel, len(globals.channel_list) - 1)
-                    select_channel(globals.selected_channel)
-                    draw_channel_list()
-                    draw_messages_window()
+                    select_channel(globals.selected_channel, node_state)
+                    draw_channel_list(node_state)
+                    draw_messages_window(node_state)
 
             if(globals.current_window == 2):
                 curses.curs_set(0)
-                confirmation = get_list_input(f"Remove {get_name_from_database(globals.node_list[globals.selected_node])} from nodedb?", "No", ["Yes", "No"])
+                confirmation = get_list_input(f"Remove {get_name_from_database(globals.node_list[globals.selected_node], node_state)} from nodedb?", "No", ["Yes", "No"])
                 if confirmation == "Yes":
-                    globals.interface.localNode.removeNode(globals.node_list[globals.selected_node])
+                    node_state.interface.localNode.removeNode(globals.node_list[globals.selected_node])
 
                     # Directly modifying the interface from client code - good? Bad? If it's stupid but it works, it's not supid?
-                    del(globals.interface.nodesByNum[globals.node_list[globals.selected_node]])
+                    del(node_state.interface.nodesByNum[globals.node_list[globals.selected_node]])
 
                     # Convert to "!hex" representation that interface.nodes uses
                     hexid = f"!{hex(globals.node_list[globals.selected_node])[2:]}"
-                    del(globals.interface.nodes[hexid])
+                    del(node_state.interface.nodes[hexid])
 
                     globals.node_list.pop(globals.selected_node)
 
-                    draw_messages_window()
-                    draw_node_list()
+                    draw_messages_window(node_state)
+                    draw_node_list(node_state)
                 else:
-                    draw_messages_window()
+                    draw_messages_window(node_state)
                 curses.curs_set(1)
                 continue
 
@@ -325,25 +325,25 @@ def main_ui(stdscr):
         # ^F
         elif char == chr(6):
             if globals.current_window == 2:
-                selectedNode = globals.interface.nodesByNum[globals.node_list[globals.selected_node]]
+                selectedNode = node_state.interface.nodesByNum[globals.node_list[globals.selected_node]]
 
                 curses.curs_set(0)
 
                 if 'isFavorite' not in selectedNode or selectedNode['isFavorite'] == False:
-                    confirmation = get_list_input(f"Set {get_name_from_database(globals.node_list[globals.selected_node])} as Favorite?", None, ["Yes", "No"])
+                    confirmation = get_list_input(f"Set {get_name_from_database(globals.node_list[globals.selected_node])} as Favorite?", node_state, None, ["Yes", "No"])
                     if confirmation == "Yes":
-                        globals.interface.localNode.setFavorite(globals.node_list[globals.selected_node])
+                        node_state.interface.localNode.setFavorite(globals.node_list[globals.selected_node])
                         # Maybe we shouldn't be modifying the nodedb, but maybe it should update itself
-                        globals.interface.nodesByNum[globals.node_list[globals.selected_node]]['isFavorite'] = True
+                        node_state.interface.nodesByNum[globals.node_list[globals.selected_node]]['isFavorite'] = True
 
                         refresh_node_list()
 
                 else:
-                    confirmation = get_list_input(f"Remove {get_name_from_database(globals.node_list[globals.selected_node])} from Favorites?", None, ["Yes", "No"])
+                    confirmation = get_list_input(f"Remove {get_name_from_database(globals.node_list[globals.selected_node])} from Favorites?", node_state, None, ["Yes", "No"])
                     if confirmation == "Yes":
-                        globals.interface.localNode.removeFavorite(globals.node_list[globals.selected_node])
+                        node_state.interface.localNode.removeFavorite(globals.node_list[globals.selected_node])
                         # Maybe we shouldn't be modifying the nodedb, but maybe it should update itself
-                        globals.interface.nodesByNum[globals.node_list[globals.selected_node]]['isFavorite'] = False
+                        node_state.interface.nodesByNum[globals.node_list[globals.selected_node]]['isFavorite'] = False
 
                         refresh_node_list()
 
@@ -351,20 +351,20 @@ def main_ui(stdscr):
 
         elif char == chr(7):
             if globals.current_window == 2:
-                selectedNode = globals.interface.nodesByNum[globals.node_list[globals.selected_node]]
+                selectedNode = node_state.interface.nodesByNum[globals.node_list[globals.selected_node]]
 
                 curses.curs_set(0)
 
                 if 'isIgnored' not in selectedNode or selectedNode['isIgnored'] == False:
-                    confirmation = get_list_input(f"Set {get_name_from_database(globals.node_list[globals.selected_node])} as Ignored?", "No", ["Yes", "No"])
+                    confirmation = get_list_input(f"Set {get_name_from_database(globals.node_list[globals.selected_node])} as Ignored?", node_state, "No", ["Yes", "No"])
                     if confirmation == "Yes":
-                        globals.interface.localNode.setIgnored(globals.node_list[globals.selected_node])
-                        globals.interface.nodesByNum[globals.node_list[globals.selected_node]]['isIgnored'] = True
+                        node_state.interface.localNode.setIgnored(globals.node_list[globals.selected_node])
+                        node_state.interface.nodesByNum[globals.node_list[globals.selected_node]]['isIgnored'] = True
                 else:
-                    confirmation = get_list_input(f"Remove {get_name_from_database(globals.node_list[globals.selected_node])} from Ignored?", "No", ["Yes", "No"])
+                    confirmation = get_list_input(f"Remove {get_name_from_database(globals.node_list[globals.selected_node])} from Ignored?", node_state, "No", ["Yes", "No"])
                     if confirmation == "Yes":
-                        globals.interface.localNode.removeIgnored(globals.node_list[globals.selected_node])
-                        globals.interface.nodesByNum[globals.node_list[globals.selected_node]]['isIgnored'] = False
+                        node_state.interface.localNode.removeIgnored(globals.node_list[globals.selected_node])
+                        node_state.interface.nodesByNum[globals.node_list[globals.selected_node]]['isIgnored'] = False
 
                 handle_resize(stdscr, False)
 
@@ -377,7 +377,7 @@ def main_ui(stdscr):
 
 
 
-def draw_channel_list():
+def draw_channel_list(node_state):
     channel_pad.erase()
     win_height, win_width = channel_win.getmaxyx()
     start_index = max(0, globals.selected_channel - (win_height - 3))  # Leave room for borders
@@ -388,9 +388,9 @@ def draw_channel_list():
     for channel in globals.channel_list:
         # Convert node number to long name if it's an integer
         if isinstance(channel, int):
-            if is_chat_archived(channel):
+            if is_chat_archived(channel, node_state):
                 continue
-            channel_name = get_name_from_database(channel, type='long')
+            channel_name = get_name_from_database(channel, node_state, type='long')
             if channel_name is None:
                 continue
             channel = channel_name
@@ -418,7 +418,7 @@ def draw_channel_list():
 
     refresh_pad(0)
 
-def draw_messages_window(scroll_to_bottom = False):
+def draw_messages_window(node_state, scroll_to_bottom = False):
     """Update the messages window based on the selected channel and scroll position."""
     messages_pad.erase()
 
@@ -459,9 +459,9 @@ def draw_messages_window(scroll_to_bottom = False):
 
     refresh_pad(1)
 
-    draw_packetlog_win()
+    draw_packetlog_win(node_state)
 
-def draw_node_list():
+def draw_node_list(node_state):
     global nodes_pad
 
     # This didn't work, for some reason an error is thown on startup, so we just create the pad every time
@@ -479,9 +479,9 @@ def draw_node_list():
         logging.error("Traceback: %s", traceback.format_exc())
 
     for i, node_num in enumerate(globals.node_list):
-        node = globals.interface.nodesByNum[node_num]
+        node = node_state.interface.nodesByNum[node_num]
         secure = 'user' in node and 'publicKey' in node['user'] and node['user']['publicKey']
-        node_str = f"{'🔐' if secure else '🔓'} {get_name_from_database(node_num, 'long')}".ljust(box_width - 2)[:box_width - 2]
+        node_str = f"{'🔐' if secure else '🔓'} {get_name_from_database(node_num, node_state, 'long')}".ljust(box_width - 2)[:box_width - 2]
         color = "node_list"
         if 'isFavorite' in node and node['isFavorite']:
             color = "node_favorite"
@@ -501,21 +501,21 @@ def draw_node_list():
     curses.curs_set(1)
     entry_win.refresh()
 
-def select_channel(idx):
+def select_channel(idx, node_state):
     old_selected_channel = globals.selected_channel
     globals.selected_channel = max(0, min(idx, len(globals.channel_list) - 1))
-    draw_messages_window(True)
+    draw_messages_window(node_state, True)
 
     # For now just re-draw channel list when clearing notifications, we can probably make this more efficient
     if globals.selected_channel in globals.notifications:
         remove_notification(globals.selected_channel)
-        draw_channel_list()
+        draw_channel_list(node_state)
         return
-    highlight_line(False, 0, old_selected_channel)
-    highlight_line(True, 0, globals.selected_channel)
+    highlight_line(False, 0, old_selected_channel, node_state)
+    highlight_line(True, 0, globals.selected_channel, node_state)
     refresh_pad(0)
 
-def scroll_channels(direction):
+def scroll_channels(direction, node_state):
     new_selected_channel = globals.selected_channel + direction
 
     if new_selected_channel < 0:
@@ -523,7 +523,7 @@ def scroll_channels(direction):
     elif new_selected_channel >= len(globals.channel_list):
         new_selected_channel = 0
 
-    select_channel(new_selected_channel)
+    select_channel(new_selected_channel, node_state)
 
 def scroll_messages(direction):
     globals.selected_message += direction
@@ -533,17 +533,17 @@ def scroll_messages(direction):
 
     refresh_pad(1)
 
-def select_node(idx):
+def select_node(idx, node_state):
     old_selected_node = globals.selected_node
     globals.selected_node = max(0, min(idx, len(globals.node_list) - 1))
 
-    highlight_line(False, 2, old_selected_node)
-    highlight_line(True, 2, globals.selected_node)
+    highlight_line(False, 2, old_selected_node, node_state)
+    highlight_line(True, 2, globals.selected_node, node_state)
     refresh_pad(2)
 
-    draw_function_win()
+    draw_function_win(node_state)
 
-def scroll_nodes(direction):
+def scroll_nodes(direction, node_state):
     new_selected_node = globals.selected_node + direction
 
     if new_selected_node < 0:
@@ -551,9 +551,9 @@ def scroll_nodes(direction):
     elif new_selected_node >= len(globals.node_list):
         new_selected_node = 0
 
-    select_node(new_selected_node)
+    select_node(new_selected_node, node_state)
 
-def draw_packetlog_win():
+def draw_packetlog_win(node_state):
 
     columns = [10,10,15,30]
     span = 0
@@ -574,10 +574,10 @@ def draw_packetlog_win():
                 break
             
             # Format each field
-            from_id = get_name_from_database(packet['from'], 'short').ljust(columns[0])
+            from_id = get_name_from_database(packet['from'], node_state, 'short').ljust(columns[0])
             to_id = (
                 "BROADCAST".ljust(columns[1]) if str(packet['to']) == "4294967295"
-                else get_name_from_database(packet['to'], 'short').ljust(columns[1])
+                else get_name_from_database(packet['to'], node_state, 'short').ljust(columns[1])
             )
             if 'decoded' in packet:
                 port = packet['decoded']['portnum'].ljust(columns[2])
@@ -645,10 +645,10 @@ def search(win):
 
     entry_win.erase()
 
-def draw_node_details():
+def draw_node_details(node_state):
     node = None
     try:
-        node = globals.interface.nodesByNum[globals.node_list[globals.selected_node]]
+        node = node_state.interface.nodesByNum[globals.node_list[globals.selected_node]]
     except KeyError:
         return
 
@@ -702,9 +702,9 @@ def draw_help():
 
     draw_centered_text_field(function_win, function_str, 0, get_color("commands"))
 
-def draw_function_win():
+def draw_function_win(node_state):
     if(globals.current_window == 2):
-        draw_node_details()
+        draw_node_details(node_state)
     else:
         draw_help()
 
@@ -746,7 +746,7 @@ def refresh_pad(window):
                         box.getbegyx()[0] + 1, box.getbegyx()[1] + 1,
                         box.getbegyx()[0] + lines, box.getbegyx()[1] + box.getmaxyx()[1] - 2)
 
-def highlight_line(highlight, window, line):
+def highlight_line(highlight, window, line, node_state):
     pad = nodes_pad
 
     color = get_color("node_list")
@@ -754,7 +754,7 @@ def highlight_line(highlight, window, line):
 
     if window == 2:
         node_num = globals.node_list[line]
-        node = globals.interface.nodesByNum[node_num]
+        node = node_state.interface.nodesByNum[node_num]
         if 'isFavorite' in node and node['isFavorite']:
             color = get_color("node_favorite")
         if 'isIgnored' in node and node['isIgnored']:

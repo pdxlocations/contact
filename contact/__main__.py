@@ -31,9 +31,9 @@ from contact.utilities.input_handlers import get_list_input
 from contact.utilities.utils import get_channels, get_node_list, get_nodeNum
 
 import contact.globals as globals
-from contact.ui.ui_state import UIState
+from contact.ui.ui_state import NodeState
 
-ui_state = UIState()
+node_state = NodeState()
 
 # Set ncurses compatibility settings
 os.environ["NCURSES_NO_UTF8_ACS"] = "1"
@@ -69,25 +69,25 @@ def main(stdscr):
 
             logging.info("Initializing interface %s", args)
             with globals.lock:
-                globals.interface = initialize_interface(args)
+                node_state.interface = initialize_interface(args)
 
-                if globals.interface.localNode.localConfig.lora.region == 0:
+                if node_state.interface.localNode.localConfig.lora.region == 0:
                     confirmation = get_list_input("Your region is UNSET. Set it now?", "Yes", ["Yes", "No"])
                     if confirmation == "Yes":
-                        set_region(globals.interface)
-                        globals.interface.close()
-                        globals.interface = initialize_interface(args)
+                        set_region(node_state)
+                        node_state.interface.close()
+                        node_state.interface = initialize_interface(args)
 
                 logging.info("Interface initialized")
-                globals.myNodeNum = get_nodeNum()
+                get_nodeNum(node_state)
                 globals.channel_list = get_channels()
                 globals.node_list = get_node_list()
                 pub.subscribe(on_receive, 'meshtastic.receive')
-                init_nodedb()
-                load_messages_from_db()
+                init_nodedb(node_state)
+                load_messages_from_db(node_state)
                 logging.info("Starting main UI")
 
-            main_ui(stdscr)
+            main_ui(stdscr, node_state)
 
     except Exception as e:
         console_output = output_capture.getvalue()

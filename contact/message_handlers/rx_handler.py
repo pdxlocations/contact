@@ -10,7 +10,7 @@ import contact.globals as globals
 
 from datetime import datetime
 
-def on_receive(packet, interface):
+def on_receive(packet, node_state):
 
     with globals.lock:
         # Update packet log
@@ -20,7 +20,7 @@ def on_receive(packet, interface):
             globals.packet_buffer = globals.packet_buffer[-20:]
             
         if globals.display_log:
-            draw_packetlog_win()
+            draw_packetlog_win(node_state)
         try:
             if 'decoded' not in packet:
                 return
@@ -32,7 +32,7 @@ def on_receive(packet, interface):
 
             if packet['decoded']['portnum'] == 'NODEINFO_APP':
                 if "user" in packet['decoded'] and "longName" in packet['decoded']["user"]: 
-                    maybe_store_nodeinfo_in_db(packet)
+                    maybe_store_nodeinfo_in_db(packet, node_state)
 
             elif packet['decoded']['portnum'] == 'TEXT_MESSAGE_APP':
                 message_bytes = packet['decoded']['payload']
@@ -66,7 +66,7 @@ def on_receive(packet, interface):
 
                 # Add received message to the messages list
                 message_from_id = packet['from']
-                message_from_string = get_name_from_database(message_from_id, type='short') + ":"
+                message_from_string = get_name_from_database(message_from_id, node_state, type='short') + ":"
 
                 if globals.channel_list[channel_number] not in globals.all_messages:
                     globals.all_messages[globals.channel_list[channel_number]] = []
@@ -95,9 +95,9 @@ def on_receive(packet, interface):
                 globals.all_messages[globals.channel_list[channel_number]].append((f"{config.message_prefix} {message_from_string} ", message_string))
 
                 if refresh_channels:
-                    draw_channel_list()
+                    draw_channel_list(node_state)
                 if refresh_messages:
-                    draw_messages_window(True)
+                    draw_messages_window(node_state, True)
 
                 save_message_to_db(globals.channel_list[channel_number], message_from_id, message_string)
 

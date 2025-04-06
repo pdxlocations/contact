@@ -316,10 +316,10 @@ def draw_arrows(win, visible_height, max_index, menu_state):
             win.addstr(visible_height + 3, 2, " ", get_color("settings_default"))
         
 
-def settings_menu(stdscr, interface):
+def settings_menu(stdscr, node_state):
     curses.update_lines_cols()
 
-    menu = generate_menu_from_protobuf(interface)
+    menu = generate_menu_from_protobuf(node_state)
     menu_state.current_menu = menu["Main Menu"]
     menu_state.menu_path = ["Main Menu"]
 
@@ -389,7 +389,7 @@ def settings_menu(stdscr, interface):
             help_win.refresh()
 
             if menu_state.show_save_option and menu_state.selected_index == len(options):
-                save_changes(interface, modified_settings, menu_state)
+                save_changes(node_state, modified_settings, menu_state)
                 modified_settings.clear()
                 logging.info("Changes Saved")
 
@@ -416,7 +416,7 @@ def settings_menu(stdscr, interface):
                     filename += ".yaml"
 
                 try:
-                    config_text = config_export(interface)
+                    config_text = config_export(node_state)
                     yaml_file_path = os.path.join(config_folder, filename)
 
                     if os.path.exists(yaml_file_path):
@@ -460,18 +460,18 @@ def settings_menu(stdscr, interface):
                     file_path = os.path.join(config_folder, filename)
                     overwrite = get_list_input(f"Are you sure you want to load {filename}?", None, ["Yes", "No"])
                     if overwrite == "Yes":
-                        config_import(interface, file_path)
+                        config_import(node_state, file_path)
                 menu_state.start_index.pop()
                 continue
 
             elif selected_option == "Config URL":
-                current_value = interface.localNode.getURL()
+                current_value = node_state.interface.localNode.getURL()
                 new_value = get_text_input(f"Config URL is currently: {current_value}")
                 if new_value is not None:
                     current_value = new_value
                     overwrite = get_list_input(f"Are you sure you want to load this config?", None, ["Yes", "No"])
                     if overwrite == "Yes":
-                        interface.localNode.setURL(new_value)
+                        node_state.interface.localNode.setURL(new_value)
                         logging.info(f"New Config URL sent to node")
                 menu_state.start_index.pop()
                 continue
@@ -479,7 +479,7 @@ def settings_menu(stdscr, interface):
             elif selected_option == "Reboot":
                 confirmation = get_list_input("Are you sure you want to Reboot?", None,  ["Yes", "No"])
                 if confirmation == "Yes":
-                    interface.localNode.reboot()
+                    node_state.interface.localNode.reboot()
                     logging.info(f"Node Reboot Requested by menu")
                 menu_state.start_index.pop()
                 continue
@@ -487,7 +487,7 @@ def settings_menu(stdscr, interface):
             elif selected_option == "Reset Node DB":
                 confirmation = get_list_input("Are you sure you want to Reset Node DB?", None,  ["Yes", "No"])
                 if confirmation == "Yes":
-                    interface.localNode.resetNodeDb()
+                    node_state.interface.localNode.resetNodeDb()
                     logging.info(f"Node DB Reset Requested by menu")
                 menu_state.start_index.pop()
                 continue
@@ -495,7 +495,7 @@ def settings_menu(stdscr, interface):
             elif selected_option == "Shutdown":
                 confirmation = get_list_input("Are you sure you want to Shutdown?", None, ["Yes", "No"])
                 if confirmation == "Yes":
-                    interface.localNode.shutdown()
+                    node_state.interface.localNode.shutdown()
                     logging.info(f"Node Shutdown Requested by menu")
                 menu_state.start_index.pop()
                 continue
@@ -503,7 +503,7 @@ def settings_menu(stdscr, interface):
             elif selected_option == "Factory Reset":
                 confirmation = get_list_input("Are you sure you want to Factory Reset?", None,  ["Yes", "No"])
                 if confirmation == "Yes":
-                    interface.localNode.factoryReset()
+                    node_state.interface.localNode.factoryReset()
                     logging.info(f"Factory Reset Requested by menu")
                 menu_state.start_index.pop()
                 continue
@@ -647,8 +647,8 @@ def settings_menu(stdscr, interface):
             menu_win.refresh()
             break
 
-def set_region(interface):
-    node = interface.getNode('^local')
+def set_region(node_state):
+    node = node_state.interface.getNode('^local')
     device_config = node.localConfig
     lora_descriptor = device_config.lora.DESCRIPTOR
 

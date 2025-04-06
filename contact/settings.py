@@ -25,17 +25,17 @@ def main(stdscr):
 
             parser = setup_parser()
             args = parser.parse_args()
-            interface = initialize_interface(args)
+            node_state.interface = initialize_interface(args)
 
-            if interface.localNode.localConfig.lora.region == 0:
+            if node_state.interface.localNode.localConfig.lora.region == 0:
                 confirmation = get_list_input("Your region is UNSET.  Set it now?", "Yes",  ["Yes", "No"])
                 if confirmation == "Yes":
-                    set_region(interface)
-                    interface.close()
-                    interface = initialize_interface(args)
+                    set_region(node_state.interface)
+                    node_state.interface.close()
+                    node_state.interface = initialize_interface(args)
             stdscr.clear()
             stdscr.refresh()
-            settings_menu(stdscr, interface)
+            settings_menu(stdscr, node_state)
 
     except Exception as e:
         console_output = output_capture.getvalue()
@@ -52,6 +52,9 @@ logging.basicConfig( # Run `tail -f client.log` in another terminal to view live
 )
 
 if __name__ == "__main__":
+    from contact.ui.ui_state import NodeState
+    node_state = NodeState()
+
     log_file = config.log_file_path
     log_f = open(log_file, "a", buffering=1)  # Enable line-buffering for immediate log writes
 

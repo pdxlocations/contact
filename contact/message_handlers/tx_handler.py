@@ -11,7 +11,7 @@ ack_naks = {}
 
 # Note "onAckNak" has special meaning to the API, thus the nonstandard naming convention
 # See https://github.com/meshtastic/python/blob/master/meshtastic/mesh_interface.py#L462
-def onAckNak(packet):
+def onAckNak(packet, node_state):
     from contact.ui.contact_ui import draw_messages_window
     request = packet['decoded']['requestId']
     if(request not in ack_naks):
@@ -35,13 +35,13 @@ def onAckNak(packet):
 
     globals.all_messages[acknak['channel']][acknak['messageIndex']] = (config.sent_message_prefix + confirm_string + ": ", message)
 
-    update_ack_nak(acknak['channel'], acknak['timestamp'], message, ack_type)
+    update_ack_nak(acknak['channel'], acknak['timestamp'], message, ack_type, node_state)
 
     channel_number = globals.channel_list.index(acknak['channel'])
     if globals.channel_list[channel_number] == globals.channel_list[globals.selected_channel]:
-        draw_messages_window()
+        draw_messages_window(node_state)
 
-def on_response_traceroute(packet):
+def on_response_traceroute(packet, node_state):
     """on response for trace route"""
     from contact.ui.contact_ui import draw_channel_list, draw_messages_window, add_notification
 
@@ -56,18 +56,18 @@ def on_response_traceroute(packet):
 
     msg_str = "Traceroute to:\n"
 
-    route_str = get_name_from_database(packet["to"], 'short') or f"{packet['to']:08x}" # Start with destination of response
+    route_str = get_name_from_database(packet["to"], node_state, 'short') or f"{packet['to']:08x}" # Start with destination of response
 
     # SNR list should have one more entry than the route, as the final destination adds its SNR also
     lenTowards = 0 if "route" not in msg_dict else len(msg_dict["route"])
     snrTowardsValid = "snrTowards" in msg_dict and len(msg_dict["snrTowards"]) == lenTowards + 1
     if lenTowards > 0: # Loop through hops in route and add SNR if available
         for idx, node_num in enumerate(msg_dict["route"]):
-            route_str += " --> " + (get_name_from_database(node_num, 'short') or f"{node_num:08x}") \
+            route_str += " --> " + (get_name_from_database(node_num, node_state, 'short') or f"{node_num:08x}") \
                      + " (" + (str(msg_dict["snrTowards"][idx] / 4) if snrTowardsValid and msg_dict["snrTowards"][idx] != UNK_SNR else "?") + "dB)"
 
     # End with origin of response
-    route_str += " --> " + (get_name_from_database(packet["from"], 'short') or f"{packet['from']:08x}") \
+    route_str += " --> " + (get_name_from_database(packet["from"], node_state, 'short') or f"{packet['from']:08x}") \
              + " (" + (str(msg_dict["snrTowards"][-1] / 4) if snrTowardsValid and msg_dict["snrTowards"][-1] != UNK_SNR else "?") + "dB)"
 
     msg_str += route_str + "\n" # Print the route towards destination
@@ -77,15 +77,15 @@ def on_response_traceroute(packet):
     backValid = "hopStart" in packet and "snrBack" in msg_dict and len(msg_dict["snrBack"]) == lenBack + 1
     if backValid:
         msg_str += "Back:\n"
-        route_str = get_name_from_database(packet["from"], 'short') or f"{packet['from']:08x}" # Start with origin of response
+        route_str = get_name_from_database(packet["from"], node_state, 'short') or f"{packet['from']:08x}" # Start with origin of response
 
         if lenBack > 0: # Loop through hops in routeBack and add SNR if available
             for idx, node_num in enumerate(msg_dict["routeBack"]):
-                route_str += " --> " + (get_name_from_database(node_num, 'short') or f"{node_num:08x}") \
+                route_str += " --> " + (get_name_from_database(node_num, node_state, 'short') or f"{node_num:08x}") \
                          + " (" + (str(msg_dict["snrBack"][idx] / 4) if msg_dict["snrBack"][idx] != UNK_SNR else "?") + "dB)"
 
         # End with destination of response (us)
-        route_str += " --> " + (get_name_from_database(packet["to"], 'short') or f"{packet['to']:08x}") \
+        route_str += " --> " + (get_name_from_database(packet["to"], node_state, 'short') or f"{packet['to']:08x}") \
                  + " (" + (str(msg_dict["snrBack"][-1] / 4) if msg_dict["snrBack"][-1] != UNK_SNR else "?") + "dB)"
 
         msg_str += route_str + "\n" # Print the route back to us
@@ -94,7 +94,7 @@ def on_response_traceroute(packet):
         globals.channel_list.append(packet['from'])
         refresh_channels = True
 
-    if(is_chat_archived(packet['from'])):
+    if(is_chat_archived(packet['from']), node_state):
         update_node_info_in_db(packet['from'], chat_archived=False)
 
     channel_number = globals.channel_list.index(packet['from'])
@@ -105,21 +105,21 @@ def on_response_traceroute(packet):
         add_notification(channel_number)
         refresh_channels = True
 
-    message_from_string = get_name_from_database(packet['from'], type='short') + ":\n"
+    message_from_string = get_name_from_database(packet['from'], node_state, type='short') + ":\n"
 
     if globals.channel_list[channel_number] not in globals.all_messages:
         globals.all_messages[globals.channel_list[channel_number]] = []
     globals.all_messages[globals.channel_list[channel_number]].append((f"{config.message_prefix} {message_from_string}", msg_str))
 
     if refresh_channels:
-        draw_channel_list()
+        draw_channel_list(node_state)
     if refresh_messages:
-        draw_messages_window(True)
+        draw_messages_window(node_state, True)
     save_message_to_db(globals.channel_list[channel_number], packet['from'], msg_str)
 
 
-def send_message(message, destination=BROADCAST_NUM, channel=0):
-    myid = globals.myNodeNum
+def send_message(message, node_state, destination=BROADCAST_NUM, channel=0):
+    myid = node_state.myNodeNum
     send_on_channel = 0
     channel_id = globals.channel_list[channel]
     if isinstance(channel_id, int):
@@ -128,7 +128,7 @@ def send_message(message, destination=BROADCAST_NUM, channel=0):
     elif isinstance(channel_id, str):
         send_on_channel = channel
 
-    sent_message_data = globals.interface.sendText(
+    sent_message_data = node_state.interface.sendText(
         text=message,
         destinationId=destination,
         wantAck=True,
@@ -168,9 +168,9 @@ def send_message(message, destination=BROADCAST_NUM, channel=0):
 
     ack_naks[sent_message_data.id] = {'channel': channel_id, 'messageIndex': len(globals.all_messages[channel_id]) - 1, 'timestamp': timestamp}
 
-def send_traceroute():
+def send_traceroute(node_state):
     r = mesh_pb2.RouteDiscovery()
-    globals.interface.sendData(
+    node_state.interface.sendData(
         r,
         destinationId=globals.node_list[globals.selected_node],
         portNum=portnums_pb2.PortNum.TRACEROUTE_APP,

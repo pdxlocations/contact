@@ -7,9 +7,9 @@ from contact.utilities.utils import decimal_to_hex
 import contact.ui.default_config as config
 import contact.globals as globals
 
-def get_table_name(channel):
+def get_table_name(channel, node_state):
     # Construct the table name
-    table_name = f"{str(globals.myNodeNum)}_{channel}_messages"
+    table_name = f"{str(node_state.myNodeNum)}_{channel}_messages"
     quoted_table_name = f'"{table_name}"'  # Quote the table name becuase we begin with numerics and contain spaces
     return quoted_table_name
 
@@ -47,7 +47,7 @@ def save_message_to_db(channel, user_id, message_text):
         logging.error(f"Unexpected error in save_message_to_db: {e}")
 
 
-def update_ack_nak(channel, timestamp, message, ack):
+def update_ack_nak(channel, timestamp, message, ack, node_state):
     try:
         with sqlite3.connect(config.db_file_path) as db_connection:
             db_cursor = db_connection.cursor()
@@ -59,7 +59,7 @@ def update_ack_nak(channel, timestamp, message, ack):
                       message_text = ?
             """
 
-            db_cursor.execute(update_query, (ack, str(globals.myNodeNum), timestamp, message))
+            db_cursor.execute(update_query, (ack, str(node_state.myNodeNum), timestamp, message))
             db_connection.commit()
 
     except sqlite3.Error as e:
@@ -69,14 +69,14 @@ def update_ack_nak(channel, timestamp, message, ack):
         logging.error(f"Unexpected error in update_ack_nak: {e}")
 
 
-def load_messages_from_db():
+def load_messages_from_db(node_state):
     """Load messages from the database for all channels and update globals.all_messages and globals.channel_list."""
     try:
         with sqlite3.connect(config.db_file_path) as db_connection:
             db_cursor = db_connection.cursor()
 
             query = "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE ?"
-            db_cursor.execute(query, (f"{str(globals.myNodeNum)}_%_messages",))
+            db_cursor.execute(query, (f"{str(node_state.myNodeNum)}_%_messages",))
             tables = [row[0] for row in db_cursor.fetchall()]
 
             # Iterate through each table and fetch its messages
@@ -123,10 +123,10 @@ def load_messages_from_db():
                         elif ack_type == "Nak":
                             ack_str = config.nak_str
 
-                        if user_id == str(globals.myNodeNum):
+                        if user_id == str(node_state.myNodeNum):
                             formatted_message = (f"{config.sent_message_prefix}{ack_str}: ", message)
                         else:
-                            formatted_message = (f"{config.message_prefix} {get_name_from_database(int(user_id), 'short')}: ", message)
+                            formatted_message = (f"{config.message_prefix} {get_name_from_database(int(user_id), node_state,'short')}: ", message)
                         
                         hourly_messages[hour].append(formatted_message)
 
@@ -142,14 +142,14 @@ def load_messages_from_db():
         logging.error(f"SQLite error in load_messages_from_db: {e}")
 
 
-def init_nodedb():
+def init_nodedb(node_state):
     """Initialize the node database and update it with nodes from the interface."""
     
     try:
         if not globals.interface.nodes:
             return  # No nodes to initialize
 
-        ensure_node_table_exists()  # Ensure the table exists before insertion
+        ensure_node_table_exists(node_state)  # Ensure the table exists before insertion
         nodes_snapshot = list(globals.interface.nodes.values())
 
         # Insert or update all nodes
@@ -172,7 +172,7 @@ def init_nodedb():
         logging.error(f"Unexpected error in init_nodedb: {e}")
 
 
-def maybe_store_nodeinfo_in_db(packet):
+def maybe_store_nodeinfo_in_db(packet, node_state):
     """Save nodeinfo unless that record is already there, updating if necessary."""
     try:
         user_id = packet['from']
@@ -183,21 +183,21 @@ def maybe_store_nodeinfo_in_db(packet):
         role = packet['decoded']['user'].get('role', 'CLIENT')
         public_key = packet['decoded']['user'].get('publicKey', '')
 
-        update_node_info_in_db(user_id, long_name, short_name, hw_model, is_licensed, role, public_key)
+        update_node_info_in_db(node_state, user_id, long_name, short_name, hw_model, is_licensed, role, public_key)
 
     except sqlite3.Error as e:
         logging.error(f"SQLite error in maybe_store_nodeinfo_in_db: {e}")
     except Exception as e:
         logging.error(f"Unexpected error in maybe_store_nodeinfo_in_db: {e}")
 
-def update_node_info_in_db(user_id, long_name=None, short_name=None, hw_model=None, is_licensed=None, role=None, public_key=None, chat_archived=None):
+def update_node_info_in_db(node_state, user_id, long_name=None, short_name=None, hw_model=None, is_licensed=None, role=None, public_key=None, chat_archived=None):
     """Update or insert node information into the database, preserving unchanged fields."""
     try:
-        ensure_node_table_exists()  # Ensure the table exists before any operation
+        ensure_node_table_exists(node_state)  # Ensure the table exists before any operation
 
         with sqlite3.connect(config.db_file_path) as db_connection:
             db_cursor = db_connection.cursor()
-            table_name = f'"{globals.myNodeNum}_nodedb"'  # Quote in case of numeric names
+            table_name = f'"{node_state.myNodeNum}_nodedb"'  # Quote in case of numeric names
 
             table_columns = [i[1] for i in db_cursor.execute(f'PRAGMA table_info({table_name})')]
             if "chat_archived" not in table_columns:
@@ -249,9 +249,9 @@ def update_node_info_in_db(user_id, long_name=None, short_name=None, hw_model=No
         logging.error(f"Unexpected error in update_node_info_in_db: {e}")
 
 
-def ensure_node_table_exists():
+def ensure_node_table_exists(node_state):
     """Ensure the node database table exists."""
-    table_name = f'"{globals.myNodeNum}_nodedb"'  # Quote for safety
+    table_name = f'"{node_state.myNodeNum}_nodedb"'  # Quote for safety
     schema = '''
         user_id TEXT PRIMARY KEY,
         long_name TEXT,
@@ -279,7 +279,7 @@ def ensure_table_exists(table_name, schema):
         logging.error(f"Unexpected error in ensure_table_exists({table_name}): {e}")
 
 
-def get_name_from_database(user_id, type="long"):
+def get_name_from_database(user_id,  node_state, type="long"):
     """
     Retrieve a user's name (long or short) from the node database.
     
@@ -292,7 +292,7 @@ def get_name_from_database(user_id, type="long"):
             db_cursor = db_connection.cursor()
 
             # Construct table name
-            table_name = f"{str(globals.myNodeNum)}_nodedb"
+            table_name = f"{str(node_state.myNodeNum)}_nodedb"
             nodeinfo_table = f'"{table_name}"'  # Quote table name for safety
             
             # Determine the correct column to fetch
@@ -313,11 +313,11 @@ def get_name_from_database(user_id, type="long"):
         logging.error(f"Unexpected error in get_name_from_database: {e}")
         return "Unknown"
 
-def is_chat_archived(user_id):
+def is_chat_archived(user_id, node_state):
     try:
         with sqlite3.connect(config.db_file_path) as db_connection:
             db_cursor = db_connection.cursor()
-            table_name = f"{str(globals.myNodeNum)}_nodedb"
+            table_name = f"{str(node_state.myNodeNum)}_nodedb"
             nodeinfo_table = f'"{table_name}"'
             query = f"SELECT chat_archived FROM {nodeinfo_table} WHERE user_id = ?"
             db_cursor.execute(query, (user_id,))

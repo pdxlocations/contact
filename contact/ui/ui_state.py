@@ -7,9 +7,13 @@ class MenuState:
         self.menu_path = []         # Menu Path
         self.show_save_option = False
 
-class UIState:
+class NodeState:
     def __init__(self):
         self.interface = None
+        self.myNodeNum = 0
+
+
+
         # self.lock = None
         # self.display_log = False
         # self.all_messages = {}
@@ -17,7 +21,6 @@ class UIState:
         # self.notifications = []
         # self.packet_buffer = []
         # self.node_list = []
-        # self.myNodeNum = 0
         # self.selected_channel = 0
         # self.selected_message = 0
         # self.selected_node = 0
