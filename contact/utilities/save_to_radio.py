@@ -4,7 +4,7 @@ import logging
 import base64
 import time
 
-def save_changes(interface, modified_settings, state):
+def save_changes(interface, modified_settings, menu_state):
     """
     Save changes to the device based on modified settings.
     :param interface: Meshtastic interface instance
@@ -52,8 +52,8 @@ def save_changes(interface, modified_settings, state):
             if not modified_settings:
                 return
 
-        if state.menu_path[1] ==  "Radio Settings" or state.menu_path[1] == "Module Settings":
-            config_category = state.menu_path[2].lower() # for radio and module configs
+        if menu_state.menu_path[1] ==  "Radio Settings" or menu_state.menu_path[1] == "Module Settings":
+            config_category = menu_state.menu_path[2].lower() # for radio and module configs
 
             if {'latitude', 'longitude', 'altitude'} & modified_settings.keys():
                 lat = float(modified_settings.get('latitude', 0.0))
@@ -64,7 +64,7 @@ def save_changes(interface, modified_settings, state):
                 logging.info(f"Updated {config_category} with Latitude: {lat} and Longitude {lon} and Altitude {alt}")
                 return
 
-        elif state.menu_path[1] == "User Settings":  # for user configs
+        elif menu_state.menu_path[1] == "User Settings":  # for user configs
             config_category = "User Settings"
             long_name = modified_settings.get("longName")
             short_name = modified_settings.get("shortName")
@@ -77,11 +77,11 @@ def save_changes(interface, modified_settings, state):
 
             return
         
-        elif state.menu_path[1] == "Channels":    # for channel configs
+        elif menu_state.menu_path[1] == "Channels":    # for channel configs
             config_category = "Channels"
 
             try:
-                channel = state.menu_path[-1]
+                channel = menu_state.menu_path[-1]
                 channel_num = int(channel.split()[-1]) - 1
             except (IndexError, ValueError) as e:
                 channel_num = None

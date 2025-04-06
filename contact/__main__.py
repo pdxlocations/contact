@@ -29,7 +29,11 @@ from contact.utilities.arg_parser import setup_parser
 from contact.utilities.interfaces import initialize_interface
 from contact.utilities.input_handlers import get_list_input
 from contact.utilities.utils import get_channels, get_node_list, get_nodeNum
+
 import contact.globals as globals
+from contact.ui.ui_state import UIState
+
+ui_state = UIState()
 
 # Set ncurses compatibility settings
 os.environ["NCURSES_NO_UTF8_ACS"] = "1"
