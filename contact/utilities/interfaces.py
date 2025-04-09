@@ -15,14 +15,12 @@ def initialize_interface(args):
                 else:
                     tcp_hostname = args.host
                     tcp_port = meshtastic.tcp_interface.DEFAULT_TCP_PORT
-                return meshtastic.tcp_interface.TCPInterface(
-                     meshtastic.tcp_interface.TCPInterface(tcp_hostname, portNumber=tcp_port)
-                     )
+                return meshtastic.tcp_interface.TCPInterface(tcp_hostname, portNumber=tcp_port)
             except Exception as ex:
                 logging.error(f"Error connecting to {args.host}:{ex}", 1)
         else:
             try:
-                return meshtastic.serial_interface.SerialInterface(args.port)
+                client = meshtastic.serial_interface.SerialInterface(args.port)
             except FileNotFoundError as ex:
                 logging.error(f"The serial device at '{args.port}' was not found. {ex}")
             except PermissionError as ex:
@@ -33,10 +31,12 @@ def initialize_interface(args):
                 logging.error(f"The serial device couldn't be opened, it might be in use by another process. {ex}")
             if globals.interface.devPath is None:
                 try:
-                    return meshtastic.tcp_interface.TCPInterface("localhost")
+                    client = meshtastic.tcp_interface.TCPInterface("localhost")
                 except Exception as ex:
                     logging.error(f"Error connecting to localhost:{ex}")
-    
+
+            return client
+        
     except Exception as ex:
         logging.critical(f"Fatal error initializing interface: {ex}")
     
