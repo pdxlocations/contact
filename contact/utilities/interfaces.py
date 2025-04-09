@@ -17,7 +17,7 @@ def initialize_interface(args):
                     tcp_port = meshtastic.tcp_interface.DEFAULT_TCP_PORT
                 return meshtastic.tcp_interface.TCPInterface(tcp_hostname, portNumber=tcp_port)
             except Exception as ex:
-                logging.error(f"Error connecting to {args.host}:{ex}", 1)
+                logging.error(f"Error connecting to {args.host}:{tcp_port}. {ex}")
         else:
             try:
                 client = meshtastic.serial_interface.SerialInterface(args.port)
