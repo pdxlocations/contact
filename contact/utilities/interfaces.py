@@ -6,7 +6,7 @@ def initialize_interface(args):
     try:
 
         if args.ble:
-            return meshtastic.ble_interface.BLEInterface(args.ble if args.ble != "any" else None)
+            client = meshtastic.ble_interface.BLEInterface(args.ble if args.ble != "any" else None)
         
         elif args.host:
             try:
@@ -15,7 +15,7 @@ def initialize_interface(args):
                 else:
                     tcp_hostname = args.host
                     tcp_port = meshtastic.tcp_interface.DEFAULT_TCP_PORT
-                return meshtastic.tcp_interface.TCPInterface(tcp_hostname, portNumber=tcp_port)
+                client = meshtastic.tcp_interface.TCPInterface(tcp_hostname, portNumber=tcp_port)
             except Exception as ex:
                 logging.error(f"Error connecting to {args.host}:{ex}", 1)
         else:
@@ -35,7 +35,7 @@ def initialize_interface(args):
                 except Exception as ex:
                     logging.error(f"Error connecting to localhost:{ex}")
 
-            return client
+        return client
         
     except Exception as ex:
         logging.critical(f"Fatal error initializing interface: {ex}")
