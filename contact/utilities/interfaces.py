@@ -10,14 +10,15 @@ def initialize_interface(args):
             return meshtastic.tcp_interface.TCPInterface(args.host)
         else:
             try:
-                return meshtastic.serial_interface.SerialInterface(args.port)
+                client = meshtastic.serial_interface.SerialInterface(args.port)
             except PermissionError as ex:
                 logging.error(f"You probably need to add yourself to the `dialout` group to use a serial connection. {ex}")
             except Exception as ex:
                 logging.error(f"Unexpected error initializing interface: {ex}")
-            if globals.interface.devPath is None:
-                return meshtastic.tcp_interface.TCPInterface("localhost")
+            if client.devPath is None:
+                client = meshtastic.tcp_interface.TCPInterface("localhost")
     
+            return client
     except Exception as ex:
         logging.critical(f"Fatal error initializing interface: {ex}")
     
