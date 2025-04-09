@@ -29,13 +29,13 @@ def initialize_interface(args):
                 logging.error(f"Unexpected error initializing interface: {ex}")
             except OSError as ex:
                 logging.error(f"The serial device couldn't be opened, it might be in use by another process. {ex}")
-            if globals.interface.devPath is None:
+            if client.devPath is None:
                 try:
                     client = meshtastic.tcp_interface.TCPInterface("localhost")
                 except Exception as ex:
                     logging.error(f"Error connecting to localhost:{ex}")
 
-        return client
+            return client
         
     except Exception as ex:
         logging.critical(f"Fatal error initializing interface: {ex}")
