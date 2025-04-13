@@ -253,7 +253,7 @@ def json_editor(stdscr: curses.window, menu_state: Any) -> None:
             json.dump({}, f)
 
     # Load JSON data
-    with open(file_path, "r") as f:
+    with open(file_path, "r", encoding="utf-8") as f:
         original_data = json.load(f)
 
     data = original_data  # Reference to the original data
