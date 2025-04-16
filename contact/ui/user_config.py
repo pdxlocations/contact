@@ -5,7 +5,7 @@ from typing import Any
 from contact.ui.colors import get_color, setup_colors, COLOR_MAP
 from contact.ui.default_config import format_json_single_line_arrays, loaded_config
 from contact.utilities.input_handlers import get_list_input
-from contact.ui.menu_utilities import move_highlight, draw_arrows, update_help_window
+from contact.ui.menu_utilities import move_highlight, draw_arrows
 
 
 width = 80
@@ -165,32 +165,11 @@ def display_menu(menu_state: Any) -> tuple[Any, Any, list[str]]:
     max_index = num_items + (1 if menu_state.show_save_option else 0) - 1
     visible_height = menu_win.getmaxyx()[0] - 5 - (2 if menu_state.show_save_option else 0)
 
-    draw_arrows(menu_win, visible_height, max_index, menu_state)
+    draw_arrows(menu_win, visible_height, max_index, menu_state.start_index, show_save_option=False)
 
     return menu_win, menu_pad, options
 
 
-
-
-# def draw_arrows(
-#     win: curses.window,
-#     visible_height: int,
-#     max_index: int,
-#     menu_state: any
-# ) -> None:
-
-#     mi = max_index - (2 if menu_state.show_save_option else 0) 
-
-#     if visible_height < mi:
-#         if menu_state.start_index[-1] > 0:
-#             win.addstr(3, 2, "▲", get_color("settings_default"))
-#         else:
-#             win.addstr(3, 2, " ", get_color("settings_default"))
-
-#         if mi - menu_state.start_index[-1] >= visible_height + (0 if menu_state.show_save_option else 1) :
-#             win.addstr(visible_height + 3, 2, "▼", get_color("settings_default"))
-#         else:
-#             win.addstr(visible_height + 3, 2, " ", get_color("settings_default"))
 
 
 def json_editor(stdscr: curses.window, menu_state: Any) -> None:

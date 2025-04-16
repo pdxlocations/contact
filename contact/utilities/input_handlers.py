@@ -5,6 +5,9 @@ import ipaddress
 import re
 from typing import Any, Optional
 from contact.ui.colors import get_color
+from contact.ui.menu_utilities import move_highlight, draw_arrows
+
+max_help_lines = 6
 
 def wrap_text(text: str, wrap_width: int) -> list[str]:
     """Wraps text while preserving spaces and breaking long words."""
@@ -377,7 +380,7 @@ def get_list_input(prompt: str, current_option: Optional[str], list_options: lis
     max_index = len(list_options) - 1
     visible_height = list_win.getmaxyx()[0] - 5
 
-    draw_arrows(list_win, visible_height, max_index, 0)
+    draw_arrows(list_win, visible_height, max_index, [0], show_save_option=False)  # Initial call to draw arrows
 
     while True:
         key = list_win.getch()
@@ -441,26 +444,26 @@ def move_highlight(
                      list_win.getbegyx()[0] + 3 + visible_height, 
                      list_win.getbegyx()[1] + list_win.getmaxyx()[1] - 4)
     
-    draw_arrows(list_win, visible_height, max_index, scroll_offset)
+    draw_arrows(list_win, visible_height, max_index, [scroll_offset], show_save_option=False)
 
     return scroll_offset  # Return updated scroll_offset to be stored externally
 
 
-def draw_arrows(
-    win: curses.window,
-    visible_height: int,
-    max_index: int,
-    start_index: int
-) -> None:
+# def draw_arrows(
+#     win: curses.window,
+#     visible_height: int,
+#     max_index: int,
+#     start_index: int
+# ) -> None:
 
-    if visible_height < max_index:
-        if start_index > 0:
-            win.addstr(3, 2, "▲", get_color("settings_default"))
-        else:
-            win.addstr(3, 2, " ", get_color("settings_default"))
+#     if visible_height < max_index:
+#         if start_index > 0:
+#             win.addstr(3, 2, "▲", get_color("settings_default"))
+#         else:
+#             win.addstr(3, 2, " ", get_color("settings_default"))
 
-        if max_index - start_index > visible_height:
-            win.addstr(visible_height + 3, 2, "▼", get_color("settings_default"))
-        else:
-            win.addstr(visible_height + 3, 2, " ", get_color("settings_default"))
+#         if max_index - start_index > visible_height:
+#             win.addstr(visible_height + 3, 2, "▼", get_color("settings_default"))
+#         else:
+#             win.addstr(visible_height + 3, 2, " ", get_color("settings_default"))
         

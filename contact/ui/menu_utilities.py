@@ -68,7 +68,7 @@ def move_highlight(
     if help_text:
         help_win = update_help_window(help_win, help_text, transformed_path, selected_option, max_help_lines, width, help_y, menu_win.getbegyx()[1])
 
-    draw_arrows(menu_win, visible_height, max_index, menu_state)
+    draw_arrows(menu_win, visible_height, max_index, menu_state.start_index, show_save_option=False)
 
 
 
@@ -78,19 +78,20 @@ def draw_arrows(
     win: object,
     visible_height: int,
     max_index: int,
-    menu_state: any
+    start_index: int,
+    show_save_option: bool
 ) -> None:
 
     # vh = visible_height + (1 if show_save_option else 0)
-    mi = max_index - (2 if menu_state.show_save_option else 0) 
+    mi = max_index - (2 if show_save_option else 0) 
 
     if visible_height < mi:
-        if menu_state.start_index[-1] > 0:
+        if start_index[-1] > 0:
             win.addstr(3, 2, "▲", get_color("settings_default"))
         else:
             win.addstr(3, 2, " ", get_color("settings_default"))
 
-        if mi - menu_state.start_index[-1] >= visible_height + (0 if menu_state.show_save_option else 1) :
+        if mi - start_index[-1] >= visible_height + (0 if show_save_option else 1) :
             win.addstr(visible_height + 3, 2, "▼", get_color("settings_default"))
         else:
             win.addstr(visible_height + 3, 2, " ", get_color("settings_default"))
