@@ -14,6 +14,7 @@ from contact.ui.dialog import dialog
 from contact.utilities.control_utils import parse_ini_file, transform_menu_path
 from contact.ui.user_config import json_editor
 from contact.ui.ui_state import MenuState
+from contact.ui.navigation_utils import move_highlight
 
 menu_state = MenuState()
 
@@ -277,62 +278,62 @@ def get_wrapped_help_text(
     return wrapped_help
 
 
-def move_highlight(
-    old_idx: int,
-    options: list[str],
-    menu_win: object,
-    menu_pad: object,
-    help_win: object,
-    help_text: dict[str, str],
-    max_help_lines: int,
-    menu_state: MenuState
-) -> None:
+# def move_highlight(
+#     old_idx: int,
+#     options: list[str],
+#     menu_win: object,
+#     menu_pad: object,
+#     help_win: object,
+#     help_text: dict[str, str],
+#     max_help_lines: int,
+#     menu_state: MenuState
+# ) -> None:
     
-    if old_idx == menu_state.selected_index:  # No-op
-        return
+#     if old_idx == menu_state.selected_index:  # No-op
+#         return
 
-    max_index = len(options) + (1 if menu_state.show_save_option else 0) - 1
-    visible_height = menu_win.getmaxyx()[0] - 5 - (2 if menu_state.show_save_option else 0)
+#     max_index = len(options) + (1 if menu_state.show_save_option else 0) - 1
+#     visible_height = menu_win.getmaxyx()[0] - 5 - (2 if menu_state.show_save_option else 0)
 
-    # Adjust menu_state.start_index only when moving out of visible range
-    if menu_state.selected_index == max_index and menu_state.show_save_option:
-        pass
-    elif menu_state.selected_index < menu_state.start_index[-1]:  # Moving above the visible area
-        menu_state.start_index[-1] = menu_state.selected_index
-    elif menu_state.selected_index >= menu_state.start_index[-1] + visible_height:  # Moving below the visible area
-        menu_state.start_index[-1] = menu_state.selected_index - visible_height
-    pass
+#     # Adjust menu_state.start_index only when moving out of visible range
+#     if menu_state.selected_index == max_index and menu_state.show_save_option:
+#         pass
+#     elif menu_state.selected_index < menu_state.start_index[-1]:  # Moving above the visible area
+#         menu_state.start_index[-1] = menu_state.selected_index
+#     elif menu_state.selected_index >= menu_state.start_index[-1] + visible_height:  # Moving below the visible area
+#         menu_state.start_index[-1] = menu_state.selected_index - visible_height
+#     pass
 
-    # Ensure menu_state.start_index is within bounds
-    menu_state.start_index[-1] = max(0, min(menu_state.start_index[-1], max_index - visible_height + 1))
+#     # Ensure menu_state.start_index is within bounds
+#     menu_state.start_index[-1] = max(0, min(menu_state.start_index[-1], max_index - visible_height + 1))
 
-    # Clear old selection
-    if menu_state.show_save_option and old_idx == max_index:
-        menu_win.chgat(menu_win.getmaxyx()[0] - 2, (width - len(save_option)) // 2, len(save_option), get_color("settings_save"))
-    else:
-        menu_pad.chgat(old_idx, 0, menu_pad.getmaxyx()[1], get_color("settings_sensitive") if options[old_idx] in sensitive_settings else get_color("settings_default"))
+#     # Clear old selection
+#     if menu_state.show_save_option and old_idx == max_index:
+#         menu_win.chgat(menu_win.getmaxyx()[0] - 2, (width - len(save_option)) // 2, len(save_option), get_color("settings_save"))
+#     else:
+#         menu_pad.chgat(old_idx, 0, menu_pad.getmaxyx()[1], get_color("settings_sensitive") if options[old_idx] in sensitive_settings else get_color("settings_default"))
 
-    # Highlight new selection
-    if menu_state.show_save_option and menu_state.selected_index == max_index:
-        menu_win.chgat(menu_win.getmaxyx()[0] - 2, (width - len(save_option)) // 2, len(save_option), get_color("settings_save", reverse=True))
-    else:
-        menu_pad.chgat(menu_state.selected_index, 0, menu_pad.getmaxyx()[1], get_color("settings_sensitive", reverse=True) if options[menu_state.selected_index] in sensitive_settings else get_color("settings_default", reverse=True))
+#     # Highlight new selection
+#     if menu_state.show_save_option and menu_state.selected_index == max_index:
+#         menu_win.chgat(menu_win.getmaxyx()[0] - 2, (width - len(save_option)) // 2, len(save_option), get_color("settings_save", reverse=True))
+#     else:
+#         menu_pad.chgat(menu_state.selected_index, 0, menu_pad.getmaxyx()[1], get_color("settings_sensitive", reverse=True) if options[menu_state.selected_index] in sensitive_settings else get_color("settings_default", reverse=True))
 
-    menu_win.refresh()
+#     menu_win.refresh()
     
-    # Refresh pad only if scrolling is needed
-    menu_pad.refresh(menu_state.start_index[-1], 0,
-                     menu_win.getbegyx()[0] + 3, menu_win.getbegyx()[1] + 4,
-                     menu_win.getbegyx()[0] + 3 + visible_height, 
-                     menu_win.getbegyx()[1] + menu_win.getmaxyx()[1] - 4)
+#     # Refresh pad only if scrolling is needed
+#     menu_pad.refresh(menu_state.start_index[-1], 0,
+#                      menu_win.getbegyx()[0] + 3, menu_win.getbegyx()[1] + 4,
+#                      menu_win.getbegyx()[0] + 3 + visible_height, 
+#                      menu_win.getbegyx()[1] + menu_win.getmaxyx()[1] - 4)
 
-    # Update help window
-    transformed_path = transform_menu_path(menu_state.menu_path)
-    selected_option = options[menu_state.selected_index] if menu_state.selected_index < len(options) else None
-    help_y = menu_win.getbegyx()[0] + menu_win.getmaxyx()[0]
-    help_win = update_help_window(help_win, help_text, transformed_path, selected_option, max_help_lines, width, help_y, menu_win.getbegyx()[1])
+#     # Update help window
+#     transformed_path = transform_menu_path(menu_state.menu_path)
+#     selected_option = options[menu_state.selected_index] if menu_state.selected_index < len(options) else None
+#     help_y = menu_win.getbegyx()[0] + menu_win.getmaxyx()[0]
+#     help_win = update_help_window(help_win, help_text, transformed_path, selected_option, max_help_lines, width, help_y, menu_win.getbegyx()[1])
 
-    draw_arrows(menu_win, visible_height, max_index, menu_state)
+#     draw_arrows(menu_win, visible_height, max_index, menu_state)
 
 
 def draw_arrows(
@@ -394,14 +395,36 @@ def settings_menu(stdscr: object, interface: object) -> None:
         # max_help_lines = 4
 
         if key == curses.KEY_UP:
-            old_selected_index = menu_state.selected_index
+            old_idx = menu_state.selected_index
             menu_state.selected_index = max_index if menu_state.selected_index == 0 else menu_state.selected_index - 1
-            move_highlight(old_selected_index, options, menu_win, menu_pad, help_win, help_text, max_help_lines, menu_state)
+            move_highlight(
+                old_idx, menu_state.selected_index, options, menu_win, menu_pad,
+                start_index_ref=menu_state.start_index[-1:],
+                selected_index=menu_state.selected_index,
+                show_save=menu_state.show_save_option,
+                help_win=help_win,
+                help_updater=update_help_window,
+                field_mapping=help_text,
+                menu_path=transform_menu_path(menu_state.menu_path),
+                max_help_lines=max_help_lines,
+                sensitive_mode=True
+            )
             
         elif key == curses.KEY_DOWN:
-            old_selected_index = menu_state.selected_index
+            old_idx = menu_state.selected_index
             menu_state.selected_index = 0 if menu_state.selected_index == max_index else menu_state.selected_index + 1
-            move_highlight(old_selected_index, options, menu_win, menu_pad, help_win, help_text, max_help_lines, menu_state)
+            move_highlight(
+                old_idx, menu_state.selected_index, options, menu_win, menu_pad,
+                start_index_ref=menu_state.start_index[-1:],
+                selected_index=menu_state.selected_index,
+                show_save=menu_state.show_save_option,
+                help_win=help_win,
+                help_updater=update_help_window,
+                field_mapping=help_text,
+                menu_path=transform_menu_path(menu_state.menu_path),
+                max_help_lines=max_help_lines,
+                sensitive_mode=True
+            )
 
         elif key == curses.KEY_RESIZE:
             need_redraw = True
@@ -414,10 +437,20 @@ def settings_menu(stdscr: object, interface: object) -> None:
             help_win.refresh()
 
         elif key == ord("\t") and menu_state.show_save_option:
-            old_selected_index = menu_state.selected_index
+            old_idx = menu_state.selected_index
             menu_state.selected_index = max_index
-            move_highlight(old_selected_index, options, menu_win, menu_pad, help_win, help_text, max_help_lines, menu_state)
-
+            move_highlight(
+                old_idx, menu_state.selected_index, options, menu_win, menu_pad,
+                start_index_ref=menu_state.start_index[-1:],
+                selected_index=menu_state.selected_index,
+                show_save=menu_state.show_save_option,
+                help_win=help_win,
+                help_updater=update_help_window,
+                field_mapping=help_text,
+                menu_path=transform_menu_path(menu_state.menu_path),
+                max_help_lines=max_help_lines,
+                sensitive_mode=True
+            )
         elif key == curses.KEY_RIGHT or key == ord('\n'):
             need_redraw = True
             menu_state.start_index.append(0)
