@@ -7,9 +7,10 @@ from typing import Any, Optional
 from contact.ui.colors import get_color
 from contact.ui.navigation_utils import move_highlight
 
+
 def wrap_text(text: str, wrap_width: int) -> list[str]:
     """Wraps text while preserving spaces and breaking long words."""
-    words = re.findall(r'\S+|\s+', text)  # Capture words and spaces separately
+    words = re.findall(r"\S+|\s+", text)  # Capture words and spaces separately
     wrapped_lines = []
     line_buffer = ""
     line_length = 0
@@ -25,7 +26,7 @@ def wrap_text(text: str, wrap_width: int) -> list[str]:
                 line_buffer = ""
                 line_length = 0
             for i in range(0, word_length, wrap_width):
-                wrapped_lines.append(word[i:i+wrap_width])
+                wrapped_lines.append(word[i : i + wrap_width])
             continue
 
         if line_length + word_length > wrap_width and word.strip():
@@ -40,7 +41,7 @@ def wrap_text(text: str, wrap_width: int) -> list[str]:
         wrapped_lines.append(line_buffer)
 
     return wrapped_lines
-    
+
 
 def get_text_input(prompt: str) -> Optional[str]:
     """Handles user input with wrapped text for long prompts."""
@@ -62,14 +63,16 @@ def get_text_input(prompt: str) -> Optional[str]:
     wrapped_prompt = wrap_text(prompt, wrap_width=input_width)
     row = 1
     for line in wrapped_prompt:
-        input_win.addstr(row, margin, line[:input_width], get_color("settings_default", bold=True))
+        input_win.addstr(
+            row, margin, line[:input_width], get_color("settings_default", bold=True)
+        )
         row += 1
         if row >= height - 3:  # Prevent overflow
             break
 
     prompt_text = "Enter new value: "
     input_win.addstr(row + 1, margin, prompt_text, get_color("settings_default"))
-    
+
     input_win.refresh()
     curses.curs_set(1)
 
@@ -106,21 +109,35 @@ def get_text_input(prompt: str) -> Optional[str]:
         first_line = user_input[:first_line_width]  # Cut to max first line width
         remaining_text = user_input[first_line_width:]  # Remaining text for wrapping
 
-        wrapped_lines = wrap_text(remaining_text, wrap_width=input_width) if remaining_text else []
-        
+        wrapped_lines = (
+            wrap_text(remaining_text, wrap_width=input_width) if remaining_text else []
+        )
+
         # Clear only the input area (without touching prompt text)
         for i in range(max_input_rows):
             if row + 1 + i < height - 1:
-                input_win.addstr(row + 1 + i, margin, " " * min(input_width, width - margin - 1), get_color("settings_default"))
+                input_win.addstr(
+                    row + 1 + i,
+                    margin,
+                    " " * min(input_width, width - margin - 1),
+                    get_color("settings_default"),
+                )
 
         # Redraw the prompt text so it never disappears
         input_win.addstr(row + 1, margin, prompt_text, get_color("settings_default"))
 
         # Redraw wrapped input
-        input_win.addstr(row + 1, col_start, first_line, get_color("settings_default"))  # First line next to prompt
+        input_win.addstr(
+            row + 1, col_start, first_line, get_color("settings_default")
+        )  # First line next to prompt
         for i, line in enumerate(wrapped_lines):
             if row + 2 + i < height - 1:
-                input_win.addstr(row + 2 + i, margin, line[:input_width], get_color("settings_default"))
+                input_win.addstr(
+                    row + 2 + i,
+                    margin,
+                    line[:input_width],
+                    get_color("settings_default"),
+                )
 
         input_win.refresh()
 
@@ -165,53 +182,73 @@ def get_admin_key_input(current_value: list[bytes]) -> Optional[list[str]]:
     while True:
         repeated_win.erase()
         repeated_win.border()
-        repeated_win.addstr(1, 2, "Edit up to 3 Admin Keys:", get_color("settings_default", bold=True))
+        repeated_win.addstr(
+            1, 2, "Edit up to 3 Admin Keys:", get_color("settings_default", bold=True)
+        )
 
         # Display current values, allowing editing
         for i, line in enumerate(user_values):
             prefix = "→ " if i == cursor_pos else "  "  # Highlight the current line
-            repeated_win.addstr(3 + i, 2, f"{prefix}Admin Key {i + 1}: ", get_color("settings_default", bold=(i == cursor_pos)))
+            repeated_win.addstr(
+                3 + i,
+                2,
+                f"{prefix}Admin Key {i + 1}: ",
+                get_color("settings_default", bold=(i == cursor_pos)),
+            )
             repeated_win.addstr(3 + i, 18, line)  # Align text for easier editing
 
         # Move cursor to the correct position inside the field
         curses.curs_set(1)
-        repeated_win.move(3 + cursor_pos, 18 + len(user_values[cursor_pos]))  # Position cursor at end of text
+        repeated_win.move(
+            3 + cursor_pos, 18 + len(user_values[cursor_pos])
+        )  # Position cursor at end of text
 
         # Show error message if needed
         if error_message:
-            repeated_win.addstr(7, 2, error_message, get_color("settings_default", bold=True))
+            repeated_win.addstr(
+                7, 2, error_message, get_color("settings_default", bold=True)
+            )
 
         repeated_win.refresh()
         key = repeated_win.getch()
 
-        if key == 27 or key == curses.KEY_LEFT:  # Escape or Left Arrow -> Cancel and return original
+        if (
+            key == 27 or key == curses.KEY_LEFT
+        ):  # Escape or Left Arrow -> Cancel and return original
             repeated_win.erase()
             repeated_win.refresh()
             curses.noecho()
             curses.curs_set(0)
             return None
-        
-        elif key == ord('\n'):  # Enter key to save and return
-            if all(is_valid_base64(val) for val in user_values):  # Ensure all values are valid Base64 and 32 bytes
+
+        elif key == ord("\n"):  # Enter key to save and return
+            if all(
+                is_valid_base64(val) for val in user_values
+            ):  # Ensure all values are valid Base64 and 32 bytes
                 curses.noecho()
                 curses.curs_set(0)
                 return user_values  # Return the edited Base64 values
             else:
-                error_message = "Error: Each key must be valid Base64 and 32 bytes long!"
+                error_message = (
+                    "Error: Each key must be valid Base64 and 32 bytes long!"
+                )
         elif key == curses.KEY_UP:  # Move cursor up
             cursor_pos = (cursor_pos - 1) % len(user_values)
         elif key == curses.KEY_DOWN:  # Move cursor down
             cursor_pos = (cursor_pos + 1) % len(user_values)
         elif key == curses.KEY_BACKSPACE or key == 127:  # Backspace key
             if len(user_values[cursor_pos]) > 0:
-                user_values[cursor_pos] = user_values[cursor_pos][:-1]  # Remove last character
+                user_values[cursor_pos] = user_values[cursor_pos][
+                    :-1
+                ]  # Remove last character
         else:
             try:
-                user_values[cursor_pos] += chr(key)  # Append valid character input to the selected field
+                user_values[cursor_pos] += chr(
+                    key
+                )  # Append valid character input to the selected field
                 error_message = ""  # Clear error if user starts fixing input
             except ValueError:
                 pass  # Ignore invalid character inputs
-
 
 
 def get_repeated_input(current_value: list[str]) -> Optional[str]:
@@ -236,33 +273,46 @@ def get_repeated_input(current_value: list[str]) -> Optional[str]:
     while True:
         repeated_win.erase()
         repeated_win.border()
-        repeated_win.addstr(1, 2, "Edit up to 3 Values:", get_color("settings_default", bold=True))
+        repeated_win.addstr(
+            1, 2, "Edit up to 3 Values:", get_color("settings_default", bold=True)
+        )
 
         # Display current values, allowing editing
         for i, line in enumerate(user_values):
             prefix = "→ " if i == cursor_pos else "  "  # Highlight the current line
-            repeated_win.addstr(3 + i, 2, f"{prefix}Value{i + 1}: ", get_color("settings_default", bold=(i == cursor_pos)))
-            repeated_win.addstr(3 + i, 18, line) 
+            repeated_win.addstr(
+                3 + i,
+                2,
+                f"{prefix}Value{i + 1}: ",
+                get_color("settings_default", bold=(i == cursor_pos)),
+            )
+            repeated_win.addstr(3 + i, 18, line)
 
         # Move cursor to the correct position inside the field
         curses.curs_set(1)
-        repeated_win.move(3 + cursor_pos, 18 + len(user_values[cursor_pos]))  #  Position cursor at end of text
+        repeated_win.move(
+            3 + cursor_pos, 18 + len(user_values[cursor_pos])
+        )  #  Position cursor at end of text
 
         # Show error message if needed
         if error_message:
-            repeated_win.addstr(7, 2, error_message, get_color("settings_default", bold=True))
+            repeated_win.addstr(
+                7, 2, error_message, get_color("settings_default", bold=True)
+            )
 
         repeated_win.refresh()
         key = repeated_win.getch()
 
-        if key == 27 or key == curses.KEY_LEFT:  # Escape or Left Arrow -> Cancel and return original
+        if (
+            key == 27 or key == curses.KEY_LEFT
+        ):  # Escape or Left Arrow -> Cancel and return original
             repeated_win.erase()
             repeated_win.refresh()
             curses.noecho()
             curses.curs_set(0)
             return None
-        
-        elif key == ord('\n'):  # Enter key to save and return
+
+        elif key == ord("\n"):  # Enter key to save and return
             curses.noecho()
             curses.curs_set(0)
             return ", ".join(user_values)
@@ -272,10 +322,14 @@ def get_repeated_input(current_value: list[str]) -> Optional[str]:
             cursor_pos = (cursor_pos + 1) % len(user_values)
         elif key == curses.KEY_BACKSPACE or key == 127:  # Backspace key
             if len(user_values[cursor_pos]) > 0:
-                user_values[cursor_pos] = user_values[cursor_pos][:-1]  # Remove last character
+                user_values[cursor_pos] = user_values[cursor_pos][
+                    :-1
+                ]  # Remove last character
         else:
             try:
-                user_values[cursor_pos] += chr(key)  # Append valid character input to the selected field
+                user_values[cursor_pos] += chr(
+                    key
+                )  # Append valid character input to the selected field
                 error_message = ""  # Clear error if user starts fixing input
             except ValueError:
                 pass  # Ignore invalid character inputs
@@ -301,7 +355,9 @@ def get_fixed32_input(current_value: int) -> int:
     while True:
         fixed32_win.erase()
         fixed32_win.border()
-        fixed32_win.addstr(1, 2, "Enter an IP address (xxx.xxx.xxx.xxx):", curses.A_BOLD)
+        fixed32_win.addstr(
+            1, 2, "Enter an IP address (xxx.xxx.xxx.xxx):", curses.A_BOLD
+        )
         fixed32_win.addstr(3, 2, f"Current: {current_value}")
         fixed32_win.addstr(5, 2, f"New value: {user_input}")
         fixed32_win.refresh()
@@ -314,16 +370,23 @@ def get_fixed32_input(current_value: int) -> int:
             curses.noecho()
             curses.curs_set(0)
             return cvalue  # Return the current value unchanged
-        elif key == ord('\n'):  # Enter key to validate and save
+        elif key == ord("\n"):  # Enter key to validate and save
             # Validate IP address
             octets = user_input.split(".")
-            if len(octets) == 4 and all(octet.isdigit() and 0 <= int(octet) <= 255 for octet in octets):
+            if len(octets) == 4 and all(
+                octet.isdigit() and 0 <= int(octet) <= 255 for octet in octets
+            ):
                 curses.noecho()
                 curses.curs_set(0)
                 fixed32_address = ipaddress.ip_address(user_input)
                 return int(fixed32_address)  # Return the valid IP address
             else:
-                fixed32_win.addstr(7, 2, "Invalid IP address. Try again.", curses.A_BOLD | curses.color_pair(5))
+                fixed32_win.addstr(
+                    7,
+                    2,
+                    "Invalid IP address. Try again.",
+                    curses.A_BOLD | curses.color_pair(5),
+                )
                 fixed32_win.refresh()
                 curses.napms(1500)  # Wait for 1.5 seconds before refreshing
                 user_input = ""  # Clear invalid input
@@ -338,11 +401,16 @@ def get_fixed32_input(current_value: int) -> int:
                 pass  # Ignore invalid inputs
 
 
-def get_list_input(prompt: str, current_option: Optional[str], list_options: list[str]) -> Optional[str]:
+def get_list_input(
+    prompt: str, current_option: Optional[str], list_options: list[str]
+) -> Optional[str]:
     """
     Displays a scrollable list of list_options for the user to choose from.
     """
-    selected_index = list_options.index(current_option) if current_option in list_options else 0
+    selected_index = (
+        list_options.index(current_option) if current_option in list_options else 0
+    )
+    scroll_offset = 0
 
     height = min(len(list_options) + 5, curses.LINES)
     width = 80
@@ -365,16 +433,28 @@ def get_list_input(prompt: str, current_option: Optional[str], list_options: lis
     # Render options on the pad
     for idx, color in enumerate(list_options):
         if idx == selected_index:
-            list_pad.addstr(idx, 0, color.ljust(width - 8), get_color("settings_default", reverse=True))
+            list_pad.addstr(
+                idx,
+                0,
+                color.ljust(width - 8),
+                get_color("settings_default", reverse=True),
+            )
         else:
-            list_pad.addstr(idx, 0, color.ljust(width - 8), get_color("settings_default"))
+            list_pad.addstr(
+                idx, 0, color.ljust(width - 8), get_color("settings_default")
+            )
 
     # Initial refresh
     list_win.refresh()
-    list_pad.refresh(0, 0,
-                    list_win.getbegyx()[0] + 3, list_win.getbegyx()[1] + 4,
-                    list_win.getbegyx()[0] + list_win.getmaxyx()[0] - 2, list_win.getbegyx()[1] + list_win.getmaxyx()[1] - 4)
-    
+    list_pad.refresh(
+        0,
+        0,
+        list_win.getbegyx()[0] + 3,
+        list_win.getbegyx()[1] + 4,
+        list_win.getbegyx()[0] + list_win.getmaxyx()[0] - 2,
+        list_win.getbegyx()[1] + list_win.getmaxyx()[1] - 4,
+    )
+
     max_index = len(list_options) - 1
     visible_height = list_win.getmaxyx()[0] - 5
 
@@ -388,8 +468,12 @@ def get_list_input(prompt: str, current_option: Optional[str], list_options: lis
             selected_index = max(0, selected_index - 1)
             scroll_ref = [scroll_offset]
             move_highlight(
-                old_idx, selected_index, list_options, list_win, list_pad,
-                start_index_ref=scroll_ref
+                old_idx,
+                selected_index,
+                list_options,
+                list_win,
+                list_pad,
+                start_index_ref=scroll_ref,
             )
             scroll_offset = scroll_ref[0]
         elif key == curses.KEY_DOWN:
@@ -397,11 +481,15 @@ def get_list_input(prompt: str, current_option: Optional[str], list_options: lis
             selected_index = min(len(list_options) - 1, selected_index + 1)
             scroll_ref = [scroll_offset]
             move_highlight(
-                old_idx, selected_index, list_options, list_win, list_pad,
-                start_index_ref=scroll_ref
+                old_idx,
+                selected_index,
+                list_options,
+                list_win,
+                list_pad,
+                start_index_ref=scroll_ref,
             )
             scroll_offset = scroll_ref[0]
-        elif key == ord('\n'):  # Enter key
+        elif key == ord("\n"):  # Enter key
             list_win.clear()
             list_win.refresh()
             return list_options[selected_index]
@@ -445,23 +533,20 @@ def get_list_input(prompt: str, current_option: Optional[str], list_options: lis
 #     list_pad.chgat(new_idx, 0, list_pad.getmaxyx()[1], get_color("settings_default", reverse=True))
 
 #     list_win.refresh()
-    
+
 #     # Refresh pad only if scrolling is needed
 #     list_pad.refresh(scroll_offset, 0,
 #                      list_win.getbegyx()[0] + 3, list_win.getbegyx()[1] + 4,
-#                      list_win.getbegyx()[0] + 3 + visible_height, 
+#                      list_win.getbegyx()[0] + 3 + visible_height,
 #                      list_win.getbegyx()[1] + list_win.getmaxyx()[1] - 4)
-    
+
 #     draw_arrows(list_win, visible_height, max_index, scroll_offset)
 
 #     return scroll_offset  # Return updated scroll_offset to be stored externally
 
 
 def draw_arrows(
-    win: curses.window,
-    visible_height: int,
-    max_index: int,
-    start_index: int
+    win: curses.window, visible_height: int, max_index: int, start_index: int
 ) -> None:
 
     if visible_height < max_index:
@@ -474,4 +559,3 @@ def draw_arrows(
             win.addstr(visible_height + 3, 2, "▼", get_color("settings_default"))
         else:
             win.addstr(visible_height + 3, 2, " ", get_color("settings_default"))
-        
