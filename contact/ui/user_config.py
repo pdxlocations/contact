@@ -5,7 +5,7 @@ from typing import Any
 from contact.ui.colors import get_color, setup_colors, COLOR_MAP
 from contact.ui.default_config import format_json_single_line_arrays, loaded_config
 from contact.utilities.input_handlers import get_list_input
-from contact.ui.menu_utilities import move_highlight, draw_arrows
+from contact.ui.nav_utils import move_highlight, draw_arrows
 
 
 width = 80
@@ -213,18 +213,18 @@ def json_editor(stdscr: curses.window, menu_state: Any) -> None:
 
             old_selected_index = menu_state.selected_index
             menu_state.selected_index = max_index if menu_state.selected_index == 0 else menu_state.selected_index - 1
-            menu_state.help_win = move_highlight(old_selected_index, options, menu_win, menu_pad, menu_state, menu_state.help_win, menu_state.help_text, max_help_lines)
+            menu_state.help_win = move_highlight(old_selected_index, options, menu_win, menu_pad, menu_state=menu_state, max_help_lines=max_help_lines)
 
         elif key == curses.KEY_DOWN:
 
             old_selected_index = menu_state.selected_index
             menu_state.selected_index = 0 if menu_state.selected_index == max_index else menu_state.selected_index + 1
-            menu_state.help_win = move_highlight(old_selected_index, options, menu_win, menu_pad, menu_state, menu_state.help_win, menu_state.help_text, max_help_lines)
+            menu_state.help_win = move_highlight(old_selected_index, options, menu_win, menu_pad, menu_state=menu_state, max_help_lines=max_help_lines)
 
         elif key == ord("\t") and menu_state.show_save_option:
             old_selected_index = menu_state.selected_index
             menu_state.selected_index = max_index
-            menu_state.help_win = move_highlight(old_selected_index, options, menu_win, menu_pad, menu_state, menu_state.help_win, menu_state.help_text, max_help_lines)
+            menu_state.help_win = move_highlight(old_selected_index, options, menu_win, menu_pad, menu_state=menu_state, max_help_lines=max_help_lines)
 
         elif key in (curses.KEY_RIGHT, 10, 13):  # 10 = \n, 13 = carriage return
 

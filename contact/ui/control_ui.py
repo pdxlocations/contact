@@ -14,7 +14,7 @@ from contact.ui.dialog import dialog
 from contact.utilities.control_utils import parse_ini_file, transform_menu_path
 from contact.ui.user_config import json_editor
 from contact.ui.ui_state import MenuState
-from contact.ui.menu_utilities import move_highlight, draw_arrows, update_help_window
+from contact.ui.nav_utils import move_highlight, draw_arrows, update_help_window
 
 menu_state = MenuState()
 
@@ -169,12 +169,12 @@ def settings_menu(stdscr: object, interface: object) -> None:
         if key == curses.KEY_UP:
             old_selected_index = menu_state.selected_index
             menu_state.selected_index = max_index if menu_state.selected_index == 0 else menu_state.selected_index - 1
-            move_highlight(old_selected_index, options, menu_win, menu_pad, menu_state, help_win, help_text, max_help_lines)
+            move_highlight(old_selected_index, options, menu_win, menu_pad, menu_state=menu_state, help_win=help_win, help_text=help_text, max_help_lines=max_help_lines)
             
         elif key == curses.KEY_DOWN:
             old_selected_index = menu_state.selected_index
             menu_state.selected_index = 0 if menu_state.selected_index == max_index else menu_state.selected_index + 1
-            move_highlight(old_selected_index, options, menu_win, menu_pad, menu_state, help_win, help_text, max_help_lines)
+            move_highlight(old_selected_index, options, menu_win, menu_pad, menu_state=menu_state, help_win=help_win, help_text=help_text, max_help_lines=max_help_lines)
 
         elif key == curses.KEY_RESIZE:
             need_redraw = True
@@ -189,7 +189,7 @@ def settings_menu(stdscr: object, interface: object) -> None:
         elif key == ord("\t") and menu_state.show_save_option:
             old_selected_index = menu_state.selected_index
             menu_state.selected_index = max_index
-            move_highlight(old_selected_index, options, menu_win, menu_pad, menu_state, help_win, help_text, max_help_lines)
+            move_highlight(old_selected_index, options, menu_win, menu_pad, menu_state=menu_state, help_win=help_win, help_text=help_text, max_help_lines=max_help_lines)
 
         elif key == curses.KEY_RIGHT or key == ord('\n'):
             need_redraw = True

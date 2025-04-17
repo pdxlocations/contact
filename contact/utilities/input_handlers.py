@@ -5,7 +5,7 @@ import ipaddress
 import re
 from typing import Any, Optional
 from contact.ui.colors import get_color
-from contact.ui.menu_utilities import move_highlight, draw_arrows
+from contact.ui.nav_utils import move_highlight, draw_arrows
 
 max_help_lines = 6
 
@@ -388,11 +388,11 @@ def get_list_input(prompt: str, current_option: Optional[str], list_options: lis
         if key == curses.KEY_UP:
             old_selected_index = selected_index
             selected_index = max(0, selected_index - 1)
-            move_highlight(old_selected_index, selected_index, list_options, list_win, list_pad)
+            move_highlight(old_selected_index, list_options, list_win, list_pad, selected_index=selected_index)
         elif key == curses.KEY_DOWN:
             old_selected_index = selected_index
             selected_index = min(len(list_options) - 1, selected_index + 1)
-            move_highlight(old_selected_index, selected_index, list_options, list_win, list_pad)
+            move_highlight(old_selected_index, list_options, list_win, list_pad, selected_index=selected_index)
         elif key == ord('\n'):  # Enter key
             list_win.clear()
             list_win.refresh()
@@ -403,67 +403,48 @@ def get_list_input(prompt: str, current_option: Optional[str], list_options: lis
             return current_option
 
 
-def move_highlight(
-    old_idx: int,
-    new_idx: int,
-    options: list[str],
-    list_win: curses.window,
-    list_pad: curses.window
-) -> int:
+# def move_highlight(
+#     old_idx: int,
+#     new_idx: int,
+#     options: list[str],
+#     list_win: curses.window,
+#     list_pad: curses.window
+# ) -> int:
 
-    global scroll_offset
-    if 'scroll_offset' not in globals():
-        scroll_offset = 0  # Initialize if not set
+#     global scroll_offset
+#     if 'scroll_offset' not in globals():
+#         scroll_offset = 0  # Initialize if not set
 
-    if old_idx == new_idx:
-        return  # No-op
+#     if old_idx == new_idx:
+#         return  # No-op
 
-    max_index = len(options) - 1
-    visible_height = list_win.getmaxyx()[0] - 5
+#     max_index = len(options) - 1
+#     visible_height = list_win.getmaxyx()[0] - 5
 
-    # Adjust scroll_offset only when moving out of visible range
-    if new_idx < scroll_offset:  # Moving above the visible area
-        scroll_offset = new_idx
-    elif new_idx >= scroll_offset + visible_height:  # Moving below the visible area
-        scroll_offset = new_idx - visible_height
+#     # Adjust scroll_offset only when moving out of visible range
+#     if new_idx < scroll_offset:  # Moving above the visible area
+#         scroll_offset = new_idx
+#     elif new_idx >= scroll_offset + visible_height:  # Moving below the visible area
+#         scroll_offset = new_idx - visible_height
 
-    # Ensure scroll_offset is within bounds
-    scroll_offset = max(0, min(scroll_offset, max_index - visible_height + 1))
+#     # Ensure scroll_offset is within bounds
+#     scroll_offset = max(0, min(scroll_offset, max_index - visible_height + 1))
 
-    # Clear old highlight
-    list_pad.chgat(old_idx, 0, list_pad.getmaxyx()[1], get_color("settings_default"))
+#     # Clear old highlight
+#     list_pad.chgat(old_idx, 0, list_pad.getmaxyx()[1], get_color("settings_default"))
 
-    # Highlight new selection
-    list_pad.chgat(new_idx, 0, list_pad.getmaxyx()[1], get_color("settings_default", reverse=True))
+#     # Highlight new selection
+#     list_pad.chgat(new_idx, 0, list_pad.getmaxyx()[1], get_color("settings_default", reverse=True))
 
-    list_win.refresh()
+#     list_win.refresh()
     
-    # Refresh pad only if scrolling is needed
-    list_pad.refresh(scroll_offset, 0,
-                     list_win.getbegyx()[0] + 3, list_win.getbegyx()[1] + 4,
-                     list_win.getbegyx()[0] + 3 + visible_height, 
-                     list_win.getbegyx()[1] + list_win.getmaxyx()[1] - 4)
+#     # Refresh pad only if scrolling is needed
+#     list_pad.refresh(scroll_offset, 0,
+#                      list_win.getbegyx()[0] + 3, list_win.getbegyx()[1] + 4,
+#                      list_win.getbegyx()[0] + 3 + visible_height, 
+#                      list_win.getbegyx()[1] + list_win.getmaxyx()[1] - 4)
     
-    draw_arrows(list_win, visible_height, max_index, [scroll_offset], show_save_option=False)
+#     draw_arrows(list_win, visible_height, max_index, [scroll_offset], show_save_option=False)
 
-    return scroll_offset  # Return updated scroll_offset to be stored externally
+#     return scroll_offset  # Return updated scroll_offset to be stored externally
 
-
-# def draw_arrows(
-#     win: curses.window,
-#     visible_height: int,
-#     max_index: int,
-#     start_index: int
-# ) -> None:
-
-#     if visible_height < max_index:
-#         if start_index > 0:
-#             win.addstr(3, 2, "▲", get_color("settings_default"))
-#         else:
-#             win.addstr(3, 2, " ", get_color("settings_default"))
-
-#         if max_index - start_index > visible_height:
-#             win.addstr(visible_height + 3, 2, "▼", get_color("settings_default"))
-#         else:
-#             win.addstr(visible_height + 3, 2, " ", get_color("settings_default"))
-        
