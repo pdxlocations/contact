@@ -1,7 +1,7 @@
 import logging
 import time
 from datetime import datetime
-from typing import Any
+from typing import Any, Dict
 
 from contact.utilities.utils import refresh_node_list
 from contact.ui.contact_ui import (
@@ -21,7 +21,7 @@ import contact.ui.default_config as config
 import contact.globals as globals
 
 
-def on_receive(packet: dict[str, Any], interface: Any) -> None:
+def on_receive(packet: Dict[str, Any], interface: Any) -> None:
     """
     Handles an incoming packet from a Meshtastic interface.
 

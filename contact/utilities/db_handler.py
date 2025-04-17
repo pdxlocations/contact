@@ -2,6 +2,7 @@ import sqlite3
 import time
 import logging
 from datetime import datetime
+from typing import Optional, Union, Dict
 
 from contact.utilities.utils import decimal_to_hex
 import contact.ui.default_config as config
@@ -15,7 +16,7 @@ def get_table_name(channel: str) -> str:
     return quoted_table_name
 
 
-def save_message_to_db(channel: str, user_id: str, message_text: str) -> int | None:
+def save_message_to_db(channel: str, user_id: str, message_text: str) -> Optional[int]:
     """Save messages to the database, ensuring the table exists."""
     try:
         quoted_table_name = get_table_name(channel)
@@ -178,7 +179,7 @@ def init_nodedb() -> None:
         logging.error(f"Unexpected error in init_nodedb: {e}")
 
 
-def maybe_store_nodeinfo_in_db(packet: dict[str, object]) -> None:
+def maybe_store_nodeinfo_in_db(packet: Dict[str, object]) -> None:
     """Save nodeinfo unless that record is already there, updating if necessary."""
     try:
         user_id = packet["from"]
@@ -198,14 +199,14 @@ def maybe_store_nodeinfo_in_db(packet: dict[str, object]) -> None:
 
 
 def update_node_info_in_db(
-    user_id: int | str,
-    long_name: str | None = None,
-    short_name: str | None = None,
-    hw_model: str | None = None,
-    is_licensed: str | int | None = None,
-    role: str | None = None,
-    public_key: str | None = None,
-    chat_archived: int | None = None,
+    user_id: Union[int, str],
+    long_name: Optional[str] = None,
+    short_name: Optional[str] = None,
+    hw_model: Optional[str] = None,
+    is_licensed: Optional[Union[str, int]] = None,
+    role: Optional[str] = None,
+    public_key: Optional[str] = None,
+    chat_archived: Optional[int] = None,
 ) -> None:
     """Update or insert node information into the database, preserving unchanged fields."""
     try:

@@ -1,7 +1,7 @@
 import os
 import json
 import curses
-from typing import Any
+from typing import Any, List, Dict
 
 from contact.ui.colors import get_color, setup_colors, COLOR_MAP
 from contact.ui.default_config import format_json_single_line_arrays, loaded_config
@@ -14,7 +14,7 @@ max_help_lines = 6
 save_option = "Save Changes"
 
 
-def edit_color_pair(key: str, current_value: list[str]) -> list[str]:
+def edit_color_pair(key: str, current_value: List[str]) -> List[str]:
     """
     Allows the user to select a foreground and background color for a key.
     """
@@ -101,7 +101,7 @@ def edit_value(key: str, current_value: str) -> str:
     return user_input if user_input else current_value
 
 
-def display_menu(menu_state: Any) -> tuple[Any, Any, list[str]]:
+def display_menu(menu_state: Any) -> tuple[Any, Any, List[str]]:
     """
     Render the configuration menu with a Save button directly added to the window.
     """
@@ -319,7 +319,7 @@ def json_editor(stdscr: curses.window, menu_state: Any) -> None:
                 break
 
 
-def save_json(file_path: str, data: dict[str, Any]) -> None:
+def save_json(file_path: str, data: Dict[str, Any]) -> None:
     formatted_json = format_json_single_line_arrays(data)
     with open(file_path, "w", encoding="utf-8") as f:
         f.write(formatted_json)

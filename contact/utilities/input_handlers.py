@@ -2,7 +2,7 @@ import base64
 import binascii
 import curses
 import ipaddress
-from typing import Any, Optional
+from typing import Any, Optional, List
 
 from contact.ui.colors import get_color
 from contact.ui.nav_utils import move_highlight, draw_arrows, wrap_text
@@ -98,7 +98,7 @@ def get_text_input(prompt: str) -> Optional[str]:
     return user_input
 
 
-def get_admin_key_input(current_value: list[bytes]) -> Optional[list[str]]:
+def get_admin_key_input(current_value: List[bytes]) -> Optional[List[str]]:
     def to_base64(byte_strings):
         """Convert byte values to Base64-encoded strings."""
         return [base64.b64encode(b).decode() for b in byte_strings]
@@ -183,7 +183,7 @@ def get_admin_key_input(current_value: list[bytes]) -> Optional[list[str]]:
                 pass  # Ignore invalid character inputs
 
 
-def get_repeated_input(current_value: list[str]) -> Optional[str]:
+def get_repeated_input(current_value: List[str]) -> Optional[str]:
     height = 9
     width = 80
     start_y = (curses.LINES - height) // 2
@@ -309,7 +309,7 @@ def get_fixed32_input(current_value: int) -> int:
                 pass  # Ignore invalid inputs
 
 
-def get_list_input(prompt: str, current_option: Optional[str], list_options: list[str]) -> Optional[str]:
+def get_list_input(prompt: str, current_option: Optional[str], list_options: List[str]) -> Optional[str]:
     """
     Displays a scrollable list of list_options for the user to choose from.
     """

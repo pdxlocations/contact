@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+from typing import Dict
 
 # Get the parent directory of the script
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -12,7 +13,7 @@ log_file_path = os.path.join(parent_dir, "client.log")
 db_file_path = os.path.join(parent_dir, "client.db")
 
 
-def format_json_single_line_arrays(data: dict[str, object], indent: int = 4) -> str:
+def format_json_single_line_arrays(data: Dict[str, object], indent: int = 4) -> str:
     """
     Formats JSON with arrays on a single line while keeping other elements properly indented.
     """
@@ -32,7 +33,7 @@ def format_json_single_line_arrays(data: dict[str, object], indent: int = 4) -> 
 
 
 # Recursive function to check and update nested dictionaries
-def update_dict(default: dict[str, object], actual: dict[str, object]) -> bool:
+def update_dict(default: Dict[str, object], actual: Dict[str, object]) -> bool:
     updated = False
     for key, value in default.items():
         if key not in actual:
@@ -44,7 +45,7 @@ def update_dict(default: dict[str, object], actual: dict[str, object]) -> bool:
     return updated
 
 
-def initialize_config() -> dict[str, object]:
+def initialize_config() -> Dict[str, object]:
     COLOR_CONFIG_DARK = {
         "default": ["white", "black"],
         "background": [" ", "black"],
@@ -164,7 +165,7 @@ def initialize_config() -> dict[str, object]:
     return loaded_config
 
 
-def assign_config_variables(loaded_config: dict[str, object]) -> None:
+def assign_config_variables(loaded_config: Dict[str, object]) -> None:
     # Assign values to local variables
 
     global db_file_path, log_file_path, message_prefix, sent_message_prefix

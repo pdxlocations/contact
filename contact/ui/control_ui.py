@@ -3,6 +3,7 @@ import curses
 import logging
 import os
 import sys
+from typing import List
 
 from contact.utilities.save_to_radio import save_changes
 from contact.utilities.config_io import config_export, config_import
@@ -130,7 +131,7 @@ def draw_help_window(
     menu_start_x: int,
     menu_height: int,
     max_help_lines: int,
-    transformed_path: list[str],
+    transformed_path: List[str],
     menu_state: MenuState,
 ) -> None:
 

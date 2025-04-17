@@ -2,6 +2,7 @@ import curses
 import textwrap
 import logging
 import traceback
+from typing import Union
 
 from contact.utilities.utils import get_channels, get_readable_duration, get_time_ago, refresh_node_list
 from contact.settings import settings_menu
@@ -883,6 +884,6 @@ def draw_centered_text_field(win: curses.window, text: str, y_offset: int, color
     win.refresh()
 
 
-def draw_debug(value: str | int) -> None:
+def draw_debug(value: Union[str, int]) -> None:
     function_win.addstr(1, 1, f"debug: {value}    ")
     function_win.refresh()

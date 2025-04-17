@@ -2,11 +2,11 @@ import curses
 import re
 from contact.ui.colors import get_color
 from contact.utilities.control_utils import transform_menu_path
-from typing import Any
+from typing import Any, Optional, List, Dict
 
 # Aliases
 Segment = tuple[str, str, bool, bool]
-WrappedLine = list[Segment]
+WrappedLine = List[Segment]
 
 width = 80
 sensitive_settings = ["Reboot", "Reset Node DB", "Shutdown", "Factory Reset"]
@@ -14,7 +14,7 @@ save_option = "Save Changes"
 
 
 def move_highlight(
-    old_idx: int, options: list[str], menu_win: curses.window, menu_pad: curses.window, **kwargs: Any
+    old_idx: int, options: List[str], menu_win: curses.window, menu_pad: curses.window, **kwargs: Any
 ) -> None:
 
     show_save_option = None
@@ -125,7 +125,7 @@ def move_highlight(
 
 
 def draw_arrows(
-    win: object, visible_height: int, max_index: int, start_index: list[int], show_save_option: bool
+    win: object, visible_height: int, max_index: int, start_index: List[int], show_save_option: bool
 ) -> None:
 
     # vh = visible_height + (1 if show_save_option else 0)
@@ -145,9 +145,9 @@ def draw_arrows(
 
 def update_help_window(
     help_win: object,  # curses window or None
-    help_text: dict[str, str],
-    transformed_path: list[str],
-    selected_option: str | None,
+    help_text: Dict[str, str],
+    transformed_path: List[str],
+    selected_option: Optional[str],
     max_help_lines: int,
     width: int,
     help_y: int,
@@ -191,8 +191,8 @@ def update_help_window(
 
 
 def get_wrapped_help_text(
-    help_text: dict[str, str], transformed_path: list[str], selected_option: str | None, width: int, max_lines: int
-) -> list[WrappedLine]:
+    help_text: Dict[str, str], transformed_path: List[str], selected_option: Optional[str], width: int, max_lines: int
+) -> List[WrappedLine]:
     """Fetches and formats help text for display, ensuring it fits within the allowed lines."""
 
     full_help_key = ".".join(transformed_path + [selected_option]) if selected_option else None
@@ -210,7 +210,7 @@ def get_wrapped_help_text(
         r"\\033\[4m(.*?)\\033\[0m": ("settings_default", False, True),  # Underline
     }
 
-    def extract_ansi_segments(text: str) -> list[Segment]:
+    def extract_ansi_segments(text: str) -> List[Segment]:
         """Extracts and replaces ANSI color codes, ensuring spaces are preserved."""
         matches = []
         last_pos = 0
@@ -240,7 +240,7 @@ def get_wrapped_help_text(
 
         return matches
 
-    def wrap_ansi_text(segments: list[Segment], wrap_width: int) -> list[WrappedLine]:
+    def wrap_ansi_text(segments: List[Segment], wrap_width: int) -> List[WrappedLine]:
         """Wraps text while preserving ANSI formatting and spaces."""
         wrapped_lines = []
         line_buffer = []
@@ -283,7 +283,7 @@ def get_wrapped_help_text(
     return wrapped_help
 
 
-def wrap_text(text: str, wrap_width: int) -> list[str]:
+def wrap_text(text: str, wrap_width: int) -> List[str]:
     """Wraps text while preserving spaces and breaking long words."""
     words = re.findall(r"\S+|\s+", text)  # Capture words and spaces separately
     wrapped_lines = []

@@ -1,12 +1,13 @@
+from typing import Optional, Tuple, Dict, List
 import re
 
 
-def parse_ini_file(ini_file_path: str) -> tuple[dict[str, str], dict[str, str]]:
+def parse_ini_file(ini_file_path: str) -> Tuple[Dict[str, str], Dict[str, str]]:
     """Parses an INI file and returns a mapping of keys to human-readable names and help text."""
 
-    field_mapping: dict[str, str] = {}
-    help_text: dict[str, str] = {}
-    current_section: str | None = None
+    field_mapping: Dict[str, str] = {}
+    help_text: Dict[str, str] = {}
+    current_section: Optional[str] = None
 
     with open(ini_file_path, "r", encoding="utf-8") as f:
         for line in f:
@@ -49,11 +50,11 @@ def parse_ini_file(ini_file_path: str) -> tuple[dict[str, str], dict[str, str]]:
     return field_mapping, help_text
 
 
-def transform_menu_path(menu_path: list[str]) -> list[str]:
+def transform_menu_path(menu_path: List[str]) -> List[str]:
     """Applies path replacements and normalizes entries in the menu path."""
     path_replacements = {"Radio Settings": "config", "Module Settings": "module"}
 
-    transformed_path: list[str] = []
+    transformed_path: List[str] = []
     for part in menu_path[1:]:  # Skip 'Main Menu'
         # Apply fixed replacements
         part = path_replacements.get(part, part)

@@ -1,5 +1,6 @@
 import yaml
 import logging
+from typing import List
 from google.protobuf.json_format import MessageToDict
 from meshtastic import mt_config
 from meshtastic.util import camel_to_snake, snake_to_camel, fromStr
@@ -20,9 +21,9 @@ def traverseConfig(config_root, config, interface_config) -> bool:
     return True
 
 
-def splitCompoundName(comp_name: str) -> list[str]:
+def splitCompoundName(comp_name: str) -> List[str]:
     """Split compound (dot separated) preference name into parts"""
-    name: list[str] = comp_name.split(".")
+    name: List[str] = comp_name.split(".")
     if len(name) < 2:
         name[0] = comp_name
         name.append(comp_name)

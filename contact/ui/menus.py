@@ -3,7 +3,7 @@ import logging
 import os
 from collections import OrderedDict
 
-from typing import Any
+from typing import Any, Union, Dict
 
 from google.protobuf.message import Message
 from meshtastic.protobuf import channel_pb2, config_pb2, module_config_pb2
@@ -21,8 +21,8 @@ def encode_if_bytes(value: Any) -> str:
 
 
 def extract_fields(
-    message_instance: Message, current_config: Message | dict[str, Any] | None = None
-) -> dict[str, Any]:
+    message_instance: Message, current_config: Union[Message, Dict[str, Any], None] = None
+) -> Dict[str, Any]:
     if isinstance(current_config, dict):  # Handle dictionaries
         return {key: (None, encode_if_bytes(current_config.get(key, "Not Set"))) for key in current_config}
 
@@ -63,7 +63,7 @@ def extract_fields(
     return menu
 
 
-def generate_menu_from_protobuf(interface: object) -> dict[str, Any]:
+def generate_menu_from_protobuf(interface: object) -> Dict[str, Any]:
     """
     Builds the full settings menu structure from the protobuf definitions.
     """

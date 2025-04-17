@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any
+from typing import Any, Dict
 
 import google.protobuf.json_format
 from meshtastic import BROADCAST_NUM
@@ -15,12 +15,12 @@ from contact.utilities.db_handler import (
 import contact.ui.default_config as config
 import contact.globals as globals
 
-ack_naks: dict[str, dict[str, Any]] = {}  # requestId -> {channel, messageIndex, timestamp}
+ack_naks: Dict[str, Dict[str, Any]] = {}  # requestId -> {channel, messageIndex, timestamp}
 
 
 # Note "onAckNak" has special meaning to the API, thus the nonstandard naming convention
 # See https://github.com/meshtastic/python/blob/master/meshtastic/mesh_interface.py#L462
-def onAckNak(packet: dict[str, Any]) -> None:
+def onAckNak(packet: Dict[str, Any]) -> None:
     """
     Handles incoming ACK/NAK response packets.
     """
@@ -58,7 +58,7 @@ def onAckNak(packet: dict[str, Any]) -> None:
         draw_messages_window()
 
 
-def on_response_traceroute(packet: dict[str, Any]) -> None:
+def on_response_traceroute(packet: Dict[str, Any]) -> None:
     """
     Handle traceroute response packets and render the route visually in the UI.
     """
