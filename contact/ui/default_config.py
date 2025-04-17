@@ -11,17 +11,17 @@ json_file_path = os.path.join(parent_dir, "config.json")
 log_file_path = os.path.join(parent_dir, "client.log")
 db_file_path = os.path.join(parent_dir, "client.db")
 
+
 def format_json_single_line_arrays(data: dict[str, object], indent: int = 4) -> str:
     """
     Formats JSON with arrays on a single line while keeping other elements properly indented.
     """
+
     def format_value(value: object, current_indent: int) -> str:
         if isinstance(value, dict):
             items = []
             for key, val in value.items():
-                items.append(
-                    f'{" " * current_indent}"{key}": {format_value(val, current_indent + indent)}'
-                )
+                items.append(f'{" " * current_indent}"{key}": {format_value(val, current_indent + indent)}')
             return "{\n" + ",\n".join(items) + f"\n{' ' * (current_indent - indent)}}}"
         elif isinstance(value, list):
             return f"[{', '.join(json.dumps(el, ensure_ascii=False) for el in value)}]"
@@ -29,6 +29,7 @@ def format_json_single_line_arrays(data: dict[str, object], indent: int = 4) -> 
             return json.dumps(value, ensure_ascii=False)
 
     return format_value(data, indent)
+
 
 # Recursive function to check and update nested dictionaries
 def update_dict(default: dict[str, object], actual: dict[str, object]) -> bool:
@@ -41,6 +42,7 @@ def update_dict(default: dict[str, object], actual: dict[str, object]) -> bool:
             # Recursively check nested dictionaries
             updated = update_dict(value, actual[key]) or updated
     return updated
+
 
 def initialize_config() -> dict[str, object]:
     COLOR_CONFIG_DARK = {
@@ -67,7 +69,7 @@ def initialize_config() -> dict[str, object]:
         "settings_warning": ["red", "black"],
         "settings_note": ["green", "black"],
         "node_favorite": ["green", "black"],
-        "node_ignored": ["red", "black"]
+        "node_ignored": ["red", "black"],
     }
     COLOR_CONFIG_LIGHT = {
         "default": ["black", "white"],
@@ -93,7 +95,7 @@ def initialize_config() -> dict[str, object]:
         "settings_warning": ["red", "white"],
         "settings_note": ["green", "white"],
         "node_favorite": ["green", "white"],
-        "node_ignored": ["red", "white"]
+        "node_ignored": ["red", "white"],
     }
     COLOR_CONFIG_GREEN = {
         "default": ["green", "black"],
@@ -121,7 +123,7 @@ def initialize_config() -> dict[str, object]:
         "settings_warning": ["green", "black"],
         "settings_note": ["green", "black"],
         "node_favorite": ["cyan", "white"],
-        "node_ignored": ["red", "white"]
+        "node_ignored": ["red", "white"],
     }
     default_config_variables = {
         "db_file_path": db_file_path,
@@ -137,7 +139,7 @@ def initialize_config() -> dict[str, object]:
         "theme": "dark",
         "COLOR_CONFIG_DARK": COLOR_CONFIG_DARK,
         "COLOR_CONFIG_LIGHT": COLOR_CONFIG_LIGHT,
-        "COLOR_CONFIG_GREEN": COLOR_CONFIG_GREEN
+        "COLOR_CONFIG_GREEN": COLOR_CONFIG_GREEN,
     }
 
     if not os.path.exists(json_file_path):
@@ -154,16 +156,17 @@ def initialize_config() -> dict[str, object]:
 
     # Update the JSON file if any variables were missing
     if updated:
-            formatted_json = format_json_single_line_arrays(loaded_config)
-            with open(json_file_path, "w", encoding="utf-8") as json_file:
-                json_file.write(formatted_json)
-            logging.info(f"JSON file updated with missing default variables and COLOR_CONFIG items.")
+        formatted_json = format_json_single_line_arrays(loaded_config)
+        with open(json_file_path, "w", encoding="utf-8") as json_file:
+            json_file.write(formatted_json)
+        logging.info(f"JSON file updated with missing default variables and COLOR_CONFIG items.")
 
     return loaded_config
 
+
 def assign_config_variables(loaded_config: dict[str, object]) -> None:
     # Assign values to local variables
-    
+
     global db_file_path, log_file_path, message_prefix, sent_message_prefix
     global notification_symbol, ack_implicit_str, ack_str, nak_str, ack_unknown_str
     global theme, COLOR_CONFIG
@@ -194,9 +197,9 @@ assign_config_variables(loaded_config)
 
 if __name__ == "__main__":
     logging.basicConfig(
-    filename="default_config.log",
-    level=logging.INFO,  # DEBUG, INFO, WARNING, ERROR, CRITICAL)
-    format="%(asctime)s - %(levelname)s - %(message)s"
+        filename="default_config.log",
+        level=logging.INFO,  # DEBUG, INFO, WARNING, ERROR, CRITICAL)
+        format="%(asctime)s - %(levelname)s - %(message)s",
     )
     print("\nLoaded Configuration:")
     print(f"Database File Path: {db_file_path}")

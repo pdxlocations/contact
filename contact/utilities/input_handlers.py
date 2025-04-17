@@ -35,7 +35,7 @@ def get_text_input(prompt: str) -> Optional[str]:
 
     prompt_text = "Enter new value: "
     input_win.addstr(row + 1, margin, prompt_text, get_color("settings_default"))
-    
+
     input_win.refresh()
     curses.curs_set(1)
 
@@ -73,11 +73,13 @@ def get_text_input(prompt: str) -> Optional[str]:
         remaining_text = user_input[first_line_width:]  # Remaining text for wrapping
 
         wrapped_lines = wrap_text(remaining_text, wrap_width=input_width) if remaining_text else []
-        
+
         # Clear only the input area (without touching prompt text)
         for i in range(max_input_rows):
             if row + 1 + i < height - 1:
-                input_win.addstr(row + 1 + i, margin, " " * min(input_width, width - margin - 1), get_color("settings_default"))
+                input_win.addstr(
+                    row + 1 + i, margin, " " * min(input_width, width - margin - 1), get_color("settings_default")
+                )
 
         # Redraw the prompt text so it never disappears
         input_win.addstr(row + 1, margin, prompt_text, get_color("settings_default"))
@@ -136,7 +138,9 @@ def get_admin_key_input(current_value: list[bytes]) -> Optional[list[str]]:
         # Display current values, allowing editing
         for i, line in enumerate(user_values):
             prefix = "→ " if i == cursor_pos else "  "  # Highlight the current line
-            repeated_win.addstr(3 + i, 2, f"{prefix}Admin Key {i + 1}: ", get_color("settings_default", bold=(i == cursor_pos)))
+            repeated_win.addstr(
+                3 + i, 2, f"{prefix}Admin Key {i + 1}: ", get_color("settings_default", bold=(i == cursor_pos))
+            )
             repeated_win.addstr(3 + i, 18, line)  # Align text for easier editing
 
         # Move cursor to the correct position inside the field
@@ -156,8 +160,8 @@ def get_admin_key_input(current_value: list[bytes]) -> Optional[list[str]]:
             curses.noecho()
             curses.curs_set(0)
             return None
-        
-        elif key == ord('\n'):  # Enter key to save and return
+
+        elif key == ord("\n"):  # Enter key to save and return
             if all(is_valid_base64(val) for val in user_values):  # Ensure all values are valid Base64 and 32 bytes
                 curses.noecho()
                 curses.curs_set(0)
@@ -177,7 +181,6 @@ def get_admin_key_input(current_value: list[bytes]) -> Optional[list[str]]:
                 error_message = ""  # Clear error if user starts fixing input
             except ValueError:
                 pass  # Ignore invalid character inputs
-
 
 
 def get_repeated_input(current_value: list[str]) -> Optional[str]:
@@ -207,8 +210,10 @@ def get_repeated_input(current_value: list[str]) -> Optional[str]:
         # Display current values, allowing editing
         for i, line in enumerate(user_values):
             prefix = "→ " if i == cursor_pos else "  "  # Highlight the current line
-            repeated_win.addstr(3 + i, 2, f"{prefix}Value{i + 1}: ", get_color("settings_default", bold=(i == cursor_pos)))
-            repeated_win.addstr(3 + i, 18, line) 
+            repeated_win.addstr(
+                3 + i, 2, f"{prefix}Value{i + 1}: ", get_color("settings_default", bold=(i == cursor_pos))
+            )
+            repeated_win.addstr(3 + i, 18, line)
 
         # Move cursor to the correct position inside the field
         curses.curs_set(1)
@@ -227,8 +232,8 @@ def get_repeated_input(current_value: list[str]) -> Optional[str]:
             curses.noecho()
             curses.curs_set(0)
             return None
-        
-        elif key == ord('\n'):  # Enter key to save and return
+
+        elif key == ord("\n"):  # Enter key to save and return
             curses.noecho()
             curses.curs_set(0)
             return ", ".join(user_values)
@@ -280,7 +285,7 @@ def get_fixed32_input(current_value: int) -> int:
             curses.noecho()
             curses.curs_set(0)
             return cvalue  # Return the current value unchanged
-        elif key == ord('\n'):  # Enter key to validate and save
+        elif key == ord("\n"):  # Enter key to validate and save
             # Validate IP address
             octets = user_input.split(".")
             if len(octets) == 4 and all(octet.isdigit() and 0 <= int(octet) <= 255 for octet in octets):
@@ -337,10 +342,15 @@ def get_list_input(prompt: str, current_option: Optional[str], list_options: lis
 
     # Initial refresh
     list_win.refresh()
-    list_pad.refresh(0, 0,
-                    list_win.getbegyx()[0] + 3, list_win.getbegyx()[1] + 4,
-                    list_win.getbegyx()[0] + list_win.getmaxyx()[0] - 2, list_win.getbegyx()[1] + list_win.getmaxyx()[1] - 4)
-    
+    list_pad.refresh(
+        0,
+        0,
+        list_win.getbegyx()[0] + 3,
+        list_win.getbegyx()[1] + 4,
+        list_win.getbegyx()[0] + list_win.getmaxyx()[0] - 2,
+        list_win.getbegyx()[1] + list_win.getmaxyx()[1] - 4,
+    )
+
     max_index = len(list_options) - 1
     visible_height = list_win.getmaxyx()[0] - 5
 
@@ -357,7 +367,7 @@ def get_list_input(prompt: str, current_option: Optional[str], list_options: lis
             old_selected_index = selected_index
             selected_index = min(len(list_options) - 1, selected_index + 1)
             move_highlight(old_selected_index, list_options, list_win, list_pad, selected_index=selected_index)
-        elif key == ord('\n'):  # Enter key
+        elif key == ord("\n"):  # Enter key
             list_win.clear()
             list_win.refresh()
             return list_options[selected_index]

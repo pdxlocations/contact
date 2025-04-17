@@ -3,9 +3,10 @@ import datetime
 from meshtastic.protobuf import config_pb2
 import contact.ui.default_config as config
 
+
 def get_channels():
     """Retrieve channels from the node and update globals.channel_list and globals.all_messages."""
-    node = globals.interface.getNode('^local')
+    node = globals.interface.getNode("^local")
     device_channels = node.channels
 
     # Clear and rebuild channel list
@@ -20,7 +21,9 @@ def get_channels():
                 # If channel name is blank, use the modem preset
                 lora_config = node.localConfig.lora
                 modem_preset_enum = lora_config.modem_preset
-                modem_preset_string = config_pb2._CONFIG_LORACONFIG_MODEMPRESET.values_by_number[modem_preset_enum].name
+                modem_preset_string = config_pb2._CONFIG_LORACONFIG_MODEMPRESET.values_by_number[
+                    modem_preset_enum
+                ].name
                 channel_name = convert_to_camel_case(modem_preset_string)
 
             # Add channel to globals.channel_list if not already present
@@ -31,34 +34,37 @@ def get_channels():
             if channel_name not in globals.all_messages:
                 globals.all_messages[channel_name] = []
 
-
     return globals.channel_list
+
 
 def get_node_list():
     if globals.interface.nodes:
         my_node_num = globals.myNodeNum
 
         def node_sort(node):
-            if(config.node_sort == 'lastHeard'):
-                return -node['lastHeard'] if ('lastHeard' in node and isinstance(node['lastHeard'], int)) else 0
-            elif(config.node_sort == "name"):
-                return node['user']['longName']
-            elif(config.node_sort == "hops"):
-                return node['hopsAway'] if 'hopsAway' in node else 100
+            if config.node_sort == "lastHeard":
+                return -node["lastHeard"] if ("lastHeard" in node and isinstance(node["lastHeard"], int)) else 0
+            elif config.node_sort == "name":
+                return node["user"]["longName"]
+            elif config.node_sort == "hops":
+                return node["hopsAway"] if "hopsAway" in node else 100
             else:
                 return node
 
-        sorted_nodes = sorted(globals.interface.nodes.values(), key = node_sort)
+        sorted_nodes = sorted(globals.interface.nodes.values(), key=node_sort)
 
         # Move favorite nodes to the beginning
-        sorted_nodes = sorted(sorted_nodes, key = lambda node: node['isFavorite'] if 'isFavorite' in node else False, reverse = True)
+        sorted_nodes = sorted(
+            sorted_nodes, key=lambda node: node["isFavorite"] if "isFavorite" in node else False, reverse=True
+        )
 
         # Move ignored nodes to the end
-        sorted_nodes = sorted(sorted_nodes, key = lambda node: node['isIgnored'] if 'isIgnored' in node else False)
+        sorted_nodes = sorted(sorted_nodes, key=lambda node: node["isIgnored"] if "isIgnored" in node else False)
 
-        node_list = [node['num'] for node in sorted_nodes if node['num'] != my_node_num]
+        node_list = [node["num"] for node in sorted_nodes if node["num"] != my_node_num]
         return [my_node_num] + node_list  # Ensuring your node is always first
     return []
+
 
 def refresh_node_list():
     new_node_list = get_node_list()
@@ -67,18 +73,22 @@ def refresh_node_list():
         return True
     return False
 
+
 def get_nodeNum():
     myinfo = globals.interface.getMyNodeInfo()
-    myNodeNum = myinfo['num']
+    myNodeNum = myinfo["num"]
     return myNodeNum
+
 
 def decimal_to_hex(decimal_number):
     return f"!{decimal_number:08x}"
 
+
 def convert_to_camel_case(string):
-    words = string.split('_')
-    camel_case_string = ''.join(word.capitalize() for word in words)
+    words = string.split("_")
+    camel_case_string = "".join(word.capitalize() for word in words)
     return camel_case_string
+
 
 def get_time_val_units(time_delta):
     value = 0
@@ -107,10 +117,12 @@ def get_time_val_units(time_delta):
         unit = "s"
     return (value, unit)
 
+
 def get_readable_duration(seconds):
-    delta = datetime.timedelta(seconds = seconds)
+    delta = datetime.timedelta(seconds=seconds)
     val, units = get_time_val_units(delta)
     return f"{val} {units}"
+
 
 def get_time_ago(timestamp):
     now = datetime.datetime.now()
@@ -121,4 +133,3 @@ def get_time_ago(timestamp):
     if unit != "s":
         return f"{value} {unit} ago"
     return "now"
-

@@ -17,7 +17,7 @@ from contact.utilities.interfaces import initialize_interface
 def main(stdscr: curses.window) -> None:
     output_capture = io.StringIO()
     try:
-        with contextlib.redirect_stdout(output_capture), contextlib.redirect_stderr(output_capture):   
+        with contextlib.redirect_stdout(output_capture), contextlib.redirect_stderr(output_capture):
             setup_colors()
             draw_splash(stdscr)
             curses.curs_set(0)
@@ -28,7 +28,7 @@ def main(stdscr: curses.window) -> None:
             interface = initialize_interface(args)
 
             if interface.localNode.localConfig.lora.region == 0:
-                confirmation = get_list_input("Your region is UNSET.  Set it now?", "Yes",  ["Yes", "No"])
+                confirmation = get_list_input("Your region is UNSET.  Set it now?", "Yes", ["Yes", "No"])
                 if confirmation == "Yes":
                     set_region(interface)
                     interface.close()
@@ -45,10 +45,10 @@ def main(stdscr: curses.window) -> None:
         raise
 
 
-logging.basicConfig( # Run `tail -f client.log` in another terminal to view live
+logging.basicConfig(  # Run `tail -f client.log` in another terminal to view live
     filename=config.log_file_path,
     level=logging.WARNING,  # DEBUG, INFO, WARNING, ERROR, CRITICAL)
-    format="%(asctime)s - %(levelname)s - %(message)s"
+    format="%(asctime)s - %(levelname)s - %(message)s",
 )
 
 if __name__ == "__main__":

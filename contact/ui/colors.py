@@ -9,8 +9,9 @@ COLOR_MAP = {
     "blue": curses.COLOR_BLUE,
     "magenta": curses.COLOR_MAGENTA,
     "cyan": curses.COLOR_CYAN,
-    "white": curses.COLOR_WHITE
+    "white": curses.COLOR_WHITE,
 }
+
 
 def setup_colors(reinit: bool = False) -> None:
     """

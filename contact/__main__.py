@@ -49,9 +49,7 @@ if os.environ.get("COLORTERM") == "gnome-terminal":
     os.environ["TERM"] = "xterm-256color"
 
 logging.basicConfig(
-    filename=config.log_file_path,
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s"
+    filename=config.log_file_path, level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
 globals.lock = threading.Lock()
@@ -59,6 +57,7 @@ globals.lock = threading.Lock()
 # ------------------------------------------------------------------------------
 # Main Program Logic
 # ------------------------------------------------------------------------------
+
 
 def initialize_globals(args) -> None:
     """Initializes interface and shared globals."""
@@ -75,7 +74,7 @@ def initialize_globals(args) -> None:
     globals.myNodeNum = get_nodeNum()
     globals.channel_list = get_channels()
     globals.node_list = get_node_list()
-    pub.subscribe(on_receive, 'meshtastic.receive')
+    pub.subscribe(on_receive, "meshtastic.receive")
 
     init_nodedb()
     load_messages_from_db()
@@ -92,7 +91,7 @@ def main(stdscr: curses.window) -> None:
 
             args = setup_parser().parse_args()
 
-            if getattr(args, 'settings', False):
+            if getattr(args, "settings", False):
                 subprocess.run([sys.executable, "-m", "contact.settings"], check=True)
                 return
 

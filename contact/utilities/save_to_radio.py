@@ -4,6 +4,7 @@ import logging
 import base64
 import time
 
+
 def save_changes(interface, modified_settings, menu_state):
     """
     Save changes to the device based on modified settings.
@@ -15,16 +16,16 @@ def save_changes(interface, modified_settings, menu_state):
         if not modified_settings:
             logging.info("No changes to save. modified_settings is empty.")
             return
-        
-        node = interface.getNode('^local')
+
+        node = interface.getNode("^local")
         admin_key_backup = None
-        if 'admin_key' in modified_settings:
+        if "admin_key" in modified_settings:
             # Get reference to security config
             security_config = node.localConfig.security
-            admin_keys = modified_settings['admin_key']
+            admin_keys = modified_settings["admin_key"]
 
             # Filter out empty keys
-            valid_keys = [key for key in admin_keys if key and key.strip() and key != b'']
+            valid_keys = [key for key in admin_keys if key and key.strip() and key != b""]
 
             if not valid_keys:
                 logging.warning("No valid admin keys provided. Skipping admin key update.")
@@ -42,23 +43,23 @@ def save_changes(interface, modified_settings, menu_state):
                     security_config.admin_key.append(key)
                 node.writeConfig("security")
                 logging.info("Admin keys updated successfully!")
-            
+
             # Backup 'admin_key' before removing it
-            admin_key_backup = modified_settings.get('admin_key', None)
+            admin_key_backup = modified_settings.get("admin_key", None)
             # Remove 'admin_key' from modified_settings to prevent interference
-            del modified_settings['admin_key']
+            del modified_settings["admin_key"]
 
             # Return early if there are no other settings left to process
             if not modified_settings:
                 return
 
-        if menu_state.menu_path[1] ==  "Radio Settings" or menu_state.menu_path[1] == "Module Settings":
-            config_category = menu_state.menu_path[2].lower() # for radio and module configs
+        if menu_state.menu_path[1] == "Radio Settings" or menu_state.menu_path[1] == "Module Settings":
+            config_category = menu_state.menu_path[2].lower()  # for radio and module configs
 
-            if {'latitude', 'longitude', 'altitude'} & modified_settings.keys():
-                lat = float(modified_settings.get('latitude', 0.0))
-                lon = float(modified_settings.get('longitude', 0.0))
-                alt = int(modified_settings.get('altitude', 0))
+            if {"latitude", "longitude", "altitude"} & modified_settings.keys():
+                lat = float(modified_settings.get("latitude", 0.0))
+                lon = float(modified_settings.get("longitude", 0.0))
+                alt = int(modified_settings.get("altitude", 0))
 
                 interface.localNode.setFixedPosition(lat, lon, alt)
                 logging.info(f"Updated {config_category} with Latitude: {lat} and Longitude {lon} and Altitude {alt}")
@@ -73,11 +74,13 @@ def save_changes(interface, modified_settings, menu_state):
 
             node.setOwner(long_name, short_name, is_licensed)
 
-            logging.info(f"Updated {config_category} with Long Name: {long_name}, Short Name: {short_name}, Licensed Mode: {is_licensed}")
+            logging.info(
+                f"Updated {config_category} with Long Name: {long_name}, Short Name: {short_name}, Licensed Mode: {is_licensed}"
+            )
 
             return
-        
-        elif menu_state.menu_path[1] == "Channels":    # for channel configs
+
+        elif menu_state.menu_path[1] == "Channels":  # for channel configs
             config_category = "Channels"
 
             try:
@@ -88,9 +91,9 @@ def save_changes(interface, modified_settings, menu_state):
 
             channel = node.channels[channel_num]
             for key, value in modified_settings.items():
-                if key == 'psk':  # Special case: decode Base64 for psk
+                if key == "psk":  # Special case: decode Base64 for psk
                     channel.settings.psk = base64.b64decode(value)
-                elif key == 'position_precision':  # Special case: module_settings
+                elif key == "position_precision":  # Special case: module_settings
                     channel.settings.module_settings.position_precision = value
                 else:
                     setattr(channel.settings, key, value)  # Use setattr for other fields
@@ -135,7 +138,9 @@ def save_changes(interface, modified_settings, menu_state):
                                     setattr(field, sub_field, sub_value)
                                     logging.info(f"Updated {config_category}.{config_item}.{sub_field} to {sub_value}")
                                 else:
-                                    logging.warning(f"Sub-field '{sub_field}' not found in {config_category}.{config_item}")
+                                    logging.warning(
+                                        f"Sub-field '{sub_field}' not found in {config_category}.{config_item}"
+                                    )
                         else:
                             logging.warning(f"Invalid value for {config_category}.{config_item}. Expected dict.")
                     else:
@@ -151,7 +156,7 @@ def save_changes(interface, modified_settings, menu_state):
             logging.info(f"Changes written to config category: {config_category}")
 
             if admin_key_backup is not None:
-                modified_settings['admin_key'] = admin_key_backup
+                modified_settings["admin_key"] = admin_key_backup
         except Exception as e:
             logging.error(f"Failed to write configuration for category '{config_category}': {e}")
 

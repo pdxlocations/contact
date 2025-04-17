@@ -1,5 +1,6 @@
 import re
 
+
 def parse_ini_file(ini_file_path: str) -> tuple[dict[str, str], dict[str, str]]:
     """Parses an INI file and returns a mapping of keys to human-readable names and help text."""
 
@@ -7,26 +8,26 @@ def parse_ini_file(ini_file_path: str) -> tuple[dict[str, str], dict[str, str]]:
     help_text: dict[str, str] = {}
     current_section: str | None = None
 
-    with open(ini_file_path, 'r', encoding='utf-8') as f:
+    with open(ini_file_path, "r", encoding="utf-8") as f:
         for line in f:
             line = line.strip()
 
             # Skip empty lines and comments
-            if not line or line.startswith(';') or line.startswith('#'):
+            if not line or line.startswith(";") or line.startswith("#"):
                 continue
 
             # Handle sections like [config.device]
-            if line.startswith('[') and line.endswith(']'):
+            if line.startswith("[") and line.endswith("]"):
                 current_section = line[1:-1]
                 continue
 
             # Parse lines like: key, "Human-readable name", "helptext"
-            parts = [p.strip().strip('"') for p in line.split(',', 2)]
+            parts = [p.strip().strip('"') for p in line.split(",", 2)]
             if len(parts) >= 2:
                 key = parts[0]
 
                 # If key is 'title', map directly to the section
-                if key == 'title':
+                if key == "title":
                     full_key = current_section
                 else:
                     full_key = f"{current_section}.{key}" if current_section else key
@@ -47,12 +48,10 @@ def parse_ini_file(ini_file_path: str) -> tuple[dict[str, str], dict[str, str]]:
 
     return field_mapping, help_text
 
+
 def transform_menu_path(menu_path: list[str]) -> list[str]:
     """Applies path replacements and normalizes entries in the menu path."""
-    path_replacements = {
-        "Radio Settings": "config",
-        "Module Settings": "module"
-    }
+    path_replacements = {"Radio Settings": "config", "Module Settings": "module"}
 
     transformed_path: list[str] = []
     for part in menu_path[1:]:  # Skip 'Main Menu'
@@ -60,7 +59,7 @@ def transform_menu_path(menu_path: list[str]) -> list[str]:
         part = path_replacements.get(part, part)
 
         # Normalize entries like "Channel 1", "Channel 2", etc.
-        if re.match(r'Channel\s+\d+', part, re.IGNORECASE):
+        if re.match(r"Channel\s+\d+", part, re.IGNORECASE):
             part = "channel"
 
         transformed_path.append(part)

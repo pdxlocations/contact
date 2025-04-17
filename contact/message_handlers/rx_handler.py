@@ -35,45 +35,45 @@ def on_receive(packet: dict[str, Any], interface: Any) -> None:
         if len(globals.packet_buffer) > 20:
             # Trim buffer to 20 packets
             globals.packet_buffer = globals.packet_buffer[-20:]
-            
+
         if globals.display_log:
             draw_packetlog_win()
         try:
-            if 'decoded' not in packet:
+            if "decoded" not in packet:
                 return
 
             # Assume any incoming packet could update the last seen time for a node
             changed = refresh_node_list()
-            if(changed):
+            if changed:
                 draw_node_list()
 
-            if packet['decoded']['portnum'] == 'NODEINFO_APP':
-                if "user" in packet['decoded'] and "longName" in packet['decoded']["user"]: 
+            if packet["decoded"]["portnum"] == "NODEINFO_APP":
+                if "user" in packet["decoded"] and "longName" in packet["decoded"]["user"]:
                     maybe_store_nodeinfo_in_db(packet)
 
-            elif packet['decoded']['portnum'] == 'TEXT_MESSAGE_APP':
-                message_bytes = packet['decoded']['payload']
-                message_string = message_bytes.decode('utf-8')
+            elif packet["decoded"]["portnum"] == "TEXT_MESSAGE_APP":
+                message_bytes = packet["decoded"]["payload"]
+                message_string = message_bytes.decode("utf-8")
 
                 refresh_channels = False
                 refresh_messages = False
 
-                if packet.get('channel'):
-                    channel_number = packet['channel']
+                if packet.get("channel"):
+                    channel_number = packet["channel"]
                 else:
                     channel_number = 0
 
-                if packet['to'] == globals.myNodeNum:
-                    if packet['from'] in globals.channel_list:
+                if packet["to"] == globals.myNodeNum:
+                    if packet["from"] in globals.channel_list:
                         pass
                     else:
-                        globals.channel_list.append(packet['from'])
-                        if(packet['from'] not in globals.all_messages):
-                            globals.all_messages[packet['from']] = []
-                        update_node_info_in_db(packet['from'], chat_archived=False)
+                        globals.channel_list.append(packet["from"])
+                        if packet["from"] not in globals.all_messages:
+                            globals.all_messages[packet["from"]] = []
+                        update_node_info_in_db(packet["from"], chat_archived=False)
                         refresh_channels = True
 
-                    channel_number = globals.channel_list.index(packet['from'])
+                    channel_number = globals.channel_list.index(packet["from"])
 
                 if globals.channel_list[channel_number] != globals.channel_list[globals.selected_channel]:
                     add_notification(channel_number)
@@ -82,15 +82,15 @@ def on_receive(packet: dict[str, Any], interface: Any) -> None:
                     refresh_messages = True
 
                 # Add received message to the messages list
-                message_from_id = packet['from']
-                message_from_string = get_name_from_database(message_from_id, type='short') + ":"
+                message_from_id = packet["from"]
+                message_from_string = get_name_from_database(message_from_id, type="short") + ":"
 
                 if globals.channel_list[channel_number] not in globals.all_messages:
                     globals.all_messages[globals.channel_list[channel_number]] = []
 
                 # Timestamp handling
-                current_timestamp = time.time() 
-                current_hour = datetime.fromtimestamp(current_timestamp).strftime('%Y-%m-%d %H:00')
+                current_timestamp = time.time()
+                current_hour = datetime.fromtimestamp(current_timestamp).strftime("%Y-%m-%d %H:00")
 
                 # Retrieve the last timestamp if available
                 channel_messages = globals.all_messages[globals.channel_list[channel_number]]
@@ -109,7 +109,9 @@ def on_receive(packet: dict[str, Any], interface: Any) -> None:
                 if last_hour != current_hour:
                     globals.all_messages[globals.channel_list[channel_number]].append((f"-- {current_hour} --", ""))
 
-                globals.all_messages[globals.channel_list[channel_number]].append((f"{config.message_prefix} {message_from_string} ", message_string))
+                globals.all_messages[globals.channel_list[channel_number]].append(
+                    (f"{config.message_prefix} {message_from_string} ", message_string)
+                )
 
                 if refresh_channels:
                     draw_channel_list()

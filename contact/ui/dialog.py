@@ -1,6 +1,7 @@
 import curses
 from contact.ui.colors import get_color
 
+
 def dialog(stdscr: curses.window, title: str, message: str) -> None:
     height, width = stdscr.getmaxyx()
 
@@ -37,7 +38,7 @@ def dialog(stdscr: curses.window, title: str, message: str) -> None:
     while True:
         char = win.getch()
         # Close dialog with enter, space, or esc
-        if char in(curses.KEY_ENTER, 10, 13, 32, 27):
+        if char in (curses.KEY_ENTER, 10, 13, 32, 27):
             win.erase()
             win.refresh()
             return

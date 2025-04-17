@@ -12,26 +12,33 @@ from meshtastic.protobuf import channel_pb2, config_pb2, module_config_pb2
 locals_dir = os.path.dirname(os.path.abspath(__file__))
 translation_file = os.path.join(locals_dir, "localisations", "en.ini")
 
+
 def encode_if_bytes(value: Any) -> str:
     """Encode byte values to base64 string."""
     if isinstance(value, bytes):
-        return base64.b64encode(value).decode('utf-8')
+        return base64.b64encode(value).decode("utf-8")
     return value
 
+
 def extract_fields(
-    message_instance: Message,
-    current_config: Message | dict[str, Any] | None = None
+    message_instance: Message, current_config: Message | dict[str, Any] | None = None
 ) -> dict[str, Any]:
     if isinstance(current_config, dict):  # Handle dictionaries
         return {key: (None, encode_if_bytes(current_config.get(key, "Not Set"))) for key in current_config}
-    
+
     if not hasattr(message_instance, "DESCRIPTOR"):
         return {}
-    
+
     menu = {}
     fields = message_instance.DESCRIPTOR.fields
     for field in fields:
-        skip_fields = ["sessionkey", "ChannelSettings.channel_num", "ChannelSettings.id", "LoRaConfig.ignore_incoming", "DeviceUIConfig.version"]
+        skip_fields = [
+            "sessionkey",
+            "ChannelSettings.channel_num",
+            "ChannelSettings.id",
+            "LoRaConfig.ignore_incoming",
+            "DeviceUIConfig.version",
+        ]
         if any(skip_field in field.full_name for skip_field in skip_fields):
             continue
 
@@ -55,6 +62,7 @@ def extract_fields(
             menu[field.name] = (field, encode_if_bytes(current_value))
     return menu
 
+
 def generate_menu_from_protobuf(interface: object) -> dict[str, Any]:
     """
     Builds the full settings menu structure from the protobuf definitions.
@@ -70,7 +78,7 @@ def generate_menu_from_protobuf(interface: object) -> dict[str, Any]:
             menu_structure["Main Menu"]["User Settings"] = {
                 "longName": (None, current_user_config.get("longName", "Not Set")),
                 "shortName": (None, current_user_config.get("shortName", "Not Set")),
-                "isLicensed": (None, current_user_config.get("isLicensed", "False"))
+                "isLicensed": (None, current_user_config.get("isLicensed", "False")),
             }
         else:
             logging.info("User settings not found in Node Info")
@@ -98,7 +106,7 @@ def generate_menu_from_protobuf(interface: object) -> dict[str, Any]:
     position_data = {
         "latitude": (None, current_node_info["position"].get("latitude", 0.0)),
         "longitude": (None, current_node_info["position"].get("longitude", 0.0)),
-        "altitude": (None, current_node_info["position"].get("altitude", 0))
+        "altitude": (None, current_node_info["position"].get("altitude", 0)),
     }
 
     existing_position_menu = menu_structure["Main Menu"]["Radio Settings"].get("position", {})
@@ -117,20 +125,22 @@ def generate_menu_from_protobuf(interface: object) -> dict[str, Any]:
     module = module_config_pb2.ModuleConfig()
     current_module_config = interface.localNode.moduleConfig if interface else None
     menu_structure["Main Menu"]["Module Settings"] = extract_fields(module, current_module_config)
-    
+
     # Add App Settings
     menu_structure["Main Menu"]["App Settings"] = {"Open": "app_settings"}
 
     # Additional settings options
-    menu_structure["Main Menu"].update({
-        "Export Config File": None,
-        "Load Config File": None,
-        "Config URL": None,
-        "Reboot": None,
-        "Reset Node DB": None,
-        "Shutdown": None,
-        "Factory Reset": None,
-        "Exit": None
-    })
+    menu_structure["Main Menu"].update(
+        {
+            "Export Config File": None,
+            "Load Config File": None,
+            "Config URL": None,
+            "Reboot": None,
+            "Reset Node DB": None,
+            "Shutdown": None,
+            "Factory Reset": None,
+            "Exit": None,
+        }
+    )
 
     return menu_structure

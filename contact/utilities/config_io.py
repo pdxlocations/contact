@@ -1,4 +1,3 @@
-
 import yaml
 import logging
 from google.protobuf.json_format import MessageToDict
@@ -6,6 +5,7 @@ from meshtastic import mt_config
 from meshtastic.util import camel_to_snake, snake_to_camel, fromStr
 
 # defs are from meshtastic/python/main
+
 
 def traverseConfig(config_root, config, interface_config) -> bool:
     """Iterate through current config level preferences and either traverse deeper if preference is a dict or set preference"""
@@ -19,6 +19,7 @@ def traverseConfig(config_root, config, interface_config) -> bool:
 
     return True
 
+
 def splitCompoundName(comp_name: str) -> list[str]:
     """Split compound (dot separated) preference name into parts"""
     name: list[str] = comp_name.split(".")
@@ -26,6 +27,7 @@ def splitCompoundName(comp_name: str) -> list[str]:
         name[0] = comp_name
         name.append(comp_name)
     return name
+
 
 def setPref(config, comp_name, raw_val) -> bool:
     """Set a channel or preferences value"""
@@ -74,9 +76,7 @@ def setPref(config, comp_name, raw_val) -> bool:
         if e:
             val = e.number
         else:
-            logging.info(
-                f"{name[0]}.{uni_name} does not have an enum called {val}, so you can not set it."
-            )
+            logging.info(f"{name[0]}.{uni_name} does not have an enum called {val}, so you can not set it.")
             logging.info(f"Choices in sorted order are:")
             names = []
             for f in enumType.values:
@@ -121,44 +121,35 @@ def setPref(config, comp_name, raw_val) -> bool:
     return True
 
 
-
 def config_import(interface, filename):
     with open(filename, encoding="utf8") as file:
         configuration = yaml.safe_load(file)
         closeNow = True
 
-        interface.getNode('^local', False).beginSettingsTransaction()
+        interface.getNode("^local", False).beginSettingsTransaction()
 
         if "owner" in configuration:
             logging.info(f"Setting device owner to {configuration['owner']}")
             waitForAckNak = True
-            interface.getNode('^local', False).setOwner(configuration["owner"])
+            interface.getNode("^local", False).setOwner(configuration["owner"])
 
         if "owner_short" in configuration:
-            logging.info(
-                f"Setting device owner short to {configuration['owner_short']}"
-            )
+            logging.info(f"Setting device owner short to {configuration['owner_short']}")
             waitForAckNak = True
-            interface.getNode('^local', False).setOwner(
-                long_name=None, short_name=configuration["owner_short"]
-            )
+            interface.getNode("^local", False).setOwner(long_name=None, short_name=configuration["owner_short"])
 
         if "ownerShort" in configuration:
-            logging.info(
-                f"Setting device owner short to {configuration['ownerShort']}"
-            )
+            logging.info(f"Setting device owner short to {configuration['ownerShort']}")
             waitForAckNak = True
-            interface.getNode('^local', False).setOwner(
-                long_name=None, short_name=configuration["ownerShort"]
-            )
+            interface.getNode("^local", False).setOwner(long_name=None, short_name=configuration["ownerShort"])
 
         if "channel_url" in configuration:
             logging.info(f"Setting channel url to {configuration['channel_url']}")
-            interface.getNode('^local').setURL(configuration["channel_url"])
+            interface.getNode("^local").setURL(configuration["channel_url"])
 
         if "channelUrl" in configuration:
             logging.info(f"Setting channel url to {configuration['channelUrl']}")
-            interface.getNode('^local').setURL(configuration["channelUrl"])
+            interface.getNode("^local").setURL(configuration["channelUrl"])
 
         if "location" in configuration:
             alt = 0
@@ -179,30 +170,23 @@ def config_import(interface, filename):
             interface.localNode.setFixedPosition(lat, lon, alt)
 
         if "config" in configuration:
-            localConfig = interface.getNode('^local').localConfig
+            localConfig = interface.getNode("^local").localConfig
             for section in configuration["config"]:
-                traverseConfig(
-                    section, configuration["config"][section], localConfig
-                )
-                interface.getNode('^local').writeConfig(
-                    camel_to_snake(section)
-                )
+                traverseConfig(section, configuration["config"][section], localConfig)
+                interface.getNode("^local").writeConfig(camel_to_snake(section))
 
         if "module_config" in configuration:
-            moduleConfig = interface.getNode('^local').moduleConfig
+            moduleConfig = interface.getNode("^local").moduleConfig
             for section in configuration["module_config"]:
                 traverseConfig(
                     section,
                     configuration["module_config"][section],
                     moduleConfig,
                 )
-                interface.getNode('^local').writeConfig(
-                    camel_to_snake(section)
-                )
+                interface.getNode("^local").writeConfig(camel_to_snake(section))
 
-        interface.getNode('^local', False).commitSettingsTransaction()
+        interface.getNode("^local", False).commitSettingsTransaction()
         logging.info("Writing modified configuration to device")
-
 
 
 def config_export(interface) -> str:
@@ -237,7 +221,7 @@ def config_export(interface) -> str:
         if alt:
             configObj["location"]["alt"] = alt
 
-    config = MessageToDict(interface.localNode.localConfig)	#checkme - Used as a dictionary here and a string below
+    config = MessageToDict(interface.localNode.localConfig)  # checkme - Used as a dictionary here and a string below
     if config:
         # Convert inner keys to correct snake/camelCase
         prefs = {}
@@ -248,15 +232,15 @@ def config_export(interface) -> str:
                 prefs[pref] = config[pref]
             # mark base64 encoded fields as such
             if pref == "security":
-                if 'privateKey' in prefs[pref]:
-                    prefs[pref]['privateKey'] = 'base64:' + prefs[pref]['privateKey']
-                if 'publicKey' in prefs[pref]:
-                    prefs[pref]['publicKey'] = 'base64:' + prefs[pref]['publicKey']
-                if 'adminKey' in prefs[pref]:
-                    for i in range(len(prefs[pref]['adminKey'])):
-                        prefs[pref]['adminKey'][i] = 'base64:' + prefs[pref]['adminKey'][i]
+                if "privateKey" in prefs[pref]:
+                    prefs[pref]["privateKey"] = "base64:" + prefs[pref]["privateKey"]
+                if "publicKey" in prefs[pref]:
+                    prefs[pref]["publicKey"] = "base64:" + prefs[pref]["publicKey"]
+                if "adminKey" in prefs[pref]:
+                    for i in range(len(prefs[pref]["adminKey"])):
+                        prefs[pref]["adminKey"][i] = "base64:" + prefs[pref]["adminKey"][i]
         if mt_config.camel_case:
-            configObj["config"] = config		#Identical command here and 2 lines below?
+            configObj["config"] = config  # Identical command here and 2 lines below?
         else:
             configObj["config"] = config
 
@@ -272,8 +256,8 @@ def config_export(interface) -> str:
         else:
             configObj["module_config"] = prefs
 
-    config_txt = "# start of Meshtastic configure yaml\n"		#checkme - "config" (now changed to config_out)
-                                                                        #was used as a string here and a Dictionary above
+    config_txt = "# start of Meshtastic configure yaml\n"  # checkme - "config" (now changed to config_out)
+    # was used as a string here and a Dictionary above
     config_txt += yaml.dump(configObj)
 
     # logging.info(config_txt)

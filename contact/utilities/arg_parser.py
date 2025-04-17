@@ -1,11 +1,15 @@
 from argparse import ArgumentParser
 
+
 def setup_parser() -> ArgumentParser:
     parser = ArgumentParser(
-            add_help=True,
-            epilog="If no connection arguments are specified, we attempt a serial connection and then a TCP connection to localhost.")
+        add_help=True,
+        epilog="If no connection arguments are specified, we attempt a serial connection and then a TCP connection to localhost.",
+    )
 
-    connOuter = parser.add_argument_group('Connection', 'Optional arguments to specify a device to connect to and how.')
+    connOuter = parser.add_argument_group(
+        "Connection", "Optional arguments to specify a device to connect to and how."
+    )
     conn = connOuter.add_mutually_exclusive_group()
     conn.add_argument(
         "--port",
@@ -26,21 +30,10 @@ def setup_parser() -> ArgumentParser:
         const="localhost",
     )
     conn.add_argument(
-        "--ble",
-        "-b",
-        help="The BLE device MAC address or name to connect to.",
-        nargs="?",
-        default=None,
-        const="any"
+        "--ble", "-b", help="The BLE device MAC address or name to connect to.", nargs="?", default=None, const="any"
     )
     parser.add_argument(
-        "--settings",
-        "--set",
-        "--control",
-        "-c",
-        help="Launch directly into the settings",
-        action="store_true"
+        "--settings", "--set", "--control", "-c", help="Launch directly into the settings", action="store_true"
     )
-
 
     return parser

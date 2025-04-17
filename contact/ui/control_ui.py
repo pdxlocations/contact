@@ -7,7 +7,13 @@ import sys
 
 from contact.utilities.save_to_radio import save_changes
 from contact.utilities.config_io import config_export, config_import
-from contact.utilities.input_handlers import get_repeated_input, get_text_input, get_fixed32_input, get_list_input, get_admin_key_input
+from contact.utilities.input_handlers import (
+    get_repeated_input,
+    get_text_input,
+    get_fixed32_input,
+    get_list_input,
+    get_admin_key_input,
+)
 from contact.ui.menus import generate_menu_from_protobuf
 from contact.ui.colors import get_color
 from contact.ui.dialog import dialog
@@ -45,8 +51,8 @@ def display_menu(menu_state: MenuState) -> tuple[object, object]:  # curses.wind
     num_items = len(menu_state.current_menu) + (1 if menu_state.show_save_option else 0)
 
     # Determine the available height for the menu
-    max_menu_height = curses.LINES 
-    menu_height = min(max_menu_height - min_help_window_height, num_items + 5)  
+    max_menu_height = curses.LINES
+    menu_height = min(max_menu_height - min_help_window_height, num_items + 5)
     start_y = (curses.LINES - menu_height) // 2 - (min_help_window_height // 2)
     start_x = (curses.COLS - width) // 2
 
@@ -67,7 +73,7 @@ def display_menu(menu_state: MenuState) -> tuple[object, object]:  # curses.wind
 
     header = " > ".join(word.title() for word in menu_state.menu_path)
     if len(header) > width - 4:
-        header = header[:width - 7] + "..."
+        header = header[: width - 7] + "..."
     menu_win.addstr(1, 2, header, get_color("settings_breadcrumbs", bold=True))
 
     transformed_path = transform_menu_path(menu_state.menu_path)
@@ -75,31 +81,41 @@ def display_menu(menu_state: MenuState) -> tuple[object, object]:  # curses.wind
     for idx, option in enumerate(menu_state.current_menu):
         field_info = menu_state.current_menu[option]
         current_value = field_info[1] if isinstance(field_info, tuple) else ""
-        full_key = '.'.join(transformed_path + [option])
+        full_key = ".".join(transformed_path + [option])
         display_name = field_mapping.get(full_key, option)
 
-        display_option = f"{display_name}"[:width // 2 - 2]
-        display_value = f"{current_value}"[:width // 2 - 4]
+        display_option = f"{display_name}"[: width // 2 - 2]
+        display_value = f"{current_value}"[: width // 2 - 4]
 
         try:
-            color = get_color("settings_sensitive" if option in sensitive_settings else "settings_default", reverse=(idx == menu_state.selected_index))
+            color = get_color(
+                "settings_sensitive" if option in sensitive_settings else "settings_default",
+                reverse=(idx == menu_state.selected_index),
+            )
             menu_pad.addstr(idx, 0, f"{display_option:<{width // 2 - 2}} {display_value}".ljust(width - 8), color)
         except curses.error:
             pass
 
     if menu_state.show_save_option:
         save_position = menu_height - 2
-        menu_win.addstr(save_position, (width - len(save_option)) // 2, save_option, get_color("settings_save", reverse=(menu_state.selected_index == len(menu_state.current_menu))))
+        menu_win.addstr(
+            save_position,
+            (width - len(save_option)) // 2,
+            save_option,
+            get_color("settings_save", reverse=(menu_state.selected_index == len(menu_state.current_menu))),
+        )
 
     # Draw help window with dynamically updated max_help_lines
     draw_help_window(start_y, start_x, menu_height, max_help_lines, transformed_path, menu_state)
 
     menu_win.refresh()
     menu_pad.refresh(
-        menu_state.start_index[-1], 0,
-        menu_win.getbegyx()[0] + 3, menu_win.getbegyx()[1] + 4,
+        menu_state.start_index[-1],
+        0,
+        menu_win.getbegyx()[0] + 3,
+        menu_win.getbegyx()[1] + 4,
         menu_win.getbegyx()[0] + 3 + menu_win.getmaxyx()[0] - 5 - (2 if menu_state.show_save_option else 0),
-        menu_win.getbegyx()[1] + menu_win.getmaxyx()[1] - 4
+        menu_win.getbegyx()[1] + menu_win.getmaxyx()[1] - 4,
     )
 
     max_index = num_items + (1 if menu_state.show_save_option else 0) - 1
@@ -116,18 +132,22 @@ def draw_help_window(
     menu_height: int,
     max_help_lines: int,
     transformed_path: list[str],
-    menu_state: MenuState
+    menu_state: MenuState,
 ) -> None:
 
     global help_win
 
-    if 'help_win' not in globals():
+    if "help_win" not in globals():
         help_win = None  # Initialize if it does not exist
 
-    selected_option = list(menu_state.current_menu.keys())[menu_state.selected_index] if menu_state.current_menu else None
+    selected_option = (
+        list(menu_state.current_menu.keys())[menu_state.selected_index] if menu_state.current_menu else None
+    )
     help_y = menu_start_y + menu_height
 
-    help_win = update_help_window(help_win, help_text, transformed_path, selected_option, max_help_lines, width, help_y, menu_start_x)
+    help_win = update_help_window(
+        help_win, help_text, transformed_path, selected_option, max_help_lines, width, help_y, menu_start_x
+    )
 
 
 def settings_menu(stdscr: object, interface: object) -> None:
@@ -137,22 +157,22 @@ def settings_menu(stdscr: object, interface: object) -> None:
     menu_state.current_menu = menu["Main Menu"]
     menu_state.menu_path = ["Main Menu"]
 
-
     modified_settings = {}
-    
+
     need_redraw = True
     menu_state.show_save_option = False
 
     while True:
-        if(need_redraw):
+        if need_redraw:
             options = list(menu_state.current_menu.keys())
 
             menu_state.show_save_option = (
-                len(menu_state.menu_path) > 2 and ("Radio Settings" in menu_state.menu_path or "Module Settings" in menu_state.menu_path)
-            ) or (
-                len(menu_state.menu_path) == 2 and "User Settings" in menu_state.menu_path 
-            ) or (
-                len(menu_state.menu_path) == 3 and "Channels" in menu_state.menu_path
+                (
+                    len(menu_state.menu_path) > 2
+                    and ("Radio Settings" in menu_state.menu_path or "Module Settings" in menu_state.menu_path)
+                )
+                or (len(menu_state.menu_path) == 2 and "User Settings" in menu_state.menu_path)
+                or (len(menu_state.menu_path) == 3 and "Channels" in menu_state.menu_path)
             )
 
             # Display the menu
@@ -169,12 +189,30 @@ def settings_menu(stdscr: object, interface: object) -> None:
         if key == curses.KEY_UP:
             old_selected_index = menu_state.selected_index
             menu_state.selected_index = max_index if menu_state.selected_index == 0 else menu_state.selected_index - 1
-            move_highlight(old_selected_index, options, menu_win, menu_pad, menu_state=menu_state, help_win=help_win, help_text=help_text, max_help_lines=max_help_lines)
-            
+            move_highlight(
+                old_selected_index,
+                options,
+                menu_win,
+                menu_pad,
+                menu_state=menu_state,
+                help_win=help_win,
+                help_text=help_text,
+                max_help_lines=max_help_lines,
+            )
+
         elif key == curses.KEY_DOWN:
             old_selected_index = menu_state.selected_index
             menu_state.selected_index = 0 if menu_state.selected_index == max_index else menu_state.selected_index + 1
-            move_highlight(old_selected_index, options, menu_win, menu_pad, menu_state=menu_state, help_win=help_win, help_text=help_text, max_help_lines=max_help_lines)
+            move_highlight(
+                old_selected_index,
+                options,
+                menu_win,
+                menu_pad,
+                menu_state=menu_state,
+                help_win=help_win,
+                help_text=help_text,
+                max_help_lines=max_help_lines,
+            )
 
         elif key == curses.KEY_RESIZE:
             need_redraw = True
@@ -189,9 +227,18 @@ def settings_menu(stdscr: object, interface: object) -> None:
         elif key == ord("\t") and menu_state.show_save_option:
             old_selected_index = menu_state.selected_index
             menu_state.selected_index = max_index
-            move_highlight(old_selected_index, options, menu_win, menu_pad, menu_state=menu_state, help_win=help_win, help_text=help_text, max_help_lines=max_help_lines)
+            move_highlight(
+                old_selected_index,
+                options,
+                menu_win,
+                menu_pad,
+                menu_state=menu_state,
+                help_win=help_win,
+                help_text=help_text,
+                max_help_lines=max_help_lines,
+            )
 
-        elif key == curses.KEY_RIGHT or key == ord('\n'):
+        elif key == curses.KEY_RIGHT or key == ord("\n"):
             need_redraw = True
             menu_state.start_index.append(0)
             menu_win.erase()
@@ -254,7 +301,7 @@ def settings_menu(stdscr: object, interface: object) -> None:
                     logging.error(f"Unexpected error: {e}")
                 menu_state.start_index.pop()
                 continue
-                
+
             elif selected_option == "Load Config File":
 
                 # Check if folder exists and is not empty
@@ -291,7 +338,7 @@ def settings_menu(stdscr: object, interface: object) -> None:
                 continue
 
             elif selected_option == "Reboot":
-                confirmation = get_list_input("Are you sure you want to Reboot?", None,  ["Yes", "No"])
+                confirmation = get_list_input("Are you sure you want to Reboot?", None, ["Yes", "No"])
                 if confirmation == "Yes":
                     interface.localNode.reboot()
                     logging.info(f"Node Reboot Requested by menu")
@@ -299,7 +346,7 @@ def settings_menu(stdscr: object, interface: object) -> None:
                 continue
 
             elif selected_option == "Reset Node DB":
-                confirmation = get_list_input("Are you sure you want to Reset Node DB?", None,  ["Yes", "No"])
+                confirmation = get_list_input("Are you sure you want to Reset Node DB?", None, ["Yes", "No"])
                 if confirmation == "Yes":
                     interface.localNode.resetNodeDb()
                     logging.info(f"Node DB Reset Requested by menu")
@@ -315,7 +362,7 @@ def settings_menu(stdscr: object, interface: object) -> None:
                 continue
 
             elif selected_option == "Factory Reset":
-                confirmation = get_list_input("Are you sure you want to Factory Reset?", None,  ["Yes", "No"])
+                confirmation = get_list_input("Are you sure you want to Factory Reset?", None, ["Yes", "No"])
                 if confirmation == "Yes":
                     interface.localNode.factoryReset()
                     logging.info(f"Factory Reset Requested by menu")
@@ -334,26 +381,30 @@ def settings_menu(stdscr: object, interface: object) -> None:
                 menu_state.selected_index = 4
                 continue
                 # need_redraw = True
-                
+
             field_info = menu_state.current_menu.get(selected_option)
             if isinstance(field_info, tuple):
                 field, current_value = field_info
 
                 # Transform the menu path to get the full key
                 transformed_path = transform_menu_path(menu_state.menu_path)
-                full_key = '.'.join(transformed_path + [selected_option])
+                full_key = ".".join(transformed_path + [selected_option])
 
                 # Fetch human-readable name from field_mapping
                 human_readable_name = field_mapping.get(full_key, selected_option)
 
-                if selected_option in ['longName', 'shortName', 'isLicensed']:
-                    if selected_option in ['longName', 'shortName']:
+                if selected_option in ["longName", "shortName", "isLicensed"]:
+                    if selected_option in ["longName", "shortName"]:
                         new_value = get_text_input(f"{human_readable_name} is currently: {current_value}")
                         new_value = current_value if new_value is None else new_value
                         menu_state.current_menu[selected_option] = (field, new_value)
 
-                    elif selected_option == 'isLicensed':
-                        new_value = get_list_input(f"{human_readable_name} is currently: {current_value}", str(current_value),  ["True", "False"])
+                    elif selected_option == "isLicensed":
+                        new_value = get_list_input(
+                            f"{human_readable_name} is currently: {current_value}",
+                            str(current_value),
+                            ["True", "False"],
+                        )
                         new_value = new_value == "True"
                         menu_state.current_menu[selected_option] = (field, new_value)
 
@@ -362,12 +413,12 @@ def settings_menu(stdscr: object, interface: object) -> None:
 
                     menu_state.start_index.pop()
 
-                elif selected_option in ['latitude', 'longitude', 'altitude']:
+                elif selected_option in ["latitude", "longitude", "altitude"]:
                     new_value = get_text_input(f"{human_readable_name} is currently: {current_value}")
                     new_value = current_value if new_value is None else new_value
                     menu_state.current_menu[selected_option] = (field, new_value)
 
-                    for option in ['latitude', 'longitude', 'altitude']:
+                    for option in ["latitude", "longitude", "altitude"]:
                         if option in menu_state.current_menu:
                             modified_settings[option] = menu_state.current_menu[option][1]
 
@@ -397,16 +448,16 @@ def settings_menu(stdscr: object, interface: object) -> None:
                     new_value = enum_options.get(new_value_name, current_value)
                     menu_state.start_index.pop()
 
-                elif field.type == 7: # Field type 7 corresponds to FIXED32
+                elif field.type == 7:  # Field type 7 corresponds to FIXED32
                     new_value = get_fixed32_input(current_value)
                     menu_state.start_index.pop()
 
-                elif field.type == 13: # Field type 13 corresponds to UINT32
+                elif field.type == 13:  # Field type 13 corresponds to UINT32
                     new_value = get_text_input(f"{human_readable_name} is currently: {current_value}")
                     new_value = current_value if new_value is None else int(new_value)
                     menu_state.start_index.pop()
 
-                elif field.type == 2: # Field type 13 corresponds to INT64
+                elif field.type == 2:  # Field type 13 corresponds to INT64
                     new_value = get_text_input(f"{human_readable_name} is currently: {current_value}")
                     new_value = current_value if new_value is None else float(new_value)
                     menu_state.start_index.pop()
@@ -415,7 +466,7 @@ def settings_menu(stdscr: object, interface: object) -> None:
                     new_value = get_text_input(f"{human_readable_name} is currently: {current_value}")
                     new_value = current_value if new_value is None else new_value
                     menu_state.start_index.pop()
-                
+
                 for key in menu_state.menu_path[3:]:  # Skip "Main Menu"
                     modified_settings = modified_settings.setdefault(key, {})
 
@@ -433,7 +484,6 @@ def settings_menu(stdscr: object, interface: object) -> None:
                 menu_state.menu_path.append(selected_option)
                 menu_state.menu_index.append(menu_state.selected_index)
                 menu_state.selected_index = 0
-
 
         elif key == curses.KEY_LEFT:
             need_redraw = True
@@ -458,14 +508,15 @@ def settings_menu(stdscr: object, interface: object) -> None:
                     menu_state.current_menu = menu_state.current_menu.get(step, {})
                 menu_state.selected_index = menu_state.menu_index.pop()
                 menu_state.start_index.pop()
-                
+
         elif key == 27:  # Escape key
             menu_win.erase()
             menu_win.refresh()
             break
 
+
 def set_region(interface: object) -> None:
-    node = interface.getNode('^local')
+    node = interface.getNode("^local")
     device_config = node.localConfig
     lora_descriptor = device_config.lora.DESCRIPTOR
 
@@ -475,7 +526,7 @@ def set_region(interface: object) -> None:
 
     regions = list(region_name_to_number.keys())
 
-    new_region_name = get_list_input('Select your region:', 'UNSET', regions)
+    new_region_name = get_list_input("Select your region:", "UNSET", regions)
 
     # Convert region name to corresponding enum number
     new_region_number = region_name_to_number.get(new_region_name, 0)  # Default to 0 if not found

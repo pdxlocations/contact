@@ -13,6 +13,7 @@ max_help_lines = 6
 save_option = "Save Changes"
 sensitive_settings = []
 
+
 def edit_color_pair(key: str, current_value: list[str]) -> list[str]:
     """
     Allows the user to select a foreground and background color for a key.
@@ -22,6 +23,7 @@ def edit_color_pair(key: str, current_value: list[str]) -> list[str]:
     bg_color = get_list_input(f"Select Background Color for {key}", current_value[1], color_list)
 
     return [fg_color, bg_color]
+
 
 def edit_value(key: str, current_value: str) -> str:
 
@@ -41,7 +43,7 @@ def edit_value(key: str, current_value: str) -> str:
     edit_win.addstr(3, 2, "Current Value:", get_color("settings_default"))
 
     wrap_width = width - 4  # Account for border and padding
-    wrapped_lines = [current_value[i:i+wrap_width] for i in range(0, len(current_value), wrap_width)]
+    wrapped_lines = [current_value[i : i + wrap_width] for i in range(0, len(current_value), wrap_width)]
 
     for i, line in enumerate(wrapped_lines[:4]):  # Limit display to fit the window height
         edit_win.addstr(4 + i, 2, line, get_color("settings_default"))
@@ -54,7 +56,7 @@ def edit_value(key: str, current_value: str) -> str:
         theme_options = [k.split("_", 2)[2].lower() for k in loaded_config.keys() if k.startswith("COLOR_CONFIG")]
         return get_list_input("Select Theme", current_value, theme_options)
     elif key == "node_sort":
-        sort_options = ['lastHeard', 'name', 'hops']
+        sort_options = ["lastHeard", "name", "hops"]
         return get_list_input("Sort By", current_value, sort_options)
 
     # Standard Input Mode (Scrollable)
@@ -66,7 +68,7 @@ def edit_value(key: str, current_value: str) -> str:
     input_position = (7, 13)  # Tuple for row and column
     row, col = input_position  # Unpack tuple
     while True:
-        visible_text = user_input[scroll_offset:scroll_offset + input_width]  # Only show what fits
+        visible_text = user_input[scroll_offset : scroll_offset + input_width]  # Only show what fits
         edit_win.addstr(row, col, " " * input_width, get_color("settings_default"))  # Clear previous text
         edit_win.addstr(row, col, visible_text, get_color("settings_default"))  # Display text
         edit_win.refresh()
@@ -77,7 +79,7 @@ def edit_value(key: str, current_value: str) -> str:
         if key in (chr(27), curses.KEY_LEFT):  # ESC or Left Arrow
             curses.curs_set(0)
             return current_value  # Exit without returning a value
-        
+
         elif key in (chr(curses.KEY_ENTER), chr(10), chr(13)):
             break
 
@@ -115,7 +117,7 @@ def display_menu(menu_state: Any) -> tuple[Any, Any, list[str]]:
 
     # Calculate dynamic dimensions for the menu
     max_menu_height = curses.LINES
-    menu_height = min(max_menu_height, num_items + 5)  
+    menu_height = min(max_menu_height, num_items + 5)
     num_items = len(options)
     start_y = (curses.LINES - menu_height) // 2
     start_x = (curses.COLS - width) // 2
@@ -135,16 +137,18 @@ def display_menu(menu_state: Any) -> tuple[Any, Any, list[str]]:
     # Display the menu path
     header = " > ".join(menu_state.menu_path)
     if len(header) > width - 4:
-        header = header[:width - 7] + "..."
+        header = header[: width - 7] + "..."
     menu_win.addstr(1, 2, header, get_color("settings_breadcrumbs", bold=True))
 
     # Populate the pad with menu options
     for idx, key in enumerate(options):
-        value = menu_state.current_menu[key] if isinstance(menu_state.current_menu, dict) else menu_state.current_menu[int(key.strip("[]"))]
-        display_key = f"{key}"[:width // 2 - 2]
-        display_value = (
-            f"{value}"[:width // 2 - 8]
+        value = (
+            menu_state.current_menu[key]
+            if isinstance(menu_state.current_menu, dict)
+            else menu_state.current_menu[int(key.strip("[]"))]
         )
+        display_key = f"{key}"[: width // 2 - 2]
+        display_value = f"{value}"[: width // 2 - 8]
 
         color = get_color("settings_default", reverse=(idx == menu_state.selected_index))
         menu_pad.addstr(idx, 0, f"{display_key:<{width // 2 - 2}} {display_value}".ljust(width - 8), color)
@@ -152,14 +156,21 @@ def display_menu(menu_state: Any) -> tuple[Any, Any, list[str]]:
     # Add Save button to the main window
     if menu_state.show_save_option:
         save_position = menu_height - 2
-        menu_win.addstr(save_position, (width - len(save_option)) // 2, save_option, get_color("settings_save", reverse=(menu_state.selected_index == len(menu_state.current_menu))))
+        menu_win.addstr(
+            save_position,
+            (width - len(save_option)) // 2,
+            save_option,
+            get_color("settings_save", reverse=(menu_state.selected_index == len(menu_state.current_menu))),
+        )
 
     menu_win.refresh()
     menu_pad.refresh(
-        menu_state.start_index[-1], 0,
-        menu_win.getbegyx()[0] + 3, menu_win.getbegyx()[1] + 4,
+        menu_state.start_index[-1],
+        0,
+        menu_win.getbegyx()[0] + 3,
+        menu_win.getbegyx()[1] + 4,
         menu_win.getbegyx()[0] + 3 + menu_win.getmaxyx()[0] - 5 - (2 if menu_state.show_save_option else 0),
-        menu_win.getbegyx()[1] + menu_win.getmaxyx()[1] - 4
+        menu_win.getbegyx()[1] + menu_win.getmaxyx()[1] - 4,
     )
 
     max_index = num_items + (1 if menu_state.show_save_option else 0) - 1
@@ -168,8 +179,6 @@ def display_menu(menu_state: Any) -> tuple[Any, Any, list[str]]:
     draw_arrows(menu_win, visible_height, max_index, menu_state.start_index, show_save_option=False)
 
     return menu_win, menu_pad, options
-
-
 
 
 def json_editor(stdscr: curses.window, menu_state: Any) -> None:
@@ -201,11 +210,11 @@ def json_editor(stdscr: curses.window, menu_state: Any) -> None:
     need_redraw = True
 
     while True:
-        if(need_redraw):
+        if need_redraw:
             menu_win, menu_pad, options = display_menu(menu_state)
             menu_win.refresh()
             need_redraw = False
-            
+
         max_index = len(options) + (1 if menu_state.show_save_option else 0) - 1
         key = menu_win.getch()
 
@@ -213,18 +222,24 @@ def json_editor(stdscr: curses.window, menu_state: Any) -> None:
 
             old_selected_index = menu_state.selected_index
             menu_state.selected_index = max_index if menu_state.selected_index == 0 else menu_state.selected_index - 1
-            menu_state.help_win = move_highlight(old_selected_index, options, menu_win, menu_pad, menu_state=menu_state, max_help_lines=max_help_lines)
+            menu_state.help_win = move_highlight(
+                old_selected_index, options, menu_win, menu_pad, menu_state=menu_state, max_help_lines=max_help_lines
+            )
 
         elif key == curses.KEY_DOWN:
 
             old_selected_index = menu_state.selected_index
             menu_state.selected_index = 0 if menu_state.selected_index == max_index else menu_state.selected_index + 1
-            menu_state.help_win = move_highlight(old_selected_index, options, menu_win, menu_pad, menu_state=menu_state, max_help_lines=max_help_lines)
+            menu_state.help_win = move_highlight(
+                old_selected_index, options, menu_win, menu_pad, menu_state=menu_state, max_help_lines=max_help_lines
+            )
 
         elif key == ord("\t") and menu_state.show_save_option:
             old_selected_index = menu_state.selected_index
             menu_state.selected_index = max_index
-            menu_state.help_win = move_highlight(old_selected_index, options, menu_win, menu_pad, menu_state=menu_state, max_help_lines=max_help_lines)
+            menu_state.help_win = move_highlight(
+                old_selected_index, options, menu_win, menu_pad, menu_state=menu_state, max_help_lines=max_help_lines
+            )
 
         elif key in (curses.KEY_RIGHT, 10, 13):  # 10 = \n, 13 = carriage return
 
@@ -237,7 +252,7 @@ def json_editor(stdscr: curses.window, menu_state: Any) -> None:
                 menu_state.menu_path.append(str(selected_key))
                 menu_state.start_index.append(0)
                 menu_state.menu_index.append(menu_state.selected_index)
-                
+
                 # Handle nested data
                 if isinstance(menu_state.current_menu, dict):
                     if selected_key in menu_state.current_menu:
@@ -268,7 +283,7 @@ def json_editor(stdscr: curses.window, menu_state: Any) -> None:
                     menu_state.start_index.pop()
                     menu_state.current_menu[selected_key] = new_value
                     need_redraw = True
-                
+
             else:
                 # Save button selected
                 save_json(file_path, data)
@@ -290,13 +305,17 @@ def json_editor(stdscr: curses.window, menu_state: Any) -> None:
                 menu_state.current_menu = data
 
                 for path in menu_state.menu_path[2:]:
-                    menu_state.current_menu = menu_state.current_menu[path] if isinstance(menu_state.current_menu, dict) else menu_state.current_menu[int(path.strip("[]"))]
+                    menu_state.current_menu = (
+                        menu_state.current_menu[path]
+                        if isinstance(menu_state.current_menu, dict)
+                        else menu_state.current_menu[int(path.strip("[]"))]
+                    )
 
             else:
                 # Exit the editor
                 menu_win.clear()
                 menu_win.refresh()
-                
+
                 break
 
 
@@ -305,6 +324,7 @@ def save_json(file_path: str, data: dict[str, Any]) -> None:
     with open(file_path, "w", encoding="utf-8") as f:
         f.write(formatted_json)
     setup_colors(reinit=True)
+
 
 def main(stdscr: curses.window) -> None:
     from contact.ui.ui_state import MenuState
@@ -317,6 +337,7 @@ def main(stdscr: curses.window) -> None:
     stdscr.keypad(True)
     setup_colors()
     json_editor(stdscr, menu_state)
+
 
 if __name__ == "__main__":
     curses.wrapper(main)

@@ -14,13 +14,9 @@ save_option = "Save Changes"
 
 
 def move_highlight(
-    old_idx: int,
-    options: list[str],
-    menu_win: curses.window,
-    menu_pad: curses.window,
-    **kwargs: Any
+    old_idx: int, options: list[str], menu_win: curses.window, menu_pad: curses.window, **kwargs: Any
 ) -> None:
-    
+
     show_save_option = None
     start_index = [0]
     help_text = None
@@ -38,7 +34,7 @@ def move_highlight(
     else:
         new_idx = kwargs["selected_index"]
         transformed_path = []
-    
+
     if "help_text" in kwargs:
         help_text = kwargs["help_text"]
 
@@ -47,7 +43,6 @@ def move_highlight(
     if old_idx == new_idx:  # No-op
         return
 
-    
     max_index = len(options) + (1 if show_save_option else 0) - 1
     visible_height = menu_win.getmaxyx()[0] - 5 - (2 if show_save_option else 0)
 
@@ -57,50 +52,84 @@ def move_highlight(
     elif new_idx < start_index[-1]:  # Moving above the visible area
         start_index[-1] = new_idx
     elif new_idx >= start_index[-1] + visible_height:  # Moving below the visible area
-        start_index[-1] = new_idx- visible_height
+        start_index[-1] = new_idx - visible_height
 
     # Ensure menu_state.start_index is within bounds
     start_index[-1] = max(0, min(start_index[-1], max_index - visible_height + 1))
 
     # Clear old selection
     if show_save_option and old_idx == max_index:
-        menu_win.chgat(menu_win.getmaxyx()[0] - 2, (width - len(save_option)) // 2, len(save_option), get_color("settings_save"))
+        menu_win.chgat(
+            menu_win.getmaxyx()[0] - 2, (width - len(save_option)) // 2, len(save_option), get_color("settings_save")
+        )
     else:
-        menu_pad.chgat(old_idx, 0, menu_pad.getmaxyx()[1], get_color("settings_sensitive") if options[old_idx] in sensitive_settings else get_color("settings_default"))
+        menu_pad.chgat(
+            old_idx,
+            0,
+            menu_pad.getmaxyx()[1],
+            (
+                get_color("settings_sensitive")
+                if options[old_idx] in sensitive_settings
+                else get_color("settings_default")
+            ),
+        )
 
     # Highlight new selection
     if show_save_option and new_idx == max_index:
-        menu_win.chgat(menu_win.getmaxyx()[0] - 2, (width - len(save_option)) // 2, len(save_option), get_color("settings_save", reverse=True))
+        menu_win.chgat(
+            menu_win.getmaxyx()[0] - 2,
+            (width - len(save_option)) // 2,
+            len(save_option),
+            get_color("settings_save", reverse=True),
+        )
     else:
-        menu_pad.chgat(new_idx, 0, menu_pad.getmaxyx()[1], get_color("settings_sensitive", reverse=True) if options[new_idx] in sensitive_settings else get_color("settings_default", reverse=True))
+        menu_pad.chgat(
+            new_idx,
+            0,
+            menu_pad.getmaxyx()[1],
+            (
+                get_color("settings_sensitive", reverse=True)
+                if options[new_idx] in sensitive_settings
+                else get_color("settings_default", reverse=True)
+            ),
+        )
 
     menu_win.refresh()
-    
+
     # Refresh pad only if scrolling is needed
-    menu_pad.refresh(start_index[-1], 0,
-                     menu_win.getbegyx()[0] + 3, menu_win.getbegyx()[1] + 4,
-                     menu_win.getbegyx()[0] + 3 + visible_height, 
-                     menu_win.getbegyx()[1] + menu_win.getmaxyx()[1] - 4)
+    menu_pad.refresh(
+        start_index[-1],
+        0,
+        menu_win.getbegyx()[0] + 3,
+        menu_win.getbegyx()[1] + 4,
+        menu_win.getbegyx()[0] + 3 + visible_height,
+        menu_win.getbegyx()[1] + menu_win.getmaxyx()[1] - 4,
+    )
 
     # Update help window only if help_text is populated
     selected_option = options[new_idx] if new_idx < len(options) else None
     help_y = menu_win.getbegyx()[0] + menu_win.getmaxyx()[0]
     if help_win:
-        help_win = update_help_window(help_win, help_text, transformed_path, selected_option, max_help_lines, width, help_y, menu_win.getbegyx()[1])
+        help_win = update_help_window(
+            help_win,
+            help_text,
+            transformed_path,
+            selected_option,
+            max_help_lines,
+            width,
+            help_y,
+            menu_win.getbegyx()[1],
+        )
 
     draw_arrows(menu_win, visible_height, max_index, start_index, show_save_option=False)
 
 
 def draw_arrows(
-    win: object,
-    visible_height: int,
-    max_index: int,
-    start_index: list[int],
-    show_save_option: bool
+    win: object, visible_height: int, max_index: int, start_index: list[int], show_save_option: bool
 ) -> None:
 
     # vh = visible_height + (1 if show_save_option else 0)
-    mi = max_index - (2 if show_save_option else 0) 
+    mi = max_index - (2 if show_save_option else 0)
 
     if visible_height < mi:
         if start_index[-1] > 0:
@@ -108,7 +137,7 @@ def draw_arrows(
         else:
             win.addstr(3, 2, " ", get_color("settings_default"))
 
-        if mi - start_index[-1] >= visible_height + (0 if show_save_option else 1) :
+        if mi - start_index[-1] >= visible_height + (0 if show_save_option else 1):
             win.addstr(visible_height + 3, 2, "▼", get_color("settings_default"))
         else:
             win.addstr(visible_height + 3, 2, " ", get_color("settings_default"))
@@ -122,9 +151,8 @@ def update_help_window(
     max_help_lines: int,
     width: int,
     help_y: int,
-    help_x: int
+    help_x: int,
 ) -> object:  # returns a curses window
-
     """Handles rendering the help window consistently."""
     wrapped_help = get_wrapped_help_text(help_text, transformed_path, selected_option, width, max_help_lines)
 
@@ -161,29 +189,25 @@ def update_help_window(
     help_win.refresh()
     return help_win
 
+
 def get_wrapped_help_text(
-    help_text: dict[str, str],
-    transformed_path: list[str],
-    selected_option: str | None,
-    width: int,
-    max_lines: int
+    help_text: dict[str, str], transformed_path: list[str], selected_option: str | None, width: int, max_lines: int
 ) -> list[WrappedLine]:
     """Fetches and formats help text for display, ensuring it fits within the allowed lines."""
-    
-    full_help_key = '.'.join(transformed_path + [selected_option]) if selected_option else None
+
+    full_help_key = ".".join(transformed_path + [selected_option]) if selected_option else None
     help_content = help_text.get(full_help_key, "No help available.")
 
     wrap_width = max(width - 6, 10)  # Ensure a valid wrapping width
 
     # Color replacements
     color_mappings = {
-        r'\[warning\](.*?)\[/warning\]': ('settings_warning', True, False),  # Red for warnings
-        r'\[note\](.*?)\[/note\]': ('settings_note', True, False),  # Green for notes
-        r'\[underline\](.*?)\[/underline\]': ('settings_default', False, True),  # Underline
-
-        r'\\033\[31m(.*?)\\033\[0m': ('settings_warning', True, False),  # Red text
-        r'\\033\[32m(.*?)\\033\[0m': ('settings_note', True, False),  # Green text
-        r'\\033\[4m(.*?)\\033\[0m': ('settings_default', False, True)  # Underline
+        r"\[warning\](.*?)\[/warning\]": ("settings_warning", True, False),  # Red for warnings
+        r"\[note\](.*?)\[/note\]": ("settings_note", True, False),  # Green for notes
+        r"\[underline\](.*?)\[/underline\]": ("settings_default", False, True),  # Underline
+        r"\\033\[31m(.*?)\\033\[0m": ("settings_warning", True, False),  # Red text
+        r"\\033\[32m(.*?)\\033\[0m": ("settings_note", True, False),  # Green text
+        r"\\033\[4m(.*?)\\033\[0m": ("settings_default", False, True),  # Underline
     }
 
     def extract_ansi_segments(text: str) -> list[Segment]:
@@ -205,7 +229,7 @@ def get_wrapped_help_text(
             if last_pos < start:
                 segment = text[last_pos:start]
                 matches.append((segment, "settings_default", False, False))
-            
+
             # Append the colored segment
             matches.append((content, color, bold, underline))
             last_pos = end
@@ -223,7 +247,7 @@ def get_wrapped_help_text(
         line_length = 0
 
         for text, color, bold, underline in segments:
-            words = re.findall(r'\S+|\s+', text)  # Capture words and spaces separately
+            words = re.findall(r"\S+|\s+", text)  # Capture words and spaces separately
 
             for word in words:
                 word_length = len(word)
@@ -253,14 +277,15 @@ def get_wrapped_help_text(
 
     # Trim and add ellipsis if needed
     if len(wrapped_help) > max_lines:
-        wrapped_help = wrapped_help[:max_lines]  
-        wrapped_help[-1].append(("...", "settings_default", False, False))  
+        wrapped_help = wrapped_help[:max_lines]
+        wrapped_help[-1].append(("...", "settings_default", False, False))
 
     return wrapped_help
 
+
 def wrap_text(text: str, wrap_width: int) -> list[str]:
     """Wraps text while preserving spaces and breaking long words."""
-    words = re.findall(r'\S+|\s+', text)  # Capture words and spaces separately
+    words = re.findall(r"\S+|\s+", text)  # Capture words and spaces separately
     wrapped_lines = []
     line_buffer = ""
     line_length = 0
@@ -276,7 +301,7 @@ def wrap_text(text: str, wrap_width: int) -> list[str]:
                 line_buffer = ""
                 line_length = 0
             for i in range(0, word_length, wrap_width):
-                wrapped_lines.append(word[i:i+wrap_width])
+                wrapped_lines.append(word[i : i + wrap_width])
             continue
 
         if line_length + word_length > wrap_width and word.strip():
@@ -291,4 +316,3 @@ def wrap_text(text: str, wrap_width: int) -> list[str]:
         wrapped_lines.append(line_buffer)
 
     return wrapped_lines
-    

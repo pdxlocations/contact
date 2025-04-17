@@ -7,6 +7,7 @@ from contact.utilities.utils import decimal_to_hex
 import contact.ui.default_config as config
 import contact.globals as globals
 
+
 def get_table_name(channel: str) -> str:
     # Construct the table name
     table_name = f"{str(globals.myNodeNum)}_{channel}_messages"
@@ -15,17 +16,16 @@ def get_table_name(channel: str) -> str:
 
 
 def save_message_to_db(channel: str, user_id: str, message_text: str) -> int | None:
-
     """Save messages to the database, ensuring the table exists."""
     try:
         quoted_table_name = get_table_name(channel)
 
-        schema = '''
+        schema = """
             user_id TEXT,
             message_text TEXT,
             timestamp INTEGER,
             ack_type TEXT
-        '''
+        """
         ensure_table_exists(quoted_table_name, schema)
 
         with sqlite3.connect(config.db_file_path) as db_connection:
@@ -33,10 +33,10 @@ def save_message_to_db(channel: str, user_id: str, message_text: str) -> int | N
             timestamp = int(time.time())
 
             # Insert the message
-            insert_query = f'''
+            insert_query = f"""
                 INSERT INTO {quoted_table_name} (user_id, message_text, timestamp, ack_type)
                 VALUES (?, ?, ?, ?)
-            '''
+            """
             db_cursor.execute(insert_query, (user_id, message_text, timestamp, None))
             db_connection.commit()
 
@@ -82,25 +82,27 @@ def load_messages_from_db() -> None:
 
             # Iterate through each table and fetch its messages
             for table_name in tables:
-                quoted_table_name = f'"{table_name}"'  # Quote the table name because we begin with numerics and contain spaces
-                table_columns = [i[1] for i in db_cursor.execute(f'PRAGMA table_info({quoted_table_name})')]
+                quoted_table_name = (
+                    f'"{table_name}"'  # Quote the table name because we begin with numerics and contain spaces
+                )
+                table_columns = [i[1] for i in db_cursor.execute(f"PRAGMA table_info({quoted_table_name})")]
                 if "ack_type" not in table_columns:
                     update_table_query = f"ALTER TABLE {quoted_table_name} ADD COLUMN ack_type TEXT"
                     db_cursor.execute(update_table_query)
 
-                query = f'SELECT user_id, message_text, timestamp, ack_type FROM {quoted_table_name}'
+                query = f"SELECT user_id, message_text, timestamp, ack_type FROM {quoted_table_name}"
 
                 try:
                     # Fetch all messages from the table
                     db_cursor.execute(query)
                     db_messages = [(row[0], row[1], row[2], row[3]) for row in db_cursor.fetchall()]  # Save as tuples
-                    
+
                     # Extract the channel name from the table name
                     channel = table_name.split("_")[1]
-                    
+
                     # Convert the channel to an integer if it's numeric, otherwise keep it as a string (nodenum vs channel name)
                     channel = int(channel) if channel.isdigit() else channel
-                    
+
                     # Add the channel to globals.channel_list if not already present
                     if channel not in globals.channel_list and not is_chat_archived(channel):
                         globals.channel_list.append(channel)
@@ -112,10 +114,10 @@ def load_messages_from_db() -> None:
                     # Add messages to globals.all_messages grouped by hourly timestamp
                     hourly_messages = {}
                     for user_id, message, timestamp, ack_type in db_messages:
-                        hour = datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d %H:00')
+                        hour = datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:00")
                         if hour not in hourly_messages:
                             hourly_messages[hour] = []
-                        
+
                         ack_str = config.ack_unknown_str
                         if ack_type == "Implicit":
                             ack_str = config.ack_implicit_str
@@ -127,8 +129,11 @@ def load_messages_from_db() -> None:
                         if user_id == str(globals.myNodeNum):
                             formatted_message = (f"{config.sent_message_prefix}{ack_str}: ", message)
                         else:
-                            formatted_message = (f"{config.message_prefix} {get_name_from_database(int(user_id), 'short')}: ", message)
-                        
+                            formatted_message = (
+                                f"{config.message_prefix} {get_name_from_database(int(user_id), 'short')}: ",
+                                message,
+                            )
+
                         hourly_messages[hour].append(formatted_message)
 
                     # Flatten the hourly messages into globals.all_messages[channel]
@@ -145,7 +150,7 @@ def load_messages_from_db() -> None:
 
 def init_nodedb() -> None:
     """Initialize the node database and update it with nodes from the interface."""
-    
+
     try:
         if not globals.interface.nodes:
             return  # No nodes to initialize
@@ -156,13 +161,13 @@ def init_nodedb() -> None:
         # Insert or update all nodes
         for node in nodes_snapshot:
             update_node_info_in_db(
-                user_id=node['num'],
-                long_name=node['user'].get('longName', ''),
-                short_name=node['user'].get('shortName', ''),
-                hw_model=node['user'].get('hwModel', ''),
-                is_licensed=node['user'].get('isLicensed', '0'),
-                role=node['user'].get('role', 'CLIENT'),
-                public_key=node['user'].get('publicKey', '')
+                user_id=node["num"],
+                long_name=node["user"].get("longName", ""),
+                short_name=node["user"].get("shortName", ""),
+                hw_model=node["user"].get("hwModel", ""),
+                is_licensed=node["user"].get("isLicensed", "0"),
+                role=node["user"].get("role", "CLIENT"),
+                public_key=node["user"].get("publicKey", ""),
             )
 
         logging.info("Node database initialized successfully.")
@@ -176,13 +181,13 @@ def init_nodedb() -> None:
 def maybe_store_nodeinfo_in_db(packet: dict[str, object]) -> None:
     """Save nodeinfo unless that record is already there, updating if necessary."""
     try:
-        user_id = packet['from']
-        long_name = packet['decoded']['user']['longName']
-        short_name = packet['decoded']['user']['shortName']
-        hw_model = packet['decoded']['user']['hwModel']
-        is_licensed = packet['decoded']['user'].get('isLicensed', '0')
-        role = packet['decoded']['user'].get('role', 'CLIENT')
-        public_key = packet['decoded']['user'].get('publicKey', '')
+        user_id = packet["from"]
+        long_name = packet["decoded"]["user"]["longName"]
+        short_name = packet["decoded"]["user"]["shortName"]
+        hw_model = packet["decoded"]["user"]["hwModel"]
+        is_licensed = packet["decoded"]["user"].get("isLicensed", "0")
+        role = packet["decoded"]["user"].get("role", "CLIENT")
+        public_key = packet["decoded"]["user"].get("publicKey", "")
 
         update_node_info_in_db(user_id, long_name, short_name, hw_model, is_licensed, role, public_key)
 
@@ -190,6 +195,7 @@ def maybe_store_nodeinfo_in_db(packet: dict[str, object]) -> None:
         logging.error(f"SQLite error in maybe_store_nodeinfo_in_db: {e}")
     except Exception as e:
         logging.error(f"Unexpected error in maybe_store_nodeinfo_in_db: {e}")
+
 
 def update_node_info_in_db(
     user_id: int | str,
@@ -199,9 +205,8 @@ def update_node_info_in_db(
     is_licensed: str | int | None = None,
     role: str | None = None,
     public_key: str | None = None,
-    chat_archived: int | None = None
+    chat_archived: int | None = None,
 ) -> None:
-
     """Update or insert node information into the database, preserving unchanged fields."""
     try:
         ensure_node_table_exists()  # Ensure the table exists before any operation
@@ -210,17 +215,25 @@ def update_node_info_in_db(
             db_cursor = db_connection.cursor()
             table_name = f'"{globals.myNodeNum}_nodedb"'  # Quote in case of numeric names
 
-            table_columns = [i[1] for i in db_cursor.execute(f'PRAGMA table_info({table_name})')]
+            table_columns = [i[1] for i in db_cursor.execute(f"PRAGMA table_info({table_name})")]
             if "chat_archived" not in table_columns:
                 update_table_query = f"ALTER TABLE {table_name} ADD COLUMN chat_archived INTEGER"
                 db_cursor.execute(update_table_query)
 
             # Fetch existing values to preserve unchanged fields
-            db_cursor.execute(f'SELECT * FROM {table_name} WHERE user_id = ?', (user_id,))
+            db_cursor.execute(f"SELECT * FROM {table_name} WHERE user_id = ?", (user_id,))
             existing_record = db_cursor.fetchone()
 
             if existing_record:
-                existing_long_name, existing_short_name, existing_hw_model, existing_is_licensed, existing_role, existing_public_key, existing_chat_archived = existing_record[1:]
+                (
+                    existing_long_name,
+                    existing_short_name,
+                    existing_hw_model,
+                    existing_is_licensed,
+                    existing_role,
+                    existing_public_key,
+                    existing_chat_archived,
+                ) = existing_record[1:]
 
                 long_name = long_name if long_name is not None else existing_long_name
                 short_name = short_name if short_name is not None else existing_short_name
@@ -239,7 +252,7 @@ def update_node_info_in_db(
             chat_archived = chat_archived if chat_archived is not None else 0
 
             # Upsert logic
-            upsert_query = f'''
+            upsert_query = f"""
                 INSERT INTO {table_name} (user_id, long_name, short_name, hw_model, is_licensed, role, public_key, chat_archived)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(user_id) DO UPDATE SET
@@ -250,8 +263,10 @@ def update_node_info_in_db(
                     role = excluded.role,
                     public_key = excluded.public_key,
                     chat_archived = excluded.chat_archived
-            '''
-            db_cursor.execute(upsert_query, (user_id, long_name, short_name, hw_model, is_licensed, role, public_key, chat_archived))
+            """
+            db_cursor.execute(
+                upsert_query, (user_id, long_name, short_name, hw_model, is_licensed, role, public_key, chat_archived)
+            )
             db_connection.commit()
 
     except sqlite3.Error as e:
@@ -263,7 +278,7 @@ def update_node_info_in_db(
 def ensure_node_table_exists() -> None:
     """Ensure the node database table exists."""
     table_name = f'"{globals.myNodeNum}_nodedb"'  # Quote for safety
-    schema = '''
+    schema = """
         user_id TEXT PRIMARY KEY,
         long_name TEXT,
         short_name TEXT,
@@ -272,7 +287,7 @@ def ensure_node_table_exists() -> None:
         role TEXT,
         public_key TEXT,
         chat_archived INTEGER
-    '''
+    """
     ensure_table_exists(table_name, schema)
 
 
@@ -293,7 +308,7 @@ def ensure_table_exists(table_name: str, schema: str) -> None:
 def get_name_from_database(user_id: int, type: str = "long") -> str:
     """
     Retrieve a user's name (long or short) from the node database.
-    
+
     :param user_id: The user ID to look up.
     :param type: "long" for long name, "short" for short name.
     :return: The retrieved name or the hex of the user id
@@ -305,7 +320,7 @@ def get_name_from_database(user_id: int, type: str = "long") -> str:
             # Construct table name
             table_name = f"{str(globals.myNodeNum)}_nodedb"
             nodeinfo_table = f'"{table_name}"'  # Quote table name for safety
-            
+
             # Determine the correct column to fetch
             column_name = "long_name" if type == "long" else "short_name"
 
@@ -323,6 +338,7 @@ def get_name_from_database(user_id: int, type: str = "long") -> str:
     except Exception as e:
         logging.error(f"Unexpected error in get_name_from_database: {e}")
         return "Unknown"
+
 
 def is_chat_archived(user_id: int) -> int:
     try:
@@ -343,4 +359,3 @@ def is_chat_archived(user_id: int) -> int:
     except Exception as e:
         logging.error(f"Unexpected error in is_chat_archived: {e}")
         return "Unknown"
-
