@@ -5,44 +5,8 @@ import ipaddress
 import re
 from typing import Any, Optional
 from contact.ui.colors import get_color
-from contact.ui.nav_utils import move_highlight, draw_arrows
+from contact.ui.nav_utils import move_highlight, draw_arrows, wrap_text
 
-max_help_lines = 6
-
-def wrap_text(text: str, wrap_width: int) -> list[str]:
-    """Wraps text while preserving spaces and breaking long words."""
-    words = re.findall(r'\S+|\s+', text)  # Capture words and spaces separately
-    wrapped_lines = []
-    line_buffer = ""
-    line_length = 0
-    margin = 2  # Left and right margin
-    wrap_width -= margin
-
-    for word in words:
-        word_length = len(word)
-
-        if word_length > wrap_width:  # Break long words
-            if line_buffer:
-                wrapped_lines.append(line_buffer)
-                line_buffer = ""
-                line_length = 0
-            for i in range(0, word_length, wrap_width):
-                wrapped_lines.append(word[i:i+wrap_width])
-            continue
-
-        if line_length + word_length > wrap_width and word.strip():
-            wrapped_lines.append(line_buffer)
-            line_buffer = ""
-            line_length = 0
-
-        line_buffer += word
-        line_length += word_length
-
-    if line_buffer:
-        wrapped_lines.append(line_buffer)
-
-    return wrapped_lines
-    
 
 def get_text_input(prompt: str) -> Optional[str]:
     """Handles user input with wrapped text for long prompts."""
@@ -401,50 +365,3 @@ def get_list_input(prompt: str, current_option: Optional[str], list_options: lis
             list_win.clear()
             list_win.refresh()
             return current_option
-
-
-# def move_highlight(
-#     old_idx: int,
-#     new_idx: int,
-#     options: list[str],
-#     list_win: curses.window,
-#     list_pad: curses.window
-# ) -> int:
-
-#     global scroll_offset
-#     if 'scroll_offset' not in globals():
-#         scroll_offset = 0  # Initialize if not set
-
-#     if old_idx == new_idx:
-#         return  # No-op
-
-#     max_index = len(options) - 1
-#     visible_height = list_win.getmaxyx()[0] - 5
-
-#     # Adjust scroll_offset only when moving out of visible range
-#     if new_idx < scroll_offset:  # Moving above the visible area
-#         scroll_offset = new_idx
-#     elif new_idx >= scroll_offset + visible_height:  # Moving below the visible area
-#         scroll_offset = new_idx - visible_height
-
-#     # Ensure scroll_offset is within bounds
-#     scroll_offset = max(0, min(scroll_offset, max_index - visible_height + 1))
-
-#     # Clear old highlight
-#     list_pad.chgat(old_idx, 0, list_pad.getmaxyx()[1], get_color("settings_default"))
-
-#     # Highlight new selection
-#     list_pad.chgat(new_idx, 0, list_pad.getmaxyx()[1], get_color("settings_default", reverse=True))
-
-#     list_win.refresh()
-    
-#     # Refresh pad only if scrolling is needed
-#     list_pad.refresh(scroll_offset, 0,
-#                      list_win.getbegyx()[0] + 3, list_win.getbegyx()[1] + 4,
-#                      list_win.getbegyx()[0] + 3 + visible_height, 
-#                      list_win.getbegyx()[1] + list_win.getmaxyx()[1] - 4)
-    
-#     draw_arrows(list_win, visible_height, max_index, [scroll_offset], show_save_option=False)
-
-#     return scroll_offset  # Return updated scroll_offset to be stored externally
-

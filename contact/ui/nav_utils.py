@@ -21,9 +21,6 @@ def move_highlight(
     **kwargs: Any
 ) -> None:
     
-    new_idx = None
-    max_index = None
-    visible_height = None
     show_save_option = None
     start_index = [0]
     help_text = None
@@ -40,8 +37,7 @@ def move_highlight(
         transformed_path = transform_menu_path(kwargs["menu_state"].menu_path)
     else:
         new_idx = kwargs["selected_index"]
-        max_index = len(options) - 1
-        visible_height = menu_win.getmaxyx()[0] - 5
+        transformed_path = []
     
     if "help_text" in kwargs:
         help_text = kwargs["help_text"]
@@ -93,9 +89,6 @@ def move_highlight(
         help_win = update_help_window(help_win, help_text, transformed_path, selected_option, max_help_lines, width, help_y, menu_win.getbegyx()[1])
 
     draw_arrows(menu_win, visible_height, max_index, start_index, show_save_option=False)
-
-
-
 
 
 def draw_arrows(
@@ -264,3 +257,38 @@ def get_wrapped_help_text(
         wrapped_help[-1].append(("...", "settings_default", False, False))  
 
     return wrapped_help
+
+def wrap_text(text: str, wrap_width: int) -> list[str]:
+    """Wraps text while preserving spaces and breaking long words."""
+    words = re.findall(r'\S+|\s+', text)  # Capture words and spaces separately
+    wrapped_lines = []
+    line_buffer = ""
+    line_length = 0
+    margin = 2  # Left and right margin
+    wrap_width -= margin
+
+    for word in words:
+        word_length = len(word)
+
+        if word_length > wrap_width:  # Break long words
+            if line_buffer:
+                wrapped_lines.append(line_buffer)
+                line_buffer = ""
+                line_length = 0
+            for i in range(0, word_length, wrap_width):
+                wrapped_lines.append(word[i:i+wrap_width])
+            continue
+
+        if line_length + word_length > wrap_width and word.strip():
+            wrapped_lines.append(line_buffer)
+            line_buffer = ""
+            line_length = 0
+
+        line_buffer += word
+        line_length += word_length
+
+    if line_buffer:
+        wrapped_lines.append(line_buffer)
+
+    return wrapped_lines
+    
