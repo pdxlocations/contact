@@ -28,6 +28,10 @@ def move_highlight(
     start_index = [0]
     help_text = None
     max_help_lines = 0
+    help_win = None
+
+    if "help_win" in kwargs:
+        help_win = kwargs["help_win"]
 
     if "menu_state" in kwargs:
         new_idx = kwargs["menu_state"].selected_index
@@ -41,6 +45,7 @@ def move_highlight(
     
     if "help_text" in kwargs:
         help_text = kwargs["help_text"]
+
     if "max_help_lines" in kwargs:
         max_help_lines = kwargs["max_help_lines"]
     if old_idx == new_idx:  # No-op
@@ -84,7 +89,7 @@ def move_highlight(
     # Update help window only if help_text is populated
     selected_option = options[new_idx] if new_idx < len(options) else None
     help_y = menu_win.getbegyx()[0] + menu_win.getmaxyx()[0]
-    if help_text is not None:
+    if help_win:
         help_win = update_help_window(help_win, help_text, transformed_path, selected_option, max_help_lines, width, help_y, menu_win.getbegyx()[1])
 
     draw_arrows(menu_win, visible_height, max_index, start_index, show_save_option=False)
