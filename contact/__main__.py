@@ -112,6 +112,11 @@ def main(stdscr: curses.window) -> None:
 
 def start() -> None:
     """Launch curses wrapper and redirect logs to file."""
+
+    if "--help" in sys.argv or "-h" in sys.argv:
+        setup_parser().print_help()
+        sys.exit(0)
+
     with open(config.log_file_path, "a", buffering=1) as log_f:
         sys.stdout = log_f
         sys.stderr = log_f
