@@ -2,7 +2,7 @@ import curses
 import textwrap
 import logging
 import traceback
-from typing import Union
+from typing import Union, List
 
 from contact.utilities.utils import get_channels, get_readable_duration, get_time_ago, refresh_node_list
 from contact.settings import settings_menu
@@ -181,11 +181,15 @@ def main_ui(stdscr: curses.window) -> None:
                 channel_win.refresh()
                 highlight_line(False, 0, globals.selected_channel)
                 refresh_pad(0)
+                setup_arrows(channel_win, channel_pad)
+                channel_win.refresh()
             if old_window == 1:
                 messages_win.attrset(get_color("window_frame"))
                 messages_win.box()
                 messages_win.refresh()
                 refresh_pad(1)
+                setup_arrows(messages_win, messages_pad)
+                messages_win.refresh()
             elif old_window == 2:
                 draw_function_win()
                 nodes_win.attrset(get_color("window_frame"))
@@ -193,6 +197,8 @@ def main_ui(stdscr: curses.window) -> None:
                 nodes_win.refresh()
                 highlight_line(False, 2, globals.selected_node)
                 refresh_pad(2)
+                setup_arrows(nodes_win, nodes_pad)
+                nodes_win.refresh()
 
             if globals.current_window == 0:
                 channel_win.attrset(get_color("window_frame_selected"))
@@ -201,12 +207,18 @@ def main_ui(stdscr: curses.window) -> None:
                 channel_win.refresh()
                 highlight_line(True, 0, globals.selected_channel)
                 refresh_pad(0)
+                setup_arrows(channel_win, channel_pad)
+                channel_win.refresh()
+
             elif globals.current_window == 1:
                 messages_win.attrset(get_color("window_frame_selected"))
                 messages_win.box()
                 messages_win.attrset(get_color("window_frame"))
                 messages_win.refresh()
                 refresh_pad(1)
+                setup_arrows(messages_win, messages_pad)
+                messages_win.refresh()
+
             elif globals.current_window == 2:
                 draw_function_win()
                 nodes_win.attrset(get_color("window_frame_selected"))
@@ -215,6 +227,8 @@ def main_ui(stdscr: curses.window) -> None:
                 nodes_win.refresh()
                 highlight_line(True, 2, globals.selected_node)
                 refresh_pad(2)
+                setup_arrows(nodes_win, nodes_pad)
+                nodes_win.refresh()
 
         # Check for Esc
         elif char == chr(27):
@@ -859,6 +873,36 @@ def highlight_line(highlight: bool, window: int, line: int) -> None:
         select_len = channel_win.getmaxyx()[1] - 2
 
     pad.chgat(line, 1, select_len, color | curses.A_REVERSE if highlight else color)
+
+
+def setup_arrows(win: curses.window, pad: curses.window) -> None:
+
+    margin = 8
+    height, width = win.getmaxyx()
+    start_index = [0]
+    pad_height = pad.getmaxyx()[0]
+    draw_chat_arrows(win=win, visible_height=height - 3, max_index=pad_height, start_index=start_index)
+
+
+def draw_chat_arrows(win: object, visible_height: int, max_index: int, start_index: List[int]) -> None:
+
+    mi = max_index
+
+    height, width = win.getmaxyx()
+
+    win.addstr(1, width - 2, "▲", get_color("settings_default"))
+    win.addstr(visible_height + 1, width - 2, "▼", get_color("settings_default"))
+
+    # if visible_height < mi:
+    #     if start_index[-1] > 0:
+    #         win.addstr(1, width - 2, "▲", get_color("settings_default"))
+    #     else:
+    #         win.addstr(1, 1, " ", get_color("settings_default"))
+
+    #     if mi - start_index[-1] >= visible_height + 1:
+    #         win.addstr(visible_height + 1, 1, "▼", get_color("settings_default"))
+    #     else:
+    #         win.addstr(visible_height + 1, 1, " ", get_color("settings_default"))
 
 
 def add_notification(channel_number: int) -> None:
