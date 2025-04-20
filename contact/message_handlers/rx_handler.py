@@ -19,7 +19,7 @@ from contact.utilities.db_handler import (
 )
 import contact.ui.default_config as config
 
-from contact.utilities.singleton import ui_state, interface_state
+from contact.utilities.singleton import ui_state, interface_state, app_state
 
 
 def on_receive(packet: Dict[str, Any], interface: Any) -> None:
@@ -30,7 +30,7 @@ def on_receive(packet: Dict[str, Any], interface: Any) -> None:
         packet: The received Meshtastic packet as a dictionary.
         interface: The Meshtastic interface instance that received the packet.
     """
-    with interface_state.lock:
+    with app_state.lock:
         # Update packet log
         ui_state.packet_buffer.append(packet)
         if len(ui_state.packet_buffer) > 20:

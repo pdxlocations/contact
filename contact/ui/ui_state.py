@@ -29,7 +29,9 @@ class ChatUIState:
 @dataclass
 class InterfaceState:
     interface: Any = None
-    lock: Any = None
     myNodeNum: int = 0
-    # menu_state: MenuState = field(default_factory=MenuState)
-    # chat_ui_state: ChatUIState = field(default_factory=ChatUIState)
+
+
+@dataclass
+class AppState:
+    lock: Any = None

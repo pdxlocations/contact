@@ -35,7 +35,7 @@ from contact.utilities.db_handler import init_nodedb, load_messages_from_db
 from contact.utilities.input_handlers import get_list_input
 from contact.utilities.interfaces import initialize_interface
 from contact.utilities.utils import get_channels, get_nodeNum, get_node_list
-from contact.utilities.singleton import ui_state, interface_state
+from contact.utilities.singleton import ui_state, interface_state, app_state
 
 # ------------------------------------------------------------------------------
 # Environment & Logging Setup
@@ -51,7 +51,7 @@ logging.basicConfig(
     filename=config.log_file_path, level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
-interface_state.lock = threading.Lock()
+app_state.lock = threading.Lock()
 
 # ------------------------------------------------------------------------------
 # Main Program Logic
@@ -95,7 +95,7 @@ def main(stdscr: curses.window) -> None:
                 return
 
             logging.info("Initializing interface...")
-            with interface_state.lock:
+            with app_state.lock:
                 initialize_globals(args)
                 logging.info("Starting main UI")
 
