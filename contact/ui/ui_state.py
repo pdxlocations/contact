@@ -25,6 +25,11 @@ class ChatUIState:
     selected_node: int = 0
     current_window: int = 0
 
+    selected_index: int = 0
+    start_index: List[int] = field(default_factory=lambda: [0, 0, 0])
+    show_save_option: bool = False
+    menu_path: List[str] = field(default_factory=list)
+
 
 @dataclass
 class InterfaceState:

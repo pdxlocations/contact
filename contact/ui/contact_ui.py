@@ -12,7 +12,7 @@ from contact.utilities.db_handler import get_name_from_database, update_node_inf
 from contact.utilities.input_handlers import get_list_input
 import contact.ui.default_config as config
 import contact.ui.dialog
-
+from contact.ui.nav_utils import move_main_highlight
 
 from contact.utilities.singleton import ui_state, interface_state
 
@@ -567,9 +567,19 @@ def select_channel(idx: int) -> None:
         remove_notification(ui_state.selected_channel)
         draw_channel_list()
         return
-    highlight_line(False, 0, old_selected_channel)
-    highlight_line(True, 0, ui_state.selected_channel)
-    refresh_pad(0)
+
+    # highlight_line(False, 0, old_selected_channel)
+    # highlight_line(True, 0, ui_state.selected_channel)
+    # refresh_pad(0)
+
+    move_main_highlight(
+        old_idx=old_selected_channel,
+        new_idx=ui_state.selected_channel,
+        options=ui_state.channel_list,
+        menu_win=channel_win,
+        menu_pad=channel_pad,
+        ui_state=ui_state,
+    )
 
 
 def scroll_channels(direction: int) -> None:
@@ -596,9 +606,18 @@ def select_node(idx: int) -> None:
     old_selected_node = ui_state.selected_node
     ui_state.selected_node = max(0, min(idx, len(ui_state.node_list) - 1))
 
-    highlight_line(False, 2, old_selected_node)
-    highlight_line(True, 2, ui_state.selected_node)
-    refresh_pad(2)
+    # highlight_line(False, 2, old_selected_node)
+    # highlight_line(True, 2, ui_state.selected_node)
+    # refresh_pad(2)
+
+    move_main_highlight(
+        old_idx=old_selected_node,
+        new_idx=ui_state.selected_node,
+        options=ui_state.node_list,
+        menu_win=nodes_win,
+        menu_pad=nodes_pad,
+        ui_state=ui_state,
+    )
 
     draw_function_win()
 

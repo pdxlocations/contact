@@ -316,3 +316,78 @@ def wrap_text(text: str, wrap_width: int) -> List[str]:
         wrapped_lines.append(line_buffer)
 
     return wrapped_lines
+
+
+def move_main_highlight(
+    old_idx: int, new_idx, options: List[str], menu_win: curses.window, menu_pad: curses.window, ui_state: object
+) -> None:
+
+    if old_idx == new_idx:  # No-op
+        return
+
+    max_index = len(options) - 1
+    visible_height = menu_win.getmaxyx()[0] - 2
+
+    # Adjust start_index only when moving out of visible range
+
+    if new_idx < ui_state.start_index[ui_state.current_window]:  # Moving above the visible area
+        ui_state.start_index[ui_state.current_window] = new_idx
+    elif new_idx >= ui_state.start_index[ui_state.current_window] + visible_height:  # Moving below the visible area
+        ui_state.start_index[ui_state.current_window] = new_idx - visible_height + 1
+
+    # Ensure start_index is within bounds
+    ui_state.start_index[ui_state.current_window] = max(
+        0, min(ui_state.start_index[ui_state.current_window], max_index - visible_height + 1)
+    )
+
+    # Clear old selection
+    menu_pad.chgat(
+        old_idx,
+        0,
+        menu_pad.getmaxyx()[1],
+        (get_color("settings_sensitive") if options[old_idx] in sensitive_settings else get_color("settings_default")),
+    )
+
+    # Highlight new selection
+
+    menu_pad.chgat(
+        new_idx,
+        0,
+        menu_pad.getmaxyx()[1],
+        (
+            get_color("settings_sensitive", reverse=True)
+            if options[new_idx] in sensitive_settings
+            else get_color("settings_default", reverse=True)
+        ),
+    )
+
+    menu_win.refresh()
+
+    # Refresh pad only if scrolling is needed
+    menu_pad.refresh(
+        ui_state.start_index[ui_state.current_window],
+        0,
+        menu_win.getbegyx()[0] + 1,
+        menu_win.getbegyx()[1] + 1,
+        menu_win.getbegyx()[0] + visible_height,
+        menu_win.getbegyx()[1] + menu_win.getmaxyx()[1] - 2,
+    )
+
+    draw_main_arrows(menu_win, visible_height, max_index, ui_state.start_index, ui_state.current_window)
+    menu_win.refresh()
+
+
+def draw_main_arrows(
+    win: object, visible_height: int, max_index: int, start_index: List[int], current_window: int
+) -> None:
+
+    if visible_height < max_index:
+        if start_index[current_window] > 0:
+            win.addstr(1, 1, "▲", get_color("settings_default"))
+        else:
+            win.addstr(1, 1, " ", get_color("settings_default"))
+
+        if max_index - start_index[current_window] >= visible_height + 1:
+            win.addstr(visible_height, 1, "▼", get_color("settings_default"))
+        else:
+            win.addstr(visible_height, 1, " ", get_color("settings_default"))
