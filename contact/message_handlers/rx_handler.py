@@ -19,6 +19,7 @@ from contact.utilities.db_handler import (
 )
 import contact.ui.default_config as config
 import contact.globals as globals
+from contact.utilities.singleton import ui_state
 
 
 def on_receive(packet: Dict[str, Any], interface: Any) -> None:
@@ -31,12 +32,12 @@ def on_receive(packet: Dict[str, Any], interface: Any) -> None:
     """
     with globals.lock:
         # Update packet log
-        globals.packet_buffer.append(packet)
-        if len(globals.packet_buffer) > 20:
+        ui_state.packet_buffer.append(packet)
+        if len(ui_state.packet_buffer) > 20:
             # Trim buffer to 20 packets
-            globals.packet_buffer = globals.packet_buffer[-20:]
+            ui_state.packet_buffer = ui_state.packet_buffer[-20:]
 
-        if globals.display_log:
+        if ui_state.display_log:
             draw_packetlog_win()
         try:
             if "decoded" not in packet:
@@ -64,18 +65,18 @@ def on_receive(packet: Dict[str, Any], interface: Any) -> None:
                     channel_number = 0
 
                 if packet["to"] == globals.myNodeNum:
-                    if packet["from"] in globals.channel_list:
+                    if packet["from"] in ui_state.channel_list:
                         pass
                     else:
-                        globals.channel_list.append(packet["from"])
-                        if packet["from"] not in globals.all_messages:
-                            globals.all_messages[packet["from"]] = []
+                        ui_state.channel_list.append(packet["from"])
+                        if packet["from"] not in ui_state.all_messages:
+                            ui_state.all_messages[packet["from"]] = []
                         update_node_info_in_db(packet["from"], chat_archived=False)
                         refresh_channels = True
 
-                    channel_number = globals.channel_list.index(packet["from"])
+                    channel_number = ui_state.channel_list.index(packet["from"])
 
-                if globals.channel_list[channel_number] != globals.channel_list[globals.selected_channel]:
+                if ui_state.channel_list[channel_number] != ui_state.channel_list[ui_state.selected_channel]:
                     add_notification(channel_number)
                     refresh_channels = True
                 else:
@@ -85,15 +86,15 @@ def on_receive(packet: Dict[str, Any], interface: Any) -> None:
                 message_from_id = packet["from"]
                 message_from_string = get_name_from_database(message_from_id, type="short") + ":"
 
-                if globals.channel_list[channel_number] not in globals.all_messages:
-                    globals.all_messages[globals.channel_list[channel_number]] = []
+                if ui_state.channel_list[channel_number] not in ui_state.all_messages:
+                    ui_state.all_messages[ui_state.channel_list[channel_number]] = []
 
                 # Timestamp handling
                 current_timestamp = time.time()
                 current_hour = datetime.fromtimestamp(current_timestamp).strftime("%Y-%m-%d %H:00")
 
                 # Retrieve the last timestamp if available
-                channel_messages = globals.all_messages[globals.channel_list[channel_number]]
+                channel_messages = ui_state.all_messages[ui_state.channel_list[channel_number]]
                 if channel_messages:
                     # Check the last entry for a timestamp
                     for entry in reversed(channel_messages):
@@ -107,9 +108,9 @@ def on_receive(packet: Dict[str, Any], interface: Any) -> None:
 
                 # Add a new timestamp if it's a new hour
                 if last_hour != current_hour:
-                    globals.all_messages[globals.channel_list[channel_number]].append((f"-- {current_hour} --", ""))
+                    ui_state.all_messages[ui_state.channel_list[channel_number]].append((f"-- {current_hour} --", ""))
 
-                globals.all_messages[globals.channel_list[channel_number]].append(
+                ui_state.all_messages[ui_state.channel_list[channel_number]].append(
                     (f"{config.message_prefix} {message_from_string} ", message_string)
                 )
 
@@ -118,7 +119,7 @@ def on_receive(packet: Dict[str, Any], interface: Any) -> None:
                 if refresh_messages:
                     draw_messages_window(True)
 
-                save_message_to_db(globals.channel_list[channel_number], message_from_id, message_string)
+                save_message_to_db(ui_state.channel_list[channel_number], message_from_id, message_string)
 
         except KeyError as e:
             logging.error(f"Error processing packet: {e}")

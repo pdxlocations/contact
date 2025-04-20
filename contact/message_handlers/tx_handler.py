@@ -14,6 +14,7 @@ from contact.utilities.db_handler import (
 )
 import contact.ui.default_config as config
 import contact.globals as globals
+from contact.utilities.singleton import ui_state
 
 ack_naks: Dict[str, Dict[str, Any]] = {}  # requestId -> {channel, messageIndex, timestamp}
 
@@ -31,7 +32,7 @@ def onAckNak(packet: Dict[str, Any]) -> None:
         return
 
     acknak = ack_naks.pop(request)
-    message = globals.all_messages[acknak["channel"]][acknak["messageIndex"]][1]
+    message = ui_state.all_messages[acknak["channel"]][acknak["messageIndex"]][1]
 
     confirm_string = " "
     ack_type = None
@@ -46,15 +47,15 @@ def onAckNak(packet: Dict[str, Any]) -> None:
         confirm_string = config.nak_str
         ack_type = "Nak"
 
-    globals.all_messages[acknak["channel"]][acknak["messageIndex"]] = (
+    ui_state.all_messages[acknak["channel"]][acknak["messageIndex"]] = (
         config.sent_message_prefix + confirm_string + ": ",
         message,
     )
 
     update_ack_nak(acknak["channel"], acknak["timestamp"], message, ack_type)
 
-    channel_number = globals.channel_list.index(acknak["channel"])
-    if globals.channel_list[channel_number] == globals.channel_list[globals.selected_channel]:
+    channel_number = ui_state.channel_list.index(acknak["channel"])
+    if ui_state.channel_list[channel_number] == ui_state.channel_list[ui_state.selected_channel]:
         draw_messages_window()
 
 
@@ -137,16 +138,16 @@ def on_response_traceroute(packet: Dict[str, Any]) -> None:
 
         msg_str += route_str + "\n"  # Print the route back to us
 
-    if packet["from"] not in globals.channel_list:
-        globals.channel_list.append(packet["from"])
+    if packet["from"] not in ui_state.channel_list:
+        ui_state.channel_list.append(packet["from"])
         refresh_channels = True
 
     if is_chat_archived(packet["from"]):
         update_node_info_in_db(packet["from"], chat_archived=False)
 
-    channel_number = globals.channel_list.index(packet["from"])
+    channel_number = ui_state.channel_list.index(packet["from"])
 
-    if globals.channel_list[channel_number] == globals.channel_list[globals.selected_channel]:
+    if ui_state.channel_list[channel_number] == ui_state.channel_list[ui_state.selected_channel]:
         refresh_messages = True
     else:
         add_notification(channel_number)
@@ -154,9 +155,9 @@ def on_response_traceroute(packet: Dict[str, Any]) -> None:
 
     message_from_string = get_name_from_database(packet["from"], type="short") + ":\n"
 
-    if globals.channel_list[channel_number] not in globals.all_messages:
-        globals.all_messages[globals.channel_list[channel_number]] = []
-    globals.all_messages[globals.channel_list[channel_number]].append(
+    if ui_state.channel_list[channel_number] not in ui_state.all_messages:
+        ui_state.all_messages[ui_state.channel_list[channel_number]] = []
+    ui_state.all_messages[ui_state.channel_list[channel_number]].append(
         (f"{config.message_prefix} {message_from_string}", msg_str)
     )
 
@@ -164,7 +165,7 @@ def on_response_traceroute(packet: Dict[str, Any]) -> None:
         draw_channel_list()
     if refresh_messages:
         draw_messages_window(True)
-    save_message_to_db(globals.channel_list[channel_number], packet["from"], msg_str)
+    save_message_to_db(ui_state.channel_list[channel_number], packet["from"], msg_str)
 
 
 def send_message(message: str, destination: int = BROADCAST_NUM, channel: int = 0) -> None:
@@ -173,7 +174,7 @@ def send_message(message: str, destination: int = BROADCAST_NUM, channel: int = 
     """
     myid = globals.myNodeNum
     send_on_channel = 0
-    channel_id = globals.channel_list[channel]
+    channel_id = ui_state.channel_list[channel]
     if isinstance(channel_id, int):
         send_on_channel = 0
         destination = channel_id
@@ -190,15 +191,15 @@ def send_message(message: str, destination: int = BROADCAST_NUM, channel: int = 
     )
 
     # Add sent message to the messages dictionary
-    if channel_id not in globals.all_messages:
-        globals.all_messages[channel_id] = []
+    if channel_id not in ui_state.all_messages:
+        ui_state.all_messages[channel_id] = []
 
     # Handle timestamp logic
     current_timestamp = int(datetime.now().timestamp())  # Get current timestamp
     current_hour = datetime.fromtimestamp(current_timestamp).strftime("%Y-%m-%d %H:00")
 
     # Retrieve the last timestamp if available
-    channel_messages = globals.all_messages[channel_id]
+    channel_messages = ui_state.all_messages[channel_id]
     if channel_messages:
         # Check the last entry for a timestamp
         for entry in reversed(channel_messages):
@@ -212,15 +213,15 @@ def send_message(message: str, destination: int = BROADCAST_NUM, channel: int = 
 
     # Add a new timestamp if it's a new hour
     if last_hour != current_hour:
-        globals.all_messages[channel_id].append((f"-- {current_hour} --", ""))
+        ui_state.all_messages[channel_id].append((f"-- {current_hour} --", ""))
 
-    globals.all_messages[channel_id].append((config.sent_message_prefix + config.ack_unknown_str + ": ", message))
+    ui_state.all_messages[channel_id].append((config.sent_message_prefix + config.ack_unknown_str + ": ", message))
 
     timestamp = save_message_to_db(channel_id, myid, message)
 
     ack_naks[sent_message_data.id] = {
         "channel": channel_id,
-        "messageIndex": len(globals.all_messages[channel_id]) - 1,
+        "messageIndex": len(ui_state.all_messages[channel_id]) - 1,
         "timestamp": timestamp,
     }
 
@@ -232,7 +233,7 @@ def send_traceroute() -> None:
     r = mesh_pb2.RouteDiscovery()
     globals.interface.sendData(
         r,
-        destinationId=globals.node_list[globals.selected_node],
+        destinationId=ui_state.node_list[ui_state.selected_node],
         portNum=portnums_pb2.PortNum.TRACEROUTE_APP,
         wantResponse=True,
         onResponse=on_response_traceroute,

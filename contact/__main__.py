@@ -36,7 +36,7 @@ from contact.utilities.db_handler import init_nodedb, load_messages_from_db
 from contact.utilities.input_handlers import get_list_input
 from contact.utilities.interfaces import initialize_interface
 from contact.utilities.utils import get_channels, get_nodeNum, get_node_list
-
+from contact.utilities.singleton import ui_state
 
 # ------------------------------------------------------------------------------
 # Environment & Logging Setup
@@ -72,8 +72,8 @@ def initialize_globals(args) -> None:
             globals.interface = initialize_interface(args)
 
     globals.myNodeNum = get_nodeNum()
-    globals.channel_list = get_channels()
-    globals.node_list = get_node_list()
+    ui_state.channel_list = get_channels()
+    ui_state.node_list = get_node_list()
     pub.subscribe(on_receive, "meshtastic.receive")
 
     init_nodedb()

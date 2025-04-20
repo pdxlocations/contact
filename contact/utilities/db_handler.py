@@ -8,6 +8,8 @@ from contact.utilities.utils import decimal_to_hex
 import contact.ui.default_config as config
 import contact.globals as globals
 
+from contact.utilities.singleton import ui_state
+
 
 def get_table_name(channel: str) -> str:
     # Construct the table name
@@ -72,7 +74,7 @@ def update_ack_nak(channel: str, timestamp: int, message: str, ack: str) -> None
 
 
 def load_messages_from_db() -> None:
-    """Load messages from the database for all channels and update globals.all_messages and globals.channel_list."""
+    """Load messages from the database for all channels and update ui_state.all_messages and ui_state.channel_list."""
     try:
         with sqlite3.connect(config.db_file_path) as db_connection:
             db_cursor = db_connection.cursor()
@@ -104,15 +106,15 @@ def load_messages_from_db() -> None:
                     # Convert the channel to an integer if it's numeric, otherwise keep it as a string (nodenum vs channel name)
                     channel = int(channel) if channel.isdigit() else channel
 
-                    # Add the channel to globals.channel_list if not already present
-                    if channel not in globals.channel_list and not is_chat_archived(channel):
-                        globals.channel_list.append(channel)
+                    # Add the channel to ui_state.channel_list if not already present
+                    if channel not in ui_state.channel_list and not is_chat_archived(channel):
+                        ui_state.channel_list.append(channel)
 
-                    # Ensure the channel exists in globals.all_messages
-                    if channel not in globals.all_messages:
-                        globals.all_messages[channel] = []
+                    # Ensure the channel exists in ui_state.all_messages
+                    if channel not in ui_state.all_messages:
+                        ui_state.all_messages[channel] = []
 
-                    # Add messages to globals.all_messages grouped by hourly timestamp
+                    # Add messages to ui_state.all_messages grouped by hourly timestamp
                     hourly_messages = {}
                     for user_id, message, timestamp, ack_type in db_messages:
                         hour = datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:00")
@@ -137,10 +139,10 @@ def load_messages_from_db() -> None:
 
                         hourly_messages[hour].append(formatted_message)
 
-                    # Flatten the hourly messages into globals.all_messages[channel]
+                    # Flatten the hourly messages into ui_state.all_messages[channel]
                     for hour, messages in sorted(hourly_messages.items()):
-                        globals.all_messages[channel].append((f"-- {hour} --", ""))
-                        globals.all_messages[channel].extend(messages)
+                        ui_state.all_messages[channel].append((f"-- {hour} --", ""))
+                        ui_state.all_messages[channel].extend(messages)
 
                 except sqlite3.Error as e:
                     logging.error(f"SQLite error while loading messages from table '{table_name}': {e}")
