@@ -24,7 +24,6 @@ import traceback
 from pubsub import pub
 
 # Local application
-import contact.globals as globals
 import contact.ui.default_config as config
 from contact.message_handlers.rx_handler import on_receive
 from contact.settings import set_region
@@ -36,7 +35,7 @@ from contact.utilities.db_handler import init_nodedb, load_messages_from_db
 from contact.utilities.input_handlers import get_list_input
 from contact.utilities.interfaces import initialize_interface
 from contact.utilities.utils import get_channels, get_nodeNum, get_node_list
-from contact.utilities.singleton import ui_state
+from contact.utilities.singleton import ui_state, interface_state
 
 # ------------------------------------------------------------------------------
 # Environment & Logging Setup
@@ -52,7 +51,7 @@ logging.basicConfig(
     filename=config.log_file_path, level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
-globals.lock = threading.Lock()
+interface_state.lock = threading.Lock()
 
 # ------------------------------------------------------------------------------
 # Main Program Logic
@@ -61,17 +60,17 @@ globals.lock = threading.Lock()
 
 def initialize_globals(args) -> None:
     """Initializes interface and shared globals."""
-    globals.interface = initialize_interface(args)
+    interface_state.interface = initialize_interface(args)
 
     # Prompt for region if unset
-    if globals.interface.localNode.localConfig.lora.region == 0:
+    if interface_state.interface.localNode.localConfig.lora.region == 0:
         confirmation = get_list_input("Your region is UNSET. Set it now?", "Yes", ["Yes", "No"])
         if confirmation == "Yes":
-            set_region(globals.interface)
-            globals.interface.close()
-            globals.interface = initialize_interface(args)
+            set_region(interface_state.interface)
+            interface_state.interface.close()
+            interface_state.interface = initialize_interface(args)
 
-    globals.myNodeNum = get_nodeNum()
+    interface_state.myNodeNum = get_nodeNum()
     ui_state.channel_list = get_channels()
     ui_state.node_list = get_node_list()
     pub.subscribe(on_receive, "meshtastic.receive")
@@ -96,7 +95,7 @@ def main(stdscr: curses.window) -> None:
                 return
 
             logging.info("Initializing interface...")
-            with globals.lock:
+            with interface_state.lock:
                 initialize_globals(args)
                 logging.info("Starting main UI")
 

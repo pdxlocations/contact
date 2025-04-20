@@ -13,8 +13,8 @@ from contact.utilities.db_handler import (
     update_node_info_in_db,
 )
 import contact.ui.default_config as config
-import contact.globals as globals
-from contact.utilities.singleton import ui_state
+
+from contact.utilities.singleton import ui_state, interface_state
 
 ack_naks: Dict[str, Dict[str, Any]] = {}  # requestId -> {channel, messageIndex, timestamp}
 
@@ -37,7 +37,7 @@ def onAckNak(packet: Dict[str, Any]) -> None:
     confirm_string = " "
     ack_type = None
     if packet["decoded"]["routing"]["errorReason"] == "NONE":
-        if packet["from"] == globals.myNodeNum:  # Ack "from" ourself means implicit ACK
+        if packet["from"] == interface_state.myNodeNum:  # Ack "from" ourself means implicit ACK
             confirm_string = config.ack_implicit_str
             ack_type = "Implicit"
         else:
@@ -172,7 +172,7 @@ def send_message(message: str, destination: int = BROADCAST_NUM, channel: int = 
     """
     Sends a chat message using the selected channel.
     """
-    myid = globals.myNodeNum
+    myid = interface_state.myNodeNum
     send_on_channel = 0
     channel_id = ui_state.channel_list[channel]
     if isinstance(channel_id, int):
@@ -181,7 +181,7 @@ def send_message(message: str, destination: int = BROADCAST_NUM, channel: int = 
     elif isinstance(channel_id, str):
         send_on_channel = channel
 
-    sent_message_data = globals.interface.sendText(
+    sent_message_data = interface_state.interface.sendText(
         text=message,
         destinationId=destination,
         wantAck=True,
@@ -231,7 +231,7 @@ def send_traceroute() -> None:
     Sends a RouteDiscovery protobuf to the selected node.
     """
     r = mesh_pb2.RouteDiscovery()
-    globals.interface.sendData(
+    interface_state.interface.sendData(
         r,
         destinationId=ui_state.node_list[ui_state.selected_node],
         portNum=portnums_pb2.PortNum.TRACEROUTE_APP,

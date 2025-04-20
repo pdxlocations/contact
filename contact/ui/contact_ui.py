@@ -12,9 +12,9 @@ from contact.utilities.db_handler import get_name_from_database, update_node_inf
 from contact.utilities.input_handlers import get_list_input
 import contact.ui.default_config as config
 import contact.ui.dialog
-import contact.globals as globals
 
-from contact.utilities.singleton import ui_state
+
+from contact.utilities.singleton import ui_state, interface_state
 
 
 def handle_resize(stdscr: curses.window, firstrun: bool) -> None:
@@ -274,7 +274,7 @@ def main_ui(stdscr: curses.window) -> None:
 
         elif char == "`":  # ` Launch the settings interface
             curses.curs_set(0)
-            settings_menu(stdscr, globals.interface)
+            settings_menu(stdscr, interface_state.interface)
             curses.curs_set(1)
             refresh_node_list()
             handle_resize(stdscr, False)
@@ -318,14 +318,14 @@ def main_ui(stdscr: curses.window) -> None:
                     ["Yes", "No"],
                 )
                 if confirmation == "Yes":
-                    globals.interface.localNode.removeNode(ui_state.node_list[ui_state.selected_node])
+                    interface_state.interface.localNode.removeNode(ui_state.node_list[ui_state.selected_node])
 
                     # Directly modifying the interface from client code - good? Bad? If it's stupid but it works, it's not supid?
-                    del globals.interface.nodesByNum[ui_state.node_list[ui_state.selected_node]]
+                    del interface_state.interface.nodesByNum[ui_state.node_list[ui_state.selected_node]]
 
                     # Convert to "!hex" representation that interface.nodes uses
                     hexid = f"!{hex(ui_state.node_list[ui_state.selected_node])[2:]}"
-                    del globals.interface.nodes[hexid]
+                    del interface_state.interface.nodes[hexid]
 
                     ui_state.node_list.pop(ui_state.selected_node)
 
@@ -344,7 +344,7 @@ def main_ui(stdscr: curses.window) -> None:
         # ^F
         elif char == chr(6):
             if ui_state.current_window == 2:
-                selectedNode = globals.interface.nodesByNum[ui_state.node_list[ui_state.selected_node]]
+                selectedNode = interface_state.interface.nodesByNum[ui_state.node_list[ui_state.selected_node]]
 
                 curses.curs_set(0)
 
@@ -355,9 +355,11 @@ def main_ui(stdscr: curses.window) -> None:
                         ["Yes", "No"],
                     )
                     if confirmation == "Yes":
-                        globals.interface.localNode.setFavorite(ui_state.node_list[ui_state.selected_node])
+                        interface_state.interface.localNode.setFavorite(ui_state.node_list[ui_state.selected_node])
                         # Maybe we shouldn't be modifying the nodedb, but maybe it should update itself
-                        globals.interface.nodesByNum[ui_state.node_list[ui_state.selected_node]]["isFavorite"] = True
+                        interface_state.interface.nodesByNum[ui_state.node_list[ui_state.selected_node]][
+                            "isFavorite"
+                        ] = True
 
                         refresh_node_list()
 
@@ -368,9 +370,11 @@ def main_ui(stdscr: curses.window) -> None:
                         ["Yes", "No"],
                     )
                     if confirmation == "Yes":
-                        globals.interface.localNode.removeFavorite(ui_state.node_list[ui_state.selected_node])
+                        interface_state.interface.localNode.removeFavorite(ui_state.node_list[ui_state.selected_node])
                         # Maybe we shouldn't be modifying the nodedb, but maybe it should update itself
-                        globals.interface.nodesByNum[ui_state.node_list[ui_state.selected_node]]["isFavorite"] = False
+                        interface_state.interface.nodesByNum[ui_state.node_list[ui_state.selected_node]][
+                            "isFavorite"
+                        ] = False
 
                         refresh_node_list()
 
@@ -378,7 +382,7 @@ def main_ui(stdscr: curses.window) -> None:
 
         elif char == chr(7):
             if ui_state.current_window == 2:
-                selectedNode = globals.interface.nodesByNum[ui_state.node_list[ui_state.selected_node]]
+                selectedNode = interface_state.interface.nodesByNum[ui_state.node_list[ui_state.selected_node]]
 
                 curses.curs_set(0)
 
@@ -389,8 +393,10 @@ def main_ui(stdscr: curses.window) -> None:
                         ["Yes", "No"],
                     )
                     if confirmation == "Yes":
-                        globals.interface.localNode.setIgnored(ui_state.node_list[ui_state.selected_node])
-                        globals.interface.nodesByNum[ui_state.node_list[ui_state.selected_node]]["isIgnored"] = True
+                        interface_state.interface.localNode.setIgnored(ui_state.node_list[ui_state.selected_node])
+                        interface_state.interface.nodesByNum[ui_state.node_list[ui_state.selected_node]][
+                            "isIgnored"
+                        ] = True
                 else:
                     confirmation = get_list_input(
                         f"Remove {get_name_from_database(ui_state.node_list[ui_state.selected_node])} from Ignored?",
@@ -398,8 +404,10 @@ def main_ui(stdscr: curses.window) -> None:
                         ["Yes", "No"],
                     )
                     if confirmation == "Yes":
-                        globals.interface.localNode.removeIgnored(ui_state.node_list[ui_state.selected_node])
-                        globals.interface.nodesByNum[ui_state.node_list[ui_state.selected_node]]["isIgnored"] = False
+                        interface_state.interface.localNode.removeIgnored(ui_state.node_list[ui_state.selected_node])
+                        interface_state.interface.nodesByNum[ui_state.node_list[ui_state.selected_node]][
+                            "isIgnored"
+                        ] = False
 
                 handle_resize(stdscr, False)
 
@@ -520,7 +528,7 @@ def draw_node_list() -> None:
         logging.error("Traceback: %s", traceback.format_exc())
 
     for i, node_num in enumerate(ui_state.node_list):
-        node = globals.interface.nodesByNum[node_num]
+        node = interface_state.interface.nodesByNum[node_num]
         secure = "user" in node and "publicKey" in node["user"] and node["user"]["publicKey"]
         node_str = f"{'🔐' if secure else '🔓'} {get_name_from_database(node_num, 'long')}".ljust(box_width - 2)[
             : box_width - 2
@@ -710,7 +718,7 @@ def search(win: int) -> None:
 def draw_node_details() -> None:
     node = None
     try:
-        node = globals.interface.nodesByNum[ui_state.node_list[ui_state.selected_node]]
+        node = interface_state.interface.nodesByNum[ui_state.node_list[ui_state.selected_node]]
     except KeyError:
         return
 
@@ -727,7 +735,7 @@ def draw_node_details() -> None:
         f" | {node['user']['role']}" if "user" in node and "role" in node["user"] else "",
     ]
 
-    if ui_state.node_list[ui_state.selected_node] == globals.myNodeNum:
+    if ui_state.node_list[ui_state.selected_node] == interface_state.myNodeNum:
         node_details_list.extend(
             [
                 (
@@ -849,7 +857,7 @@ def highlight_line(highlight: bool, window: int, line: int) -> None:
 
     if window == 2:
         node_num = ui_state.node_list[line]
-        node = globals.interface.nodesByNum[node_num]
+        node = interface_state.interface.nodesByNum[node_num]
         if "isFavorite" in node and node["isFavorite"]:
             color = get_color("node_favorite")
         if "isIgnored" in node and node["isIgnored"]:

@@ -1,14 +1,13 @@
-import contact.globals as globals
 import datetime
 from meshtastic.protobuf import config_pb2
 import contact.ui.default_config as config
 
-from contact.utilities.singleton import ui_state
+from contact.utilities.singleton import ui_state, interface_state
 
 
 def get_channels():
     """Retrieve channels from the node and update ui_state.channel_list and ui_state.all_messages."""
-    node = globals.interface.getNode("^local")
+    node = interface_state.interface.getNode("^local")
     device_channels = node.channels
 
     # Clear and rebuild channel list
@@ -40,8 +39,8 @@ def get_channels():
 
 
 def get_node_list():
-    if globals.interface.nodes:
-        my_node_num = globals.myNodeNum
+    if interface_state.interface.nodes:
+        my_node_num = interface_state.myNodeNum
 
         def node_sort(node):
             if config.node_sort == "lastHeard":
@@ -53,7 +52,7 @@ def get_node_list():
             else:
                 return node
 
-        sorted_nodes = sorted(globals.interface.nodes.values(), key=node_sort)
+        sorted_nodes = sorted(interface_state.interface.nodes.values(), key=node_sort)
 
         # Move favorite nodes to the beginning
         sorted_nodes = sorted(
@@ -77,7 +76,7 @@ def refresh_node_list():
 
 
 def get_nodeNum():
-    myinfo = globals.interface.getMyNodeInfo()
+    myinfo = interface_state.interface.getMyNodeInfo()
     myNodeNum = myinfo["num"]
     return myNodeNum
 

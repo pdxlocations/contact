@@ -18,8 +18,8 @@ from contact.utilities.db_handler import (
     update_node_info_in_db,
 )
 import contact.ui.default_config as config
-import contact.globals as globals
-from contact.utilities.singleton import ui_state
+
+from contact.utilities.singleton import ui_state, interface_state
 
 
 def on_receive(packet: Dict[str, Any], interface: Any) -> None:
@@ -30,7 +30,7 @@ def on_receive(packet: Dict[str, Any], interface: Any) -> None:
         packet: The received Meshtastic packet as a dictionary.
         interface: The Meshtastic interface instance that received the packet.
     """
-    with globals.lock:
+    with interface_state.lock:
         # Update packet log
         ui_state.packet_buffer.append(packet)
         if len(ui_state.packet_buffer) > 20:
@@ -64,7 +64,7 @@ def on_receive(packet: Dict[str, Any], interface: Any) -> None:
                 else:
                     channel_number = 0
 
-                if packet["to"] == globals.myNodeNum:
+                if packet["to"] == interface_state.myNodeNum:
                     if packet["from"] in ui_state.channel_list:
                         pass
                     else:
