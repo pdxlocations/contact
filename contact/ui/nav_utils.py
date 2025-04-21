@@ -3,6 +3,18 @@ import re
 from contact.ui.colors import get_color
 from contact.utilities.control_utils import transform_menu_path
 from typing import Any, Optional, List, Dict
+from contact.utilities.singleton import interface_state, ui_state
+
+
+def get_node_color(node_index: int, reverse: bool = False):
+    node_num = ui_state.node_list[node_index]
+    node = interface_state.interface.nodesByNum.get(node_num, {})
+    if node.get("isFavorite"):
+        return get_color("node_favorite", reverse=reverse)
+    elif node.get("isIgnored"):
+        return get_color("node_ignored", reverse=reverse)
+    return get_color("settings_default", reverse=reverse)
+
 
 # Aliases
 Segment = tuple[str, str, bool, bool]
@@ -340,26 +352,29 @@ def move_main_highlight(
         0, min(ui_state.start_index[ui_state.current_window], max_index - visible_height + 1)
     )
 
-    # Clear old selection
-    menu_pad.chgat(
-        old_idx,
-        0,
-        menu_pad.getmaxyx()[1],
-        (get_color("settings_sensitive") if options[old_idx] in sensitive_settings else get_color("settings_default")),
-    )
+    highlight_line(menu_win, menu_pad, old_idx, new_idx, visible_height)
 
-    # Highlight new selection
+    draw_main_arrows(menu_win, max_index, ui_state.start_index, ui_state.current_window)
+    menu_win.refresh()
 
-    menu_pad.chgat(
-        new_idx,
-        0,
-        menu_pad.getmaxyx()[1],
-        (
-            get_color("settings_sensitive", reverse=True)
-            if options[new_idx] in sensitive_settings
-            else get_color("settings_default", reverse=True)
-        ),
-    )
+
+def highlight_line(
+    menu_win: curses.window, menu_pad: curses.window, old_idx: int, new_idx: int, visible_height: int
+) -> None:
+
+    if ui_state.current_window == 0:
+        color_old = (
+            get_color("channel_selected") if old_idx == ui_state.selected_channel else get_color("settings_default")
+        )
+        color_new = (
+            get_color("channel_selected", reverse=True) if True else get_color("settings_default", reverse=True)
+        )
+        menu_pad.chgat(old_idx, 1, menu_pad.getmaxyx()[1] - 4, color_old)
+        menu_pad.chgat(new_idx, 1, menu_pad.getmaxyx()[1] - 4, color_new)
+
+    elif ui_state.current_window == 2:
+        menu_pad.chgat(old_idx, 1, menu_pad.getmaxyx()[1] - 4, get_node_color(old_idx))
+        menu_pad.chgat(new_idx, 1, menu_pad.getmaxyx()[1] - 4, get_node_color(new_idx, reverse=True))
 
     menu_win.refresh()
 
@@ -372,9 +387,6 @@ def move_main_highlight(
         menu_win.getbegyx()[0] + visible_height,
         menu_win.getbegyx()[1] + menu_win.getmaxyx()[1] - 3,
     )
-
-    draw_main_arrows(menu_win, max_index, ui_state.start_index, ui_state.current_window)
-    menu_win.refresh()
 
 
 def draw_main_arrows(win: object, max_index: int, start_index: List[int], current_window: int) -> None:

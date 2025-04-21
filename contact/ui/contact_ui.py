@@ -12,7 +12,7 @@ from contact.utilities.db_handler import get_name_from_database, update_node_inf
 from contact.utilities.input_handlers import get_list_input
 import contact.ui.default_config as config
 import contact.ui.dialog
-from contact.ui.nav_utils import move_main_highlight, draw_main_arrows
+from contact.ui.nav_utils import move_main_highlight, draw_main_arrows, highlight_line
 
 from contact.utilities.singleton import ui_state, interface_state
 
@@ -182,7 +182,7 @@ def main_ui(stdscr: curses.window) -> None:
                 channel_win.attrset(get_color("window_frame"))
                 channel_win.box()
                 channel_win.refresh()
-                highlight_line(False, 0, ui_state.selected_channel)
+                # highlight_line(False, 0, ui_state.selected_channel)
                 refresh_pad(0)
             if old_window == 1:
                 messages_win.attrset(get_color("window_frame"))
@@ -194,7 +194,7 @@ def main_ui(stdscr: curses.window) -> None:
                 nodes_win.attrset(get_color("window_frame"))
                 nodes_win.box()
                 nodes_win.refresh()
-                highlight_line(False, 2, ui_state.selected_node)
+                # highlight_line(False, 2, ui_state.selected_node)
                 refresh_pad(2)
 
             if ui_state.current_window == 0:
@@ -202,7 +202,7 @@ def main_ui(stdscr: curses.window) -> None:
                 channel_win.box()
                 channel_win.attrset(get_color("window_frame"))
                 channel_win.refresh()
-                highlight_line(True, 0, ui_state.selected_channel)
+                # highlight_line(True, 0, ui_state.selected_channel)
                 refresh_pad(0)
             elif ui_state.current_window == 1:
                 messages_win.attrset(get_color("window_frame_selected"))
@@ -216,7 +216,7 @@ def main_ui(stdscr: curses.window) -> None:
                 nodes_win.box()
                 nodes_win.attrset(get_color("window_frame"))
                 nodes_win.refresh()
-                highlight_line(True, 2, ui_state.selected_node)
+                # highlight_line(True, 2, ui_state.selected_node)
                 refresh_pad(2)
 
         # Check for Esc
@@ -871,30 +871,6 @@ def refresh_pad(window: int) -> None:
         box.getbegyx()[0] + lines,
         box.getbegyx()[1] + box.getmaxyx()[1] - 3,
     )
-
-
-def highlight_line(highlight: bool, window: int, line: int) -> None:
-    pad = nodes_pad
-
-    color = get_color("node_list")
-    select_len = nodes_win.getmaxyx()[1] - 2
-
-    if window == 2:
-        node_num = ui_state.node_list[line]
-        node = interface_state.interface.nodesByNum[node_num]
-        if "isFavorite" in node and node["isFavorite"]:
-            color = get_color("node_favorite")
-        if "isIgnored" in node and node["isIgnored"]:
-            color = get_color("node_ignored")
-
-    if window == 0:
-        pad = channel_pad
-        color = get_color(
-            "channel_selected" if (line == ui_state.selected_channel and highlight == False) else "channel_list"
-        )
-        select_len = channel_win.getmaxyx()[1] - 2
-
-    pad.chgat(line, 1, select_len, color | curses.A_REVERSE if highlight else color)
 
 
 def add_notification(channel_number: int) -> None:
