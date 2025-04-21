@@ -12,7 +12,7 @@ from contact.utilities.db_handler import get_name_from_database, update_node_inf
 from contact.utilities.input_handlers import get_list_input
 import contact.ui.default_config as config
 import contact.ui.dialog
-from contact.ui.nav_utils import move_main_highlight
+from contact.ui.nav_utils import move_main_highlight, draw_main_arrows
 
 from contact.utilities.singleton import ui_state, interface_state
 
@@ -86,6 +86,7 @@ def handle_resize(stdscr: curses.window, firstrun: bool) -> None:
         draw_channel_list()
         draw_messages_window(True)
         draw_node_list()
+
     except:
         # Resize events can come faster than we can re-draw, which can cause a curses error.
         # In this case we'll see another curses.KEY_RESIZE in our key handler and draw again later.
@@ -460,6 +461,8 @@ def draw_channel_list() -> None:
     )
     channel_win.box()
     channel_win.attrset((get_color("window_frame")))
+
+    draw_main_arrows(channel_win, len(ui_state.channel_list), ui_state.start_index, ui_state.current_window)
     channel_win.refresh()
 
     refresh_pad(0)
@@ -547,6 +550,8 @@ def draw_node_list() -> None:
     )
     nodes_win.box()
     nodes_win.attrset(get_color("window_frame"))
+
+    draw_main_arrows(nodes_win, len(ui_state.node_list), ui_state.start_index, ui_state.current_window)
     nodes_win.refresh()
 
     refresh_pad(2)
@@ -864,7 +869,7 @@ def refresh_pad(window: int) -> None:
         box.getbegyx()[0] + 1,
         box.getbegyx()[1] + 1,
         box.getbegyx()[0] + lines,
-        box.getbegyx()[1] + box.getmaxyx()[1] - 2,
+        box.getbegyx()[1] + box.getmaxyx()[1] - 3,
     )
 
 

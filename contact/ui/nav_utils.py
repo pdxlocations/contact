@@ -370,24 +370,26 @@ def move_main_highlight(
         menu_win.getbegyx()[0] + 1,
         menu_win.getbegyx()[1] + 1,
         menu_win.getbegyx()[0] + visible_height,
-        menu_win.getbegyx()[1] + menu_win.getmaxyx()[1] - 2,
+        menu_win.getbegyx()[1] + menu_win.getmaxyx()[1] - 3,
     )
 
-    draw_main_arrows(menu_win, visible_height, max_index, ui_state.start_index, ui_state.current_window)
+    draw_main_arrows(menu_win, max_index, ui_state.start_index, ui_state.current_window)
     menu_win.refresh()
 
 
-def draw_main_arrows(
-    win: object, visible_height: int, max_index: int, start_index: List[int], current_window: int
-) -> None:
+def draw_main_arrows(win: object, max_index: int, start_index: List[int], current_window: int) -> None:
 
-    if visible_height < max_index:
+    height, width = win.getmaxyx()
+    usable_height = height - 2
+    usable_width = width - 2
+
+    if height < max_index:
         if start_index[current_window] > 0:
-            win.addstr(1, 1, "▲", get_color("settings_default"))
+            win.addstr(1, usable_width, "▲", get_color("settings_default"))
         else:
-            win.addstr(1, 1, " ", get_color("settings_default"))
+            win.addstr(1, usable_width, " ", get_color("settings_default"))
 
-        if max_index - start_index[current_window] >= visible_height + 1:
-            win.addstr(visible_height, 1, "▼", get_color("settings_default"))
+        if max_index - start_index[current_window] >= usable_height + 1:
+            win.addstr(usable_height, usable_width, "▼", get_color("settings_default"))
         else:
-            win.addstr(visible_height, 1, " ", get_color("settings_default"))
+            win.addstr(usable_height, usable_width, " ", get_color("settings_default"))
