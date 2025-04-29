@@ -340,8 +340,6 @@ def move_main_highlight(
     max_index = len(options) - 1
     visible_height = menu_win.getmaxyx()[0] - 2
 
-    # Adjust start_index only when moving out of visible range
-
     if new_idx < ui_state.start_index[ui_state.current_window]:  # Moving above the visible area
         ui_state.start_index[ui_state.current_window] = new_idx
     elif new_idx >= ui_state.start_index[ui_state.current_window] + visible_height:  # Moving below the visible area
@@ -364,11 +362,9 @@ def highlight_line(
 
     if ui_state.current_window == 0:
         color_old = (
-            get_color("channel_selected") if old_idx == ui_state.selected_channel else get_color("settings_default")
+            get_color("channel_selected") if old_idx == ui_state.selected_channel else get_color("channel_list")
         )
-        color_new = (
-            get_color("channel_selected", reverse=True) if True else get_color("settings_default", reverse=True)
-        )
+        color_new = get_color("channel_list", reverse=True) if True else get_color("channel_list", reverse=True)
         menu_pad.chgat(old_idx, 1, menu_pad.getmaxyx()[1] - 4, color_old)
         menu_pad.chgat(new_idx, 1, menu_pad.getmaxyx()[1] - 4, color_new)
 
@@ -395,6 +391,9 @@ def draw_main_arrows(win: object, max_index: int, start_index: List[int], curren
     usable_height = height - 2
     usable_width = width - 2
 
+    if current_window == 1 and ui_state.display_log:
+        usable_height -= 1
+
     if height < max_index:
         if start_index[current_window] > 0:
             win.addstr(1, usable_width, "▲", get_color("settings_default"))
@@ -405,3 +404,8 @@ def draw_main_arrows(win: object, max_index: int, start_index: List[int], curren
             win.addstr(usable_height, usable_width, "▼", get_color("settings_default"))
         else:
             win.addstr(usable_height, usable_width, " ", get_color("settings_default"))
+
+
+def get_msg_window_lines(messages_win, packetlog_win) -> None:
+    packetlog_height = packetlog_win.getmaxyx()[0] - 1 if ui_state.display_log else 0
+    return messages_win.getmaxyx()[0] - 2 - packetlog_height
