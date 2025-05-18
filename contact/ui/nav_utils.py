@@ -394,8 +394,9 @@ def draw_main_arrows(win: object, max_index: int, start_index: List[int], curren
     if current_window == 1:
         pass
 
-    # if (packetlog_win := kwargs.get("window")) and ui_state.current_window == 1:
-    #     usable_height -= packetlog_win.getmaxyx()[0] - 1 if ui_state.display_log else 0
+    if current_window == 1 and ui_state.display_log:
+        if log_height := kwargs.get("log_height"):
+            usable_height -= log_height - 1
 
     if usable_height < max_index:
         if start_index[current_window] > 0:
