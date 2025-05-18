@@ -385,14 +385,20 @@ def highlight_line(
     )
 
 
-def draw_main_arrows(win: object, max_index: int, start_index: List[int], current_window: int) -> None:
+def draw_main_arrows(win: object, max_index: int, start_index: List[int], current_window: int, **kwargs) -> None:
 
     height, width = win.getmaxyx()
     usable_height = height - 2
     usable_width = width - 2
 
-    if current_window == 1 and ui_state.display_log:
-        usable_height -= 1
+    # if (packetlog_win := kwargs.get("window")) and ui_state.current_window == 1:
+    #     usable_height -= packetlog_win.getmaxyx()[0] - 1 if ui_state.display_log else 0
+
+    # if current_window == 1 and ui_state.display_log:
+    #     usable_height -= 1
+
+    # if current_window == 1:
+    #     usable_height -= 2
 
     if height < max_index:
         if start_index[current_window] > 0:
@@ -400,10 +406,13 @@ def draw_main_arrows(win: object, max_index: int, start_index: List[int], curren
         else:
             win.addstr(1, usable_width, " ", get_color("settings_default"))
 
-        if max_index - start_index[current_window] >= usable_height + 1:
+        if max_index - start_index[current_window] - 1 >= usable_height:
             win.addstr(usable_height, usable_width, "▼", get_color("settings_default"))
         else:
             win.addstr(usable_height, usable_width, " ", get_color("settings_default"))
+    else:
+        win.addstr(1, usable_width, " ", get_color("settings_default"))
+        win.addstr(usable_height, usable_width, " ", get_color("settings_default"))
 
 
 def get_msg_window_lines(messages_win, packetlog_win) -> None:

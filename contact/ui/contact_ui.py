@@ -506,14 +506,16 @@ def draw_messages_window(scroll_to_bottom: bool = False) -> None:
     messages_win.attrset(get_color("window_frame"))
     messages_win.refresh()
 
-    if scroll_to_bottom:
-        ui_state.selected_message = max(msg_line_count - get_msg_window_lines(messages_win, packetlog_win), 0)
-    else:
-        ui_state.selected_message = max(
-            min(ui_state.selected_message, msg_line_count - get_msg_window_lines(messages_win, packetlog_win)), 0
-        )
+    visible_lines = get_msg_window_lines(messages_win, packetlog_win)
 
-    draw_main_arrows(messages_win, msg_line_count - 1, ui_state.start_index, ui_state.current_window)
+    if scroll_to_bottom:
+        ui_state.selected_message = max(msg_line_count - visible_lines, 0)
+        ui_state.start_index[1] = max(msg_line_count - visible_lines, 0)
+        pass
+    else:
+        ui_state.selected_message = max(min(ui_state.selected_message, msg_line_count - visible_lines), 0)
+
+    draw_main_arrows(messages_win, msg_line_count, ui_state.start_index, ui_state.current_window, window=messages_win)
     messages_win.refresh()
 
     refresh_pad(1)
