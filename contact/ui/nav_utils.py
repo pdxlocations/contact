@@ -352,6 +352,9 @@ def move_main_highlight(
 
     highlight_line(menu_win, menu_pad, old_idx, new_idx, visible_height)
 
+    if ui_state.current_window == 0:  # hack to fix max_index
+        max_index += 1
+
     draw_main_arrows(menu_win, max_index, ui_state.start_index, ui_state.current_window)
     menu_win.refresh()
 
@@ -390,9 +393,6 @@ def draw_main_arrows(win: object, max_index: int, start_index: List[int], curren
     height, width = win.getmaxyx()
     usable_height = height - 2
     usable_width = width - 2
-
-    if current_window == 1:
-        pass
 
     if current_window == 1 and ui_state.display_log:
         if log_height := kwargs.get("log_height"):
