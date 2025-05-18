@@ -104,11 +104,13 @@ def get_admin_key_input(current_value: List[bytes]) -> Optional[List[str]]:
         return [base64.b64encode(b).decode() for b in byte_strings]
 
     def is_valid_base64(s):
-        """Check if a string is valid Base64."""
+        """Check if a string is valid Base64 or blank."""
+        if s == "":
+            return True
         try:
             decoded = base64.b64decode(s, validate=True)
             return len(decoded) == 32  # Ensure it's exactly 32 bytes
-        except binascii.Error:
+        except (binascii.Error, ValueError):
             return False
 
     cvalue = to_base64(current_value)  # Convert current values to Base64
