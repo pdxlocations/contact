@@ -515,7 +515,7 @@ def draw_messages_window(scroll_to_bottom: bool = False) -> None:
     else:
         ui_state.selected_message = max(min(ui_state.selected_message, msg_line_count - visible_lines), 0)
 
-    draw_main_arrows(messages_win, msg_line_count, ui_state.start_index, ui_state.current_window, window=messages_win)
+    draw_main_arrows(messages_win, msg_line_count, ui_state.start_index, 1, window=messages_win)
     messages_win.refresh()
 
     refresh_pad(1)
@@ -624,7 +624,7 @@ def scroll_messages(direction: int) -> None:
         0, min(ui_state.start_index[ui_state.current_window], max_index - visible_height + 1)
     )
 
-    draw_main_arrows(messages_win, msg_line_count, ui_state.start_index, ui_state.current_window)
+    draw_main_arrows(messages_win, msg_line_count, ui_state.start_index, ui_state.current_window, window=messages_win)
     messages_win.refresh()
 
     refresh_pad(1)

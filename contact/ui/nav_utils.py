@@ -391,16 +391,13 @@ def draw_main_arrows(win: object, max_index: int, start_index: List[int], curren
     usable_height = height - 2
     usable_width = width - 2
 
+    if current_window == 1:
+        pass
+
     # if (packetlog_win := kwargs.get("window")) and ui_state.current_window == 1:
     #     usable_height -= packetlog_win.getmaxyx()[0] - 1 if ui_state.display_log else 0
 
-    # if current_window == 1 and ui_state.display_log:
-    #     usable_height -= 1
-
-    # if current_window == 1:
-    #     usable_height -= 2
-
-    if height < max_index:
+    if usable_height < max_index:
         if start_index[current_window] > 0:
             win.addstr(1, usable_width, "▲", get_color("settings_default"))
         else:
