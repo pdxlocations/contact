@@ -13,7 +13,6 @@ from contact.utilities.input_handlers import get_list_input
 import contact.ui.default_config as config
 import contact.ui.dialog
 from contact.ui.nav_utils import move_main_highlight, draw_main_arrows, get_msg_window_lines
-
 from contact.utilities.singleton import ui_state, interface_state
 
 
@@ -185,7 +184,6 @@ def main_ui(stdscr: curses.window) -> None:
                 channel_win.attrset(get_color("window_frame"))
                 channel_win.box()
                 channel_win.refresh()
-                # highlight_line(False, 0, ui_state.selected_channel)
                 refresh_pad(0)
             if old_window == 1:
                 messages_win.attrset(get_color("window_frame"))
@@ -197,7 +195,6 @@ def main_ui(stdscr: curses.window) -> None:
                 nodes_win.attrset(get_color("window_frame"))
                 nodes_win.box()
                 nodes_win.refresh()
-                # highlight_line(False, 2, ui_state.selected_node)
                 refresh_pad(2)
 
             if ui_state.current_window == 0:
@@ -205,7 +202,6 @@ def main_ui(stdscr: curses.window) -> None:
                 channel_win.box()
                 channel_win.attrset(get_color("window_frame"))
                 channel_win.refresh()
-                # highlight_line(True, 0, ui_state.selected_channel)
                 refresh_pad(0)
             elif ui_state.current_window == 1:
                 messages_win.attrset(get_color("window_frame_selected"))
@@ -219,7 +215,6 @@ def main_ui(stdscr: curses.window) -> None:
                 nodes_win.box()
                 nodes_win.attrset(get_color("window_frame"))
                 nodes_win.refresh()
-                # highlight_line(True, 2, ui_state.selected_node)
                 refresh_pad(2)
 
         # Check for Esc
@@ -464,7 +459,7 @@ def draw_channel_list() -> None:
     channel_win.box()
     channel_win.attrset((get_color("window_frame")))
 
-    draw_main_arrows(channel_win, len(ui_state.channel_list), ui_state.start_index, ui_state.current_window)
+    draw_main_arrows(channel_win, len(ui_state.channel_list), window=0)
     channel_win.refresh()
 
     refresh_pad(0)
@@ -518,8 +513,7 @@ def draw_messages_window(scroll_to_bottom: bool = False) -> None:
     draw_main_arrows(
         messages_win,
         msg_line_count,
-        ui_state.start_index,
-        1,
+        window=1,
         log_height=packetlog_win.getmaxyx()[0],
     )
     messages_win.refresh()
@@ -566,7 +560,7 @@ def draw_node_list() -> None:
     nodes_win.box()
     nodes_win.attrset(get_color("window_frame"))
 
-    draw_main_arrows(nodes_win, len(ui_state.node_list), ui_state.start_index, ui_state.current_window)
+    draw_main_arrows(nodes_win, len(ui_state.node_list), window=2)
     nodes_win.refresh()
 
     refresh_pad(2)
@@ -633,7 +627,6 @@ def scroll_messages(direction: int) -> None:
     draw_main_arrows(
         messages_win,
         msg_line_count,
-        ui_state.start_index,
         ui_state.current_window,
         log_height=packetlog_win.getmaxyx()[0],
     )
