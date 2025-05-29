@@ -1,4 +1,6 @@
 import logging
+import os
+import platform
 import time
 from datetime import datetime
 from typing import Any, Dict
@@ -20,6 +22,15 @@ from contact.utilities.db_handler import (
 import contact.ui.default_config as config
 
 from contact.utilities.singleton import ui_state, interface_state, app_state
+
+
+def play_sound():
+    if platform.system() == "Darwin":  # macOS
+        os.system("afplay /System/Library/Sounds/Ping.aiff")
+    elif platform.system() == "Linux":
+        os.system("paplay /usr/share/sounds/freedesktop/stereo/complete.oga")
+    else:
+        print("\a")  # fallback
 
 
 def on_receive(packet: Dict[str, Any], interface: Any) -> None:
@@ -53,6 +64,8 @@ def on_receive(packet: Dict[str, Any], interface: Any) -> None:
                     maybe_store_nodeinfo_in_db(packet)
 
             elif packet["decoded"]["portnum"] == "TEXT_MESSAGE_APP":
+                play_sound()
+
                 message_bytes = packet["decoded"]["payload"]
                 message_string = message_bytes.decode("utf-8")
 
