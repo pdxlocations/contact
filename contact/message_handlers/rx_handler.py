@@ -1,6 +1,5 @@
 import logging
-import os
-import platform
+import subprocess
 import time
 from datetime import datetime
 from typing import Any, Dict
@@ -25,13 +24,17 @@ from contact.utilities.singleton import ui_state, interface_state, app_state
 
 
 def play_sound():
-    if platform.system() == "Darwin":  # macOS
-        os.system("afplay /System/Library/Sounds/Ping.aiff")
-    elif platform.system() == "Linux":
-        os.system("paplay /usr/share/sounds/freedesktop/stereo/complete.oga")
-    else:
-        print("\a")  # fallback
-
+    try:
+        subprocess.call(["afplay", "/System/Library/Sounds/Ping.aiff"]) #macOS
+        return
+    except:
+        pass
+    try:
+        subprocess.call(["paplay", "/usr/share/sounds/freedesktop/stereo/complete.oga"]) #Linux
+        return
+    except:
+        pass
+    print("\a")  # fallback
 
 def on_receive(packet: Dict[str, Any], interface: Any) -> None:
     """
