@@ -123,8 +123,8 @@ def initialize_config() -> Dict[str, object]:
         "settings_breadcrumbs": ["green", "black"],
         "settings_warning": ["green", "black"],
         "settings_note": ["green", "black"],
-        "node_favorite": ["cyan", "white"],
-        "node_ignored": ["red", "white"],
+        "node_favorite": ["cyan", "green"],
+        "node_ignored": ["red", "black"],
     }
     default_config_variables = {
         "db_file_path": db_file_path,
