@@ -127,6 +127,8 @@ def initialize_config() -> Dict[str, object]:
         "node_ignored": ["red", "black"],
     }
     default_config_variables = {
+        "node_list_16ths": "5",
+        "channel_list_16ths": "3",
         "db_file_path": db_file_path,
         "log_file_path": log_file_path,
         "message_prefix": ">>",
@@ -170,9 +172,12 @@ def assign_config_variables(loaded_config: Dict[str, object]) -> None:
 
     global db_file_path, log_file_path, message_prefix, sent_message_prefix
     global notification_symbol, ack_implicit_str, ack_str, nak_str, ack_unknown_str
+    global node_list_16ths, channel_list_16ths
     global theme, COLOR_CONFIG
     global node_sort
 
+    node_list_16ths = loaded_config["node_list_16ths"]
+    channel_list_16ths = loaded_config["channel_list_16ths"]
     db_file_path = loaded_config["db_file_path"]
     log_file_path = loaded_config["log_file_path"]
     message_prefix = loaded_config["message_prefix"]

@@ -23,8 +23,8 @@ def handle_resize(stdscr: curses.window, firstrun: bool) -> None:
     height, width = stdscr.getmaxyx()
 
     # Define window dimensions and positions
-    channel_width = 3 * (width // 16)
-    nodes_width = 5 * (width // 16)
+    channel_width = int(config.channel_list_16ths) * (width // 16)
+    nodes_width = int(config.node_list_16ths) * (width // 16)
     messages_width = width - channel_width - nodes_width
 
     if firstrun:
