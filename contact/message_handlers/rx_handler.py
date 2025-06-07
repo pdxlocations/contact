@@ -34,30 +34,31 @@ def play_sound():
             sound_path = "/System/Library/Sounds/Ping.aiff"
             if os.path.exists(sound_path):
                 subprocess.run(["afplay", sound_path], check=True)
+                return
             else:
-                raise FileNotFoundError(f"Sound file not found: {sound_path}")
+                print(f"[WARN] macOS sound file not found: {sound_path}")
 
         elif system == "Linux":
             sound_path = "/usr/share/sounds/freedesktop/stereo/complete.oga"
             if os.path.exists(sound_path):
                 if shutil.which("paplay"):
                     subprocess.run(["paplay", sound_path], check=True)
+                    return
                 elif shutil.which("aplay"):
                     subprocess.run(["aplay", sound_path], check=True)
+                    return
                 else:
-                    raise EnvironmentError("No suitable sound player (paplay/aplay) found.")
+                    print("[WARN] No sound player found (paplay/aplay)")
             else:
-                raise FileNotFoundError(f"Sound file not found: {sound_path}")
+                print(f"[WARN] Linux sound file not found: {sound_path}")
 
-        else:
-            print("\a")  # Basic fallback beep (may not work if terminal bell is disabled)
-
-    except FileNotFoundError as e:
-        print(f"[ERROR] {e}")
     except subprocess.CalledProcessError as e:
         print(f"[ERROR] Sound playback failed: {e}")
     except Exception as e:
         print(f"[ERROR] Unexpected error: {e}")
+
+    # Final fallback: terminal beep
+    print("\a")
 
 
 def on_receive(packet: Dict[str, Any], interface: Any) -> None:
