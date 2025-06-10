@@ -92,7 +92,9 @@ def on_receive(packet: Dict[str, Any], interface: Any) -> None:
                     maybe_store_nodeinfo_in_db(packet)
 
             elif packet["decoded"]["portnum"] == "TEXT_MESSAGE_APP":
-                play_sound()
+
+                if config.notification_sound == "True":
+                    play_sound()
 
                 message_bytes = packet["decoded"]["payload"]
                 message_string = message_bytes.decode("utf-8")

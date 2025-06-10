@@ -134,6 +134,7 @@ def initialize_config() -> Dict[str, object]:
         "message_prefix": ">>",
         "sent_message_prefix": ">> Sent",
         "notification_symbol": "*",
+        "notification_sound": "True",
         "ack_implicit_str": "[◌]",
         "ack_str": "[✓]",
         "nak_str": "[x]",
@@ -174,7 +175,7 @@ def assign_config_variables(loaded_config: Dict[str, object]) -> None:
     global notification_symbol, ack_implicit_str, ack_str, nak_str, ack_unknown_str
     global node_list_16ths, channel_list_16ths
     global theme, COLOR_CONFIG
-    global node_sort
+    global node_sort, notification_sound
 
     channel_list_16ths = loaded_config["channel_list_16ths"]
     node_list_16ths = loaded_config["node_list_16ths"]
@@ -183,10 +184,12 @@ def assign_config_variables(loaded_config: Dict[str, object]) -> None:
     message_prefix = loaded_config["message_prefix"]
     sent_message_prefix = loaded_config["sent_message_prefix"]
     notification_symbol = loaded_config["notification_symbol"]
+    notification_sound = loaded_config["notification_sound"]
     ack_implicit_str = loaded_config["ack_implicit_str"]
     ack_str = loaded_config["ack_str"]
     nak_str = loaded_config["nak_str"]
     ack_unknown_str = loaded_config["ack_unknown_str"]
+    node_sort = loaded_config["node_sort"]
     theme = loaded_config["theme"]
     if theme == "dark":
         COLOR_CONFIG = loaded_config["COLOR_CONFIG_DARK"]
@@ -194,7 +197,6 @@ def assign_config_variables(loaded_config: Dict[str, object]) -> None:
         COLOR_CONFIG = loaded_config["COLOR_CONFIG_LIGHT"]
     elif theme == "green":
         COLOR_CONFIG = loaded_config["COLOR_CONFIG_GREEN"]
-    node_sort = loaded_config["node_sort"]
 
 
 # Call the function when the script is imported
