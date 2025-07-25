@@ -2,14 +2,13 @@ import curses
 from contact.ui.colors import get_color
 
 
-def dialog(stdscr: curses.window, title: str, message: str) -> None:
-    height, width = stdscr.getmaxyx()
+def dialog(title: str, message: str) -> None:
+
+    height, width = curses.LINES, curses.COLS
 
     # Calculate dialog dimensions
-    max_line_lengh = 0
     message_lines = message.splitlines()
-    for l in message_lines:
-        max_line_length = max(len(l), max_line_lengh)
+    max_line_length = max(len(l) for l in message_lines)
     dialog_width = max(len(title) + 4, max_line_length + 4)
     dialog_height = len(message_lines) + 4
     x = (width - dialog_width) // 2
@@ -24,12 +23,19 @@ def dialog(stdscr: curses.window, title: str, message: str) -> None:
     # Add title
     win.addstr(0, 2, title, get_color("settings_default"))
 
-    # Add message
-    for i, l in enumerate(message_lines):
-        win.addstr(2 + i, 2, l, get_color("settings_default"))
+    # Add message (centered)
+    for i, line in enumerate(message_lines):
+        msg_x = (dialog_width - len(line)) // 2
+        win.addstr(2 + i, msg_x, line, get_color("settings_default"))
 
-    # Add button
-    win.addstr(dialog_height - 2, (dialog_width - 4) // 2, " Ok ", get_color("settings_default", reverse=True))
+    # Add centered OK button
+    ok_text = " Ok "
+    win.addstr(
+        dialog_height - 2,
+        (dialog_width - len(ok_text)) // 2,
+        ok_text,
+        get_color("settings_default", reverse=True),
+    )
 
     # Refresh dialog window
     win.refresh()
@@ -37,8 +43,7 @@ def dialog(stdscr: curses.window, title: str, message: str) -> None:
     # Get user input
     while True:
         char = win.getch()
-        # Close dialog with enter, space, or esc
-        if char in (curses.KEY_ENTER, 10, 13, 32, 27):
+        if char in (curses.KEY_ENTER, 10, 13, 32, 27):  # Enter, space, or Esc
             win.erase()
             win.refresh()
             return

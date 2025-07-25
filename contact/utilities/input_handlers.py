@@ -6,9 +6,10 @@ from typing import Any, Optional, List
 
 from contact.ui.colors import get_color
 from contact.ui.nav_utils import move_highlight, draw_arrows, wrap_text
+from contact.ui.dialog import dialog
 
 
-def get_text_input(prompt: str) -> Optional[str]:
+def get_text_input(prompt: str, selected_config: str) -> Optional[str]:
     """Handles user input with wrapped text for long prompts."""
     height = 8
     width = 80
@@ -39,7 +40,22 @@ def get_text_input(prompt: str) -> Optional[str]:
     input_win.refresh()
     curses.curs_set(1)
 
-    max_length = 4 if "shortName" in prompt else None
+    max_length = None
+    fixed_length = None
+    input_type = str
+
+    if selected_config:
+        if "shortName" in selected_config:
+            max_length = 4
+        elif "longName" in selected_config:
+            max_length = 32
+        elif "fixed_pin" in selected_config:
+            fixed_length = 6
+            max_length = fixed_length  # enforce fixed length
+            input_type = int
+        elif "adc_multiplier_override" in selected_config:
+            input_type = float
+
     user_input = ""
 
     # Start user input after the prompt text
@@ -55,18 +71,44 @@ def get_text_input(prompt: str) -> Optional[str]:
             curses.curs_set(0)
             return None  # Exit without saving
 
-        elif key in (chr(curses.KEY_ENTER), chr(10), chr(13)):  # Enter key
-            break
+        elif key in (chr(curses.KEY_ENTER), chr(10), chr(13)):
+            if fixed_length and len(user_input) != fixed_length:
+                curses.curs_set(0)
+                dialog(input_win, "Error", f"Value must be exactly {fixed_length} characters long.")
+                curses.curs_set(1)
+            elif input_type is int and not user_input.isdigit():
+                curses.curs_set(0)
+                dialog(input_win, "Error", "Only numeric digits (0–9) allowed.")
+                curses.curs_set(1)
+            elif input_type is float:
+                try:
+                    float(user_input)
+                except ValueError:
+                    curses.curs_set(0)
+                    dialog(input_win, "Error", "Must be a valid floating point number.")
+                    curses.curs_set(1)
+                else:
+                    break
+            else:
+                break
 
         elif key in (curses.KEY_BACKSPACE, chr(127)):  # Handle Backspace
             if user_input:
                 user_input = user_input[:-1]  # Remove last character
 
-        elif max_length is None or len(user_input) < max_length:  # Enforce max length
-            if isinstance(key, str):
-                user_input += key
-            else:
-                user_input += chr(key)
+        elif max_length is None or len(user_input) < max_length:
+            try:
+                char = chr(key) if not isinstance(key, str) else key
+                if input_type is int:
+                    if char.isdigit():
+                        user_input += char
+                elif input_type is float:
+                    if char.isdigit() or (char == "." and "." not in user_input):
+                        user_input += char
+                else:
+                    user_input += char
+            except ValueError:
+                pass  # Ignore invalid input
 
         # First line must be manually handled before using wrap_text()
         first_line = user_input[:first_line_width]  # Cut to max first line width
