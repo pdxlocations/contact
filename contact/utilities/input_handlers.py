@@ -10,13 +10,16 @@ from contact.ui.dialog import dialog
 from contact.utilities.validation_rules import get_validation_for
 
 
-def invalid_input(window: curses.window, message: str) -> None:
+def invalid_input(window: curses.window, message: str, redraw_func: Optional[callable] = None) -> None:
     cursor_y, cursor_x = window.getyx()
     curses.curs_set(0)
     dialog("Invalid Input", message)
-    curses.curs_set(1)
+    if redraw_func:
+        redraw_func()  # Redraw the original window content that got obscured
+    else:
+        window.refresh()
     window.move(cursor_y, cursor_x)
-    window.refresh()
+    curses.curs_set(1)
 
 
 def get_text_input(prompt: str, selected_config: str, input_type: str) -> Optional[str]:
@@ -38,6 +41,23 @@ def get_text_input(prompt: str, selected_config: str, input_type: str) -> Option
     # Wrap the prompt text
     wrapped_prompt = wrap_text(prompt, wrap_width=input_width)
     row = 1
+
+    def redraw_input_win():
+        input_win.erase()
+        input_win.border()
+        row = 1
+        for line in wrapped_prompt:
+            input_win.addstr(row, margin, line[:input_width], get_color("settings_default", bold=True))
+            row += 1
+            if row >= height - 3:
+                break
+        input_win.addstr(row + 1, margin, prompt_text, get_color("settings_default"))
+        input_win.addstr(row + 1, col_start, user_input[:first_line_width], get_color("settings_default"))
+        for i, line in enumerate(wrap_text(user_input[first_line_width:], wrap_width=input_width)):
+            if row + 2 + i < height - 1:
+                input_win.addstr(row + 2 + i, margin, line[:input_width], get_color("settings_default"))
+        input_win.refresh()
+
     for line in wrapped_prompt:
         input_win.addstr(row, margin, line[:input_width], get_color("settings_default", bold=True))
         row += 1
@@ -71,30 +91,42 @@ def get_text_input(prompt: str, selected_config: str, input_type: str) -> Option
 
         elif key in (chr(curses.KEY_ENTER), chr(10), chr(13)):
             if not user_input.strip():
-                invalid_input(input_win, "Value cannot be empty.")
+                invalid_input(input_win, "Value cannot be empty.", redraw_func=redraw_input_win)
                 continue
 
             length = len(user_input)
             if min_length == max_length and max_length is not None:
                 if length != min_length:
-                    invalid_input(input_win, f"Value must be exactly {min_length} characters long.")
+                    invalid_input(
+                        input_win, f"Value must be exactly {min_length} characters long.", redraw_func=redraw_input_win
+                    )
                     continue
             else:
                 if length < min_length:
-                    invalid_input(input_win, f"Value must be at least {min_length} characters long.")
+                    invalid_input(
+                        input_win,
+                        f"Value must be at least {min_length} characters long.",
+                        redraw_func=redraw_input_win,
+                    )
                     continue
                 if max_length is not None and length > max_length:
-                    invalid_input(input_win, f"Value must be no more than {max_length} characters long.")
+                    invalid_input(
+                        input_win,
+                        f"Value must be no more than {max_length} characters long.",
+                        redraw_func=redraw_input_win,
+                    )
                     continue
 
             if input_type is int:
                 if not user_input.isdigit():
-                    invalid_input(input_win, "Only numeric digits (0–9) allowed.")
+                    invalid_input(input_win, "Only numeric digits (0–9) allowed.", redraw_func=redraw_input_win)
                     continue
 
                 int_val = int(user_input)
                 if not (min_value <= int_val <= max_value):
-                    invalid_input(input_win, f"Enter a number between {min_value} and {max_value}.")
+                    invalid_input(
+                        input_win, f"Enter a number between {min_value} and {max_value}.", redraw_func=redraw_input_win
+                    )
                     continue
 
                 curses.curs_set(0)
@@ -104,10 +136,14 @@ def get_text_input(prompt: str, selected_config: str, input_type: str) -> Option
                 try:
                     float_val = float(user_input)
                     if not (min_value <= float_val <= max_value):
-                        invalid_input(input_win, f"Enter a number between {min_value} and {max_value}.")
+                        invalid_input(
+                            input_win,
+                            f"Enter a number between {min_value} and {max_value}.",
+                            redraw_func=redraw_input_win,
+                        )
                         continue
                 except ValueError:
-                    invalid_input(input_win, "Must be a valid floating point number.")
+                    invalid_input(input_win, "Must be a valid floating point number.", redraw_func=redraw_input_win)
                     continue
                 else:
                     curses.curs_set(0)
