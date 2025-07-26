@@ -7,6 +7,7 @@ from typing import Any, Optional, List
 from contact.ui.colors import get_color
 from contact.ui.nav_utils import move_highlight, draw_arrows, wrap_text
 from contact.ui.dialog import dialog
+from contact.utilities.validation_rules import get_validation_for
 
 
 def get_text_input(prompt: str, selected_config: str) -> Optional[str]:
@@ -40,22 +41,10 @@ def get_text_input(prompt: str, selected_config: str) -> Optional[str]:
     input_win.refresh()
     curses.curs_set(1)
 
-    max_length = None
-    fixed_length = None
-    input_type = str
-
-    if selected_config:
-        if "shortName" in selected_config:
-            max_length = 4
-        elif "longName" in selected_config:
-            max_length = 32
-        elif "fixed_pin" in selected_config:
-            fixed_length = 6
-            max_length = fixed_length  # enforce fixed length
-            input_type = int
-        elif "adc_multiplier_override" in selected_config:
-            input_type = float
-
+    validation = get_validation_for(selected_config)
+    max_length = validation.get("max_length")
+    fixed_length = validation.get("fixed_length")
+    input_type = validation.get("type", str)
     user_input = ""
 
     # Start user input after the prompt text
@@ -74,18 +63,18 @@ def get_text_input(prompt: str, selected_config: str) -> Optional[str]:
         elif key in (chr(curses.KEY_ENTER), chr(10), chr(13)):
             if fixed_length and len(user_input) != fixed_length:
                 curses.curs_set(0)
-                dialog(input_win, "Error", f"Value must be exactly {fixed_length} characters long.")
+                dialog("Error", f"Value must be exactly {fixed_length} characters long.")
                 curses.curs_set(1)
             elif input_type is int and not user_input.isdigit():
                 curses.curs_set(0)
-                dialog(input_win, "Error", "Only numeric digits (0–9) allowed.")
+                dialog("Error", "Only numeric digits (0–9) allowed.")
                 curses.curs_set(1)
             elif input_type is float:
                 try:
                     float(user_input)
                 except ValueError:
                     curses.curs_set(0)
-                    dialog(input_win, "Error", "Must be a valid floating point number.")
+                    dialog("Error", "Must be a valid floating point number.")
                     curses.curs_set(1)
                 else:
                     break
