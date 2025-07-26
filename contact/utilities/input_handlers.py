@@ -10,6 +10,15 @@ from contact.ui.dialog import dialog
 from contact.utilities.validation_rules import get_validation_for
 
 
+def invalid_input(window: curses.window, message: str) -> None:
+    cursor_y, cursor_x = window.getyx()
+    curses.curs_set(0)
+    dialog("Invalid Input", message)
+    curses.curs_set(1)
+    window.move(cursor_y, cursor_x)
+    window.refresh()
+
+
 def get_text_input(prompt: str, selected_config: str, input_type: str) -> Optional[str]:
     """Handles user input with wrapped text for long prompts."""
     height = 8
@@ -42,42 +51,64 @@ def get_text_input(prompt: str, selected_config: str, input_type: str) -> Option
     curses.curs_set(1)
 
     validation = get_validation_for(selected_config)
+    min_value = validation.get("min_value", 0)
+    max_value = validation.get("max_value", 4294967295)
+    min_length = validation.get("min_length", 0)
     max_length = validation.get("max_length")
-    fixed_length = validation.get("fixed_length")
-    # input_type = validation.get("type", str)
-    user_input = ""
 
-    # Start user input after the prompt text
+    user_input = ""
     col_start = margin + len(prompt_text)
-    first_line_width = input_width - len(prompt_text)  # Available space for first line
+    first_line_width = input_width - len(prompt_text)
 
     while True:
-        key = input_win.get_wch()  # Waits for user input
+        key = input_win.get_wch()
 
-        if key == chr(27) or key == curses.KEY_LEFT:  # ESC or Left Arrow
+        if key == chr(27) or key == curses.KEY_LEFT:
             input_win.erase()
             input_win.refresh()
             curses.curs_set(0)
-            return None  # Exit without saving
+            return None
 
         elif key in (chr(curses.KEY_ENTER), chr(10), chr(13)):
-            if fixed_length and len(user_input) != fixed_length:
+            if not user_input.strip():
+                invalid_input(input_win, "Value cannot be empty.")
+                continue
+
+            length = len(user_input)
+            if min_length == max_length and max_length is not None:
+                if length != min_length:
+                    invalid_input(input_win, f"Value must be exactly {min_length} characters long.")
+                    continue
+            else:
+                if length < min_length:
+                    invalid_input(input_win, f"Value must be at least {min_length} characters long.")
+                    continue
+                if max_length is not None and length > max_length:
+                    invalid_input(input_win, f"Value must be no more than {max_length} characters long.")
+                    continue
+
+            if input_type is int:
+                if not user_input.isdigit():
+                    invalid_input(input_win, "Only numeric digits (0–9) allowed.")
+                    continue
+
+                int_val = int(user_input)
+                if not (min_value <= int_val <= max_value):
+                    invalid_input(input_win, f"Enter a number between {min_value} and {max_value}.")
+                    continue
+
                 curses.curs_set(0)
-                dialog("Error", f"Value must be exactly {fixed_length} characters long.")
-                curses.curs_set(1)
-            elif input_type is int and not user_input.isdigit():
-                curses.curs_set(0)
-                dialog("Error", "Only numeric digits (0–9) allowed.")
-                curses.curs_set(1)
+                return int_val
+
             elif input_type is float:
                 try:
                     float(user_input)
                 except ValueError:
-                    curses.curs_set(0)
-                    dialog("Error", "Must be a valid floating point number.")
-                    curses.curs_set(1)
+                    invalid_input(input_win, "Must be a valid floating point number.")
+                    continue
                 else:
                     break
+
             else:
                 break
 
@@ -126,7 +157,7 @@ def get_text_input(prompt: str, selected_config: str, input_type: str) -> Option
     curses.curs_set(0)
     input_win.erase()
     input_win.refresh()
-    return user_input
+    return user_input.strip()
 
 
 def get_admin_key_input(current_value: List[bytes]) -> Optional[List[str]]:
@@ -161,7 +192,7 @@ def get_admin_key_input(current_value: List[bytes]) -> Optional[List[str]]:
     # Editable list of values (max 3 values)
     user_values = cvalue[:3] + [""] * (3 - len(cvalue))  # Ensure always 3 fields
     cursor_pos = 0  # Track which value is being edited
-    error_message = ""
+    invalid_input = ""
 
     while True:
         repeated_win.erase()
@@ -181,8 +212,8 @@ def get_admin_key_input(current_value: List[bytes]) -> Optional[List[str]]:
         repeated_win.move(3 + cursor_pos, 18 + len(user_values[cursor_pos]))  # Position cursor at end of text
 
         # Show error message if needed
-        if error_message:
-            repeated_win.addstr(7, 2, error_message, get_color("settings_default", bold=True))
+        if invalid_input:
+            repeated_win.addstr(7, 2, invalid_input, get_color("settings_default", bold=True))
 
         repeated_win.refresh()
         key = repeated_win.getch()
@@ -200,7 +231,7 @@ def get_admin_key_input(current_value: List[bytes]) -> Optional[List[str]]:
                 curses.curs_set(0)
                 return user_values  # Return the edited Base64 values
             else:
-                error_message = "Error: Each key must be valid Base64 and 32 bytes long!"
+                invalid_input = "Error: Each key must be valid Base64 and 32 bytes long!"
         elif key == curses.KEY_UP:  # Move cursor up
             cursor_pos = (cursor_pos - 1) % len(user_values)
         elif key == curses.KEY_DOWN:  # Move cursor down
@@ -211,7 +242,7 @@ def get_admin_key_input(current_value: List[bytes]) -> Optional[List[str]]:
         else:
             try:
                 user_values[cursor_pos] += chr(key)  # Append valid character input to the selected field
-                error_message = ""  # Clear error if user starts fixing input
+                invalid_input = ""  # Clear error if user starts fixing input
             except ValueError:
                 pass  # Ignore invalid character inputs
 
@@ -233,7 +264,7 @@ def get_repeated_input(current_value: List[str]) -> Optional[str]:
     # Editable list of values (max 3 values)
     user_values = current_value[:3]
     cursor_pos = 0  # Track which value is being edited
-    error_message = ""
+    invalid_input = ""
 
     while True:
         repeated_win.erase()
@@ -253,8 +284,8 @@ def get_repeated_input(current_value: List[str]) -> Optional[str]:
         repeated_win.move(3 + cursor_pos, 18 + len(user_values[cursor_pos]))  #  Position cursor at end of text
 
         # Show error message if needed
-        if error_message:
-            repeated_win.addstr(7, 2, error_message, get_color("settings_default", bold=True))
+        if invalid_input:
+            repeated_win.addstr(7, 2, invalid_input, get_color("settings_default", bold=True))
 
         repeated_win.refresh()
         key = repeated_win.getch()
@@ -280,7 +311,7 @@ def get_repeated_input(current_value: List[str]) -> Optional[str]:
         else:
             try:
                 user_values[cursor_pos] += chr(key)  # Append valid character input to the selected field
-                error_message = ""  # Clear error if user starts fixing input
+                invalid_input = ""  # Clear error if user starts fixing input
             except ValueError:
                 pass  # Ignore invalid character inputs
 

@@ -1,7 +1,10 @@
 validation_rules = {
     "shortName": {"max_length": 4},
     "longName": {"max_length": 32},
-    "fixed_pin": {"max_length": 6, "fixed_length": 6},
+    "fixed_pin": {"min_length": 6, "max_length": 6},
+    "position_flags": {"max_length": 3},
+    "enabled_protocols": {"max_value": 2},
+    "hop_limit": {"max_value": 7},
 }
 
 
