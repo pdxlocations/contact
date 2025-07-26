@@ -21,6 +21,12 @@ validation_rules = {
     "adc_multiplier_override": {
         "type": InputType.FLOAT,
     },
+    "button_gpio": {
+        "type": InputType.INTEGER,
+    },
+    "buzzer_gpio": {
+        "type": InputType.INTEGER,
+    },
 }
 
 
