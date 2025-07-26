@@ -1,32 +1,7 @@
-class InputType:
-    STRING = str
-    INTEGER = int
-    FLOAT = float
-
-
 validation_rules = {
-    "shortName": {
-        "max_length": 4,
-        "type": InputType.STRING,
-    },
-    "longName": {
-        "max_length": 32,
-        "type": InputType.STRING,
-    },
-    "fixed_pin": {
-        "max_length": 6,
-        "fixed_length": 6,
-        "type": InputType.INTEGER,
-    },
-    "adc_multiplier_override": {
-        "type": InputType.FLOAT,
-    },
-    "button_gpio": {
-        "type": InputType.INTEGER,
-    },
-    "buzzer_gpio": {
-        "type": InputType.INTEGER,
-    },
+    "shortName": {"max_length": 4},
+    "longName": {"max_length": 32},
+    "fixed_pin": {"max_length": 6, "fixed_length": 6},
 }
 
 

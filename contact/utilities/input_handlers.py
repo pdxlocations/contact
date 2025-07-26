@@ -10,7 +10,7 @@ from contact.ui.dialog import dialog
 from contact.utilities.validation_rules import get_validation_for
 
 
-def get_text_input(prompt: str, selected_config: str) -> Optional[str]:
+def get_text_input(prompt: str, selected_config: str, input_type: str) -> Optional[str]:
     """Handles user input with wrapped text for long prompts."""
     height = 8
     width = 80
@@ -44,7 +44,7 @@ def get_text_input(prompt: str, selected_config: str) -> Optional[str]:
     validation = get_validation_for(selected_config)
     max_length = validation.get("max_length")
     fixed_length = validation.get("fixed_length")
-    input_type = validation.get("type", str)
+    # input_type = validation.get("type", str)
     user_input = ""
 
     # Start user input after the prompt text
