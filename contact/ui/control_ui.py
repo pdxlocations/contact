@@ -427,7 +427,7 @@ def settings_menu(stdscr: object, interface: object) -> None:
 
                 elif selected_option in ["latitude", "longitude", "altitude"]:
                     new_value = get_text_input(
-                        f"{human_readable_name} is currently: {current_value}", selected_option, None
+                        f"{human_readable_name} is currently: {current_value}", selected_option, float
                     )
                     new_value = current_value if new_value is None else new_value
                     menu_state.current_menu[selected_option] = (field, new_value)

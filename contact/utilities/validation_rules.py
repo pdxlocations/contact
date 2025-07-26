@@ -5,6 +5,13 @@ validation_rules = {
     "position_flags": {"max_length": 3},
     "enabled_protocols": {"max_value": 2},
     "hop_limit": {"max_value": 7},
+    "latitude": {"min_value": -90, "max_value": 90},
+    "longitude": {"min_value": -180, "max_value": 180},
+    "altitude": {"min_value": -4294967295, "max_value": 4294967295},
+    "red": {"max_value": 255},
+    "green": {"max_value": 255},
+    "blue": {"max_value": 255},
+    "current": {"max_value": 255},
 }
 
 

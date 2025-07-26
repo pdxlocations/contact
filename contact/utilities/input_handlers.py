@@ -102,12 +102,16 @@ def get_text_input(prompt: str, selected_config: str, input_type: str) -> Option
 
             elif input_type is float:
                 try:
-                    float(user_input)
+                    float_val = float(user_input)
+                    if not (min_value <= float_val <= max_value):
+                        invalid_input(input_win, f"Enter a number between {min_value} and {max_value}.")
+                        continue
                 except ValueError:
                     invalid_input(input_win, "Must be a valid floating point number.")
                     continue
                 else:
-                    break
+                    curses.curs_set(0)
+                    return float_val
 
             else:
                 break
@@ -123,7 +127,11 @@ def get_text_input(prompt: str, selected_config: str, input_type: str) -> Option
                     if char.isdigit():
                         user_input += char
                 elif input_type is float:
-                    if char.isdigit() or (char == "." and "." not in user_input):
+                    if (
+                        char.isdigit()
+                        or (char == "." and "." not in user_input)
+                        or (char == "-" and len(user_input) == 0)
+                    ):
                         user_input += char
                 else:
                     user_input += char
