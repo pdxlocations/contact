@@ -11,6 +11,7 @@ from contact.utilities.validation_rules import get_validation_for
 
 
 def invalid_input(window: curses.window, message: str, redraw_func: Optional[callable] = None) -> None:
+    """Displays an invalid input message in the given window and redraws if needed."""
     cursor_y, cursor_x = window.getyx()
     curses.curs_set(0)
     dialog("Invalid Input", message)
@@ -43,6 +44,7 @@ def get_text_input(prompt: str, selected_config: str, input_type: str) -> Option
     row = 1
 
     def redraw_input_win():
+        """Redraw the input window with the current prompt and user input."""
         input_win.erase()
         input_win.border()
         row = 1
@@ -76,7 +78,7 @@ def get_text_input(prompt: str, selected_config: str, input_type: str) -> Option
     max_length = None
 
     if selected_config is not None:
-        validation = get_validation_for(selected_config)
+        validation = get_validation_for(selected_config) or {}
         min_value = validation.get("min_value", 0)
         max_value = validation.get("max_value", 4294967295)
         min_length = validation.get("min_length", 0)
@@ -166,7 +168,7 @@ def get_text_input(prompt: str, selected_config: str, input_type: str) -> Option
             try:
                 char = chr(key) if not isinstance(key, str) else key
                 if input_type is int:
-                    if char.isdigit():
+                    if char.isdigit() or (char == "-" and len(user_input) == 0):
                         user_input += char
                 elif input_type is float:
                     if (
@@ -211,6 +213,8 @@ def get_text_input(prompt: str, selected_config: str, input_type: str) -> Option
 
 
 def get_admin_key_input(current_value: List[bytes]) -> Optional[List[str]]:
+    """Handles user input for editing up to 3 Admin Keys in Base64 format."""
+
     def to_base64(byte_strings):
         """Convert byte values to Base64-encoded strings."""
         return [base64.b64encode(b).decode() for b in byte_strings]
