@@ -25,23 +25,6 @@ def invalid_input(window: curses.window, message: str, redraw_func: Optional[cal
 
 def get_text_input(prompt: str, selected_config: str, input_type: str) -> Optional[str]:
     """Handles user input with wrapped text for long prompts."""
-    height = 8
-    width = 80
-    margin = 2  # Left and right margin
-    input_width = width - (2 * margin)  # Space available for text
-    max_input_rows = height - 4  # Space for input
-
-    start_y = (curses.LINES - height) // 2
-    start_x = (curses.COLS - width) // 2
-
-    input_win = curses.newwin(height, width, start_y, start_x)
-    input_win.bkgd(get_color("background"))
-    input_win.attrset(get_color("window_frame"))
-    input_win.border()
-
-    # Wrap the prompt text
-    wrapped_prompt = wrap_text(prompt, wrap_width=input_width)
-    row = 1
 
     def redraw_input_win():
         """Redraw the input window with the current prompt and user input."""
@@ -59,6 +42,24 @@ def get_text_input(prompt: str, selected_config: str, input_type: str) -> Option
             if row + 2 + i < height - 1:
                 input_win.addstr(row + 2 + i, margin, line[:input_width], get_color("settings_default"))
         input_win.refresh()
+
+    height = 8
+    width = 80
+    margin = 2  # Left and right margin
+    input_width = width - (2 * margin)  # Space available for text
+    max_input_rows = height - 4  # Space for input
+
+    start_y = (curses.LINES - height) // 2
+    start_x = (curses.COLS - width) // 2
+
+    input_win = curses.newwin(height, width, start_y, start_x)
+    input_win.bkgd(get_color("background"))
+    input_win.attrset(get_color("window_frame"))
+    input_win.border()
+
+    # Wrap the prompt text
+    wrapped_prompt = wrap_text(prompt, wrap_width=input_width)
+    row = 1
 
     for line in wrapped_prompt:
         input_win.addstr(row, margin, line[:input_width], get_color("settings_default", bold=True))
