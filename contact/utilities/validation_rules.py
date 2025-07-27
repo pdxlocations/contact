@@ -12,6 +12,7 @@ validation_rules = {
     "green": {"max_value": 255},
     "blue": {"max_value": 255},
     "current": {"max_value": 255},
+    "position_precision": {"max_value": 32},
 }
 
 

@@ -337,7 +337,7 @@ def settings_menu(stdscr: object, interface: object) -> None:
 
             elif selected_option == "Config URL":
                 current_value = interface.localNode.getURL()
-                new_value = get_text_input(f"Config URL is currently: {current_value}", None, None)
+                new_value = get_text_input(f"Config URL is currently: {current_value}", None, str)
                 if new_value is not None:
                     current_value = new_value
                     overwrite = get_list_input(f"Are you sure you want to load this config?", None, ["Yes", "No"])

@@ -70,11 +70,17 @@ def get_text_input(prompt: str, selected_config: str, input_type: str) -> Option
     input_win.refresh()
     curses.curs_set(1)
 
-    validation = get_validation_for(selected_config)
-    min_value = validation.get("min_value", 0)
-    max_value = validation.get("max_value", 4294967295)
-    min_length = validation.get("min_length", 0)
-    max_length = validation.get("max_length")
+    min_value = 0
+    max_value = 4294967295
+    min_length = 0
+    max_length = None
+
+    if selected_config is not None:
+        validation = get_validation_for(selected_config)
+        min_value = validation.get("min_value", 0)
+        max_value = validation.get("max_value", 4294967295)
+        min_length = validation.get("min_length", 0)
+        max_length = validation.get("max_length")
 
     user_input = ""
     col_start = margin + len(prompt_text)
