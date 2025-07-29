@@ -321,7 +321,7 @@ def handle_enter(input_text: str) -> str:
         return input_text
 
     elif len(input_text) > 0:
-
+        # TODO: This is a hack to prevent sending messages too quickly. Let's get errors from the node.
         now = time.monotonic()
         if now - ui_state.last_sent_time < 2.5:
             contact.ui.dialog.dialog("Slow down", "Please wait 2 seconds between messages.")
