@@ -364,7 +364,10 @@ def handle_backspace(entry_win: curses.window, input_text: str) -> str:
 def handle_backtick(stdscr: curses.window) -> None:
     """Handle backtick key events to open the settings menu."""
     curses.curs_set(0)
+    previous_window = ui_state.current_window
+    ui_state.current_window = 4
     settings_menu(stdscr, interface_state.interface)
+    ui_state.current_window = previous_window
     curses.curs_set(1)
     refresh_node_list()
     handle_resize(stdscr, False)
