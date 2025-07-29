@@ -6,6 +6,7 @@ import sys
 from typing import List
 
 from contact.utilities.save_to_radio import save_changes
+import contact.ui.default_config as config
 from contact.utilities.config_io import config_export, config_import
 from contact.utilities.control_utils import parse_ini_file, transform_menu_path
 from contact.utilities.input_handlers import (
@@ -36,16 +37,17 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.abspath(os.path.join(script_dir, os.pardir))
 
 # Paths
-locals_dir = os.path.dirname(os.path.abspath(sys.argv[0]))  # Current script directory
+# locals_dir = os.path.dirname(os.path.abspath(sys.argv[0]))  # Current script directory
 translation_file = os.path.join(parent_dir, "localisations", "en.ini")
 
-config_folder = os.path.join(locals_dir, "node-configs")
+# config_folder = os.path.join(locals_dir, "node-configs")
+config_folder = os.path.abspath(config.node_configs_file_path)
 
 # Load translations
 field_mapping, help_text = parse_ini_file(translation_file)
 
 
-def display_menu(menu_state: MenuState) -> tuple[object, object]:  # curses.window or pad types
+def display_menu(menu_state: MenuState) -> tuple[object, object]:
 
     min_help_window_height = 6
     num_items = len(menu_state.current_menu) + (1 if menu_state.show_save_option else 0)

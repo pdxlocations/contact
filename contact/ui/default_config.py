@@ -57,6 +57,7 @@ config_root = _get_config_root(parent_dir)
 json_file_path = os.path.join(config_root, "config.json")
 log_file_path = os.path.join(config_root, "client.log")
 db_file_path = os.path.join(config_root, "client.db")
+node_configs_file_path = os.path.join(config_root, "node-configs/")
 
 
 def format_json_single_line_arrays(data: Dict[str, object], indent: int = 4) -> str:
@@ -177,6 +178,7 @@ def initialize_config() -> Dict[str, object]:
         "node_list_16ths": "5",
         "db_file_path": db_file_path,
         "log_file_path": log_file_path,
+        "node_configs_file_path": node_configs_file_path,
         "message_prefix": ">>",
         "sent_message_prefix": ">> Sent",
         "notification_symbol": "*",
@@ -217,7 +219,7 @@ def initialize_config() -> Dict[str, object]:
 def assign_config_variables(loaded_config: Dict[str, object]) -> None:
     # Assign values to local variables
 
-    global db_file_path, log_file_path, message_prefix, sent_message_prefix
+    global db_file_path, log_file_path, node_configs_file_path, message_prefix, sent_message_prefix
     global notification_symbol, ack_implicit_str, ack_str, nak_str, ack_unknown_str
     global node_list_16ths, channel_list_16ths
     global theme, COLOR_CONFIG
@@ -227,6 +229,7 @@ def assign_config_variables(loaded_config: Dict[str, object]) -> None:
     node_list_16ths = loaded_config["node_list_16ths"]
     db_file_path = loaded_config["db_file_path"]
     log_file_path = loaded_config["log_file_path"]
+    node_configs_file_path = loaded_config.get("node_configs_file_path")
     message_prefix = loaded_config["message_prefix"]
     sent_message_prefix = loaded_config["sent_message_prefix"]
     notification_symbol = loaded_config["notification_symbol"]
@@ -258,6 +261,7 @@ if __name__ == "__main__":
     print("\nLoaded Configuration:")
     print(f"Database File Path: {db_file_path}")
     print(f"Log File Path: {log_file_path}")
+    print(f"Configs File Path: {node_configs_file_path}")
     print(f"Message Prefix: {message_prefix}")
     print(f"Sent Message Prefix: {sent_message_prefix}")
     print(f"Notification Symbol: {notification_symbol}")
