@@ -1,5 +1,6 @@
 import curses
 import logging
+import time
 import traceback
 from typing import Union
 
@@ -320,10 +321,15 @@ def handle_enter(input_text: str) -> str:
         return input_text
 
     elif len(input_text) > 0:
+
+        now = time.monotonic()
+        if now - ui_state.last_sent_time < 2.5:
+            contact.ui.dialog.dialog("Slow down", "Please wait 2 seconds between messages.")
+            return input_text
         # Enter key pressed, send user input as message
         send_message(input_text, channel=ui_state.selected_channel)
         draw_messages_window(True)
-
+        ui_state.last_sent_time = now
         # Clear entry window and reset input text
         entry_win.erase()
         return ""
@@ -335,6 +341,7 @@ def handle_ctrl_t(stdscr: curses.window) -> None:
     send_traceroute()
     curses.curs_set(0)  # Hide cursor
     contact.ui.dialog.dialog(
+        stdscr,
         f"Traceroute Sent To: {get_name_from_database(ui_state.node_list[ui_state.selected_node])}",
         "Results will appear in messages window.\nNote: Traceroute is limited to once every 30 seconds.",
     )

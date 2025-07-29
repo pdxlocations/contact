@@ -29,6 +29,7 @@ class ChatUIState:
     start_index: List[int] = field(default_factory=lambda: [0, 0, 0])
     show_save_option: bool = False
     menu_path: List[str] = field(default_factory=list)
+    last_sent_time: float = 0.0
 
 
 @dataclass
