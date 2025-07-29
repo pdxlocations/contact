@@ -3,7 +3,9 @@ from contact.ui.colors import get_color
 
 
 def dialog(title: str, message: str) -> None:
+    """Display a dialog with a title and message."""
 
+    curses.update_lines_cols()
     height, width = curses.LINES, curses.COLS
 
     # Calculate dialog dimensions
