@@ -2,6 +2,7 @@ import json
 import logging
 import os
 from typing import Dict
+from contact.ui.colors import setup_colors
 
 # Get the parent directory of the script
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -11,6 +12,12 @@ parent_dir = os.path.abspath(os.path.join(script_dir, os.pardir))
 # mkdir /tmp/test_nonwritable
 # chmod -w /tmp/test_nonwritable
 # parent_dir = "/tmp/test_nonwritable"
+
+
+def reload_config() -> None:
+    loaded_config = initialize_config()
+    assign_config_variables(loaded_config)
+    setup_colors(reinit=True)
 
 
 def _is_writable_dir(path: str) -> bool:
