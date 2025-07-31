@@ -22,8 +22,6 @@ from contact.ui.nav_utils import move_highlight, draw_arrows, update_help_window
 from contact.ui.user_config import json_editor
 from contact.utilities.singleton import menu_state
 
-# menu_state = MenuState()
-
 # Constants
 width = 80
 save_option = "Save Changes"
@@ -171,26 +169,28 @@ def settings_menu(stdscr: object, interface: object) -> None:
     menu_state.show_save_option = False
 
     while True:
-        if menu_state.need_redraw == True:
+        if menu_state.need_redraw:
+            menu_state.need_redraw = False
             options = list(menu_state.current_menu.keys())
 
+            # Determine if save option should be shown
+            path = menu_state.menu_path
             menu_state.show_save_option = (
-                (
-                    len(menu_state.menu_path) > 2
-                    and ("Radio Settings" in menu_state.menu_path or "Module Settings" in menu_state.menu_path)
-                )
-                or (len(menu_state.menu_path) == 2 and "User Settings" in menu_state.menu_path)
-                or (len(menu_state.menu_path) == 3 and "Channels" in menu_state.menu_path)
+                (len(path) > 2 and ("Radio Settings" in path or "Module Settings" in path))
+                or (len(path) == 2 and "User Settings" in path)
+                or (len(path) == 3 and "Channels" in path)
             )
 
             # Display the menu
             menu_win, menu_pad = display_menu()
 
-            menu_state.need_redraw = False
+        if menu_win is None:
+            continue  # Skip if menu_win is not initialized
 
         menu_win.timeout(200)  # wait up to 200 ms for a keypress (or less if key is pressed)
-        # Capture user input
         key = menu_win.getch()
+        if key == -1:
+            continue
 
         max_index = len(options) + (1 if menu_state.show_save_option else 0) - 1
         # max_help_lines = 4
