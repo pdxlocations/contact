@@ -7,6 +7,7 @@ from contact.ui.colors import get_color, setup_colors, COLOR_MAP
 from contact.ui.default_config import format_json_single_line_arrays, loaded_config
 from contact.ui.nav_utils import move_highlight, draw_arrows
 from contact.utilities.input_handlers import get_list_input
+from contact.utilities.singleton import menu_state
 
 
 width = 80
@@ -106,7 +107,7 @@ def edit_value(key: str, current_value: str) -> str:
     return user_input if user_input else current_value
 
 
-def display_menu(menu_state: Any) -> tuple[Any, Any, List[str]]:
+def display_menu() -> tuple[Any, Any, List[str]]:
     """
     Render the configuration menu with a Save button directly added to the window.
     """
@@ -211,14 +212,14 @@ def json_editor(stdscr: curses.window, menu_state: Any) -> None:
     menu_state.current_menu = data  # Track the current level of the menu
 
     # Render the menu
-    menu_win, menu_pad, options = display_menu(menu_state)
-    need_redraw = True
+    menu_win, menu_pad, options = display_menu()
+    menu_state.need_redraw = True
 
     while True:
-        if need_redraw:
-            menu_win, menu_pad, options = display_menu(menu_state)
+        if menu_state.need_redraw == True:
+            menu_win, menu_pad, options = display_menu()
             menu_win.refresh()
-            need_redraw = False
+            menu_state.need_redraw = False
 
         max_index = len(options) + (1 if menu_state.show_save_option else 0) - 1
         key = menu_win.getch()
@@ -248,7 +249,7 @@ def json_editor(stdscr: curses.window, menu_state: Any) -> None:
 
         elif key in (curses.KEY_RIGHT, 10, 13):  # 10 = \n, 13 = carriage return
 
-            need_redraw = True
+            menu_state.need_redraw = True
             menu_win.erase()
             menu_win.refresh()
 
@@ -287,7 +288,7 @@ def json_editor(stdscr: curses.window, menu_state: Any) -> None:
                     menu_state.menu_index.pop()
                     menu_state.start_index.pop()
                     menu_state.current_menu[selected_key] = new_value
-                    need_redraw = True
+                    menu_state.need_redraw = True
 
             else:
                 # Save button selected
@@ -297,7 +298,7 @@ def json_editor(stdscr: curses.window, menu_state: Any) -> None:
 
         elif key in (27, curses.KEY_LEFT):  # Escape or Left Arrow
 
-            need_redraw = True
+            menu_state.need_redraw = True
             menu_win.erase()
             menu_win.refresh()
 

@@ -13,7 +13,7 @@ from contact.utilities.input_handlers import get_list_input
 import contact.ui.default_config as config
 import contact.ui.dialog
 from contact.ui.nav_utils import move_main_highlight, draw_main_arrows, get_msg_window_lines, wrap_text
-from contact.utilities.singleton import ui_state, interface_state
+from contact.utilities.singleton import ui_state, interface_state, menu_state
 
 
 def handle_resize(stdscr: curses.window, firstrun: bool) -> None:
@@ -602,6 +602,8 @@ def draw_messages_window(scroll_to_bottom: bool = False) -> None:
     refresh_pad(1)
 
     draw_packetlog_win()
+    if ui_state.current_window == 4:
+        menu_state.need_redraw = True
 
 
 def draw_node_list() -> None:

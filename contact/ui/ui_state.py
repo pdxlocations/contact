@@ -10,6 +10,7 @@ class MenuState:
     current_menu: Union[Dict[str, Any], List[Any], str, int] = field(default_factory=dict)
     menu_path: List[str] = field(default_factory=list)
     show_save_option: bool = False
+    need_redraw: bool = False
 
 
 @dataclass
