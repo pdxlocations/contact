@@ -4,7 +4,7 @@ import curses
 from typing import Any, List, Dict
 
 from contact.ui.colors import get_color, setup_colors, COLOR_MAP
-from contact.ui.default_config import format_json_single_line_arrays, loaded_config
+import contact.ui.default_config as config
 from contact.ui.nav_utils import move_highlight, draw_arrows
 from contact.utilities.input_handlers import get_list_input
 from contact.utilities.singleton import menu_state
@@ -54,7 +54,9 @@ def edit_value(key: str, current_value: str) -> str:
     # Handle theme selection dynamically
     if key == "theme":
         # Load theme names dynamically from the JSON
-        theme_options = [k.split("_", 2)[2].lower() for k in loaded_config.keys() if k.startswith("COLOR_CONFIG")]
+        theme_options = [
+            k.split("_", 2)[2].lower() for k in config.loaded_config.keys() if k.startswith("COLOR_CONFIG")
+        ]
         return get_list_input("Select Theme", current_value, theme_options)
 
     elif key == "node_sort":
@@ -294,6 +296,7 @@ def json_editor(stdscr: curses.window, menu_state: Any) -> None:
                 # Save button selected
                 save_json(file_path, data)
                 stdscr.refresh()
+                # config.reload()  # This isn't refreshing the file paths as expected
                 continue
 
         elif key in (27, curses.KEY_LEFT):  # Escape or Left Arrow
@@ -326,7 +329,7 @@ def json_editor(stdscr: curses.window, menu_state: Any) -> None:
 
 
 def save_json(file_path: str, data: Dict[str, Any]) -> None:
-    formatted_json = format_json_single_line_arrays(data)
+    formatted_json = config.format_json_single_line_arrays(data)
     with open(file_path, "w", encoding="utf-8") as f:
         f.write(formatted_json)
     setup_colors(reinit=True)

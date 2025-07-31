@@ -67,3 +67,11 @@ To quickly connect to localhost, use:
 ```sh
 contact -t
 ```
+## Install in development (editable) mode:
+```bash
+git clone https://github.com/pdxlocations/contact.git
+cd contact
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e .
+```
