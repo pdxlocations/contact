@@ -48,8 +48,6 @@ def dialog(title: str, message: str) -> None:
     while True:
         win.timeout(200)
         char = win.getch()
-        if char == -1:
-            continue
 
         if menu_state.need_redraw:
             menu_state.need_redraw = False
@@ -60,3 +58,6 @@ def dialog(title: str, message: str) -> None:
             win.refresh()
             ui_state.current_window = previous_window
             return
+
+        if char == -1:
+            continue
