@@ -331,9 +331,10 @@ def json_editor(stdscr: curses.window, menu_state: Any) -> None:
             else:
                 # Save button selected
                 save_json(file_path, data)
+                made_changes = False
                 stdscr.refresh()
                 # config.reload()  # This isn't refreshing the file paths as expected
-                continue
+                break
 
         elif key in (27, curses.KEY_LEFT):  # Escape or Left Arrow
 
