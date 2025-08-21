@@ -21,14 +21,15 @@ MIN_COL = 1  # "effectively zero" without breaking curses
 root_win = None  # set in main_ui
 
 
-# Draw arrows for the focused pane. If always=True, draw regardless of single-pane mode.
-def draw_focus_arrows(always: bool = False) -> None:
+# Draw arrows for a specific window id (0=channel,1=messages,2=nodes).
+# If always=True, draw regardless of single-pane mode.
+def draw_window_arrows(window_id: int, always: bool = False) -> None:
     if not always and not ui_state.single_pane_mode:
         return
-    if ui_state.current_window == 0:
+    if window_id == 0:
         draw_main_arrows(channel_win, len(ui_state.channel_list), window=0)
         channel_win.refresh()
-    elif ui_state.current_window == 1:
+    elif window_id == 1:
         msg_line_count = messages_pad.getmaxyx()[0]
         draw_main_arrows(
             messages_win,
@@ -37,9 +38,14 @@ def draw_focus_arrows(always: bool = False) -> None:
             log_height=packetlog_win.getmaxyx()[0],
         )
         messages_win.refresh()
-    elif ui_state.current_window == 2:
+    elif window_id == 2:
         draw_main_arrows(nodes_win, len(ui_state.node_list), window=2)
         nodes_win.refresh()
+
+
+# Draw arrows for the focused pane. If always=True, draw regardless of single-pane mode.
+def draw_focus_arrows(always: bool = False) -> None:
+    draw_window_arrows(ui_state.current_window, always=always)
 
 
 def compute_widths(total_w: int, focus: int):
@@ -283,6 +289,8 @@ def handle_home() -> None:
     elif ui_state.current_window == 2:
         select_node(0)
 
+    draw_focus_arrows(always=True)
+
 
 def handle_end() -> None:
     """Handle end key events to select the last item in the current window."""
@@ -295,6 +303,7 @@ def handle_end() -> None:
         draw_focus_arrows()
     elif ui_state.current_window == 2:
         select_node(len(ui_state.node_list) - 1)
+    draw_focus_arrows(always=True)
 
 
 def handle_pageup() -> None:
@@ -311,6 +320,7 @@ def handle_pageup() -> None:
         draw_focus_arrows()
     elif ui_state.current_window == 2:
         select_node(ui_state.selected_node - (nodes_win.getmaxyx()[0] - 2))  # select_node will bounds check for us
+    draw_focus_arrows(always=True)
 
 
 def handle_pagedown() -> None:
@@ -329,6 +339,7 @@ def handle_pagedown() -> None:
         draw_focus_arrows()
     elif ui_state.current_window == 2:
         select_node(ui_state.selected_node + (nodes_win.getmaxyx()[0] - 2))  # select_node will bounds check for us
+    draw_focus_arrows(always=True)
 
 
 def handle_leftright(char: int) -> None:
@@ -355,6 +366,8 @@ def handle_leftright(char: int) -> None:
         nodes_win.refresh()
         refresh_pad(2)
 
+    draw_window_arrows(old_window, always=True)
+
     if ui_state.current_window == 0:
         channel_win.attrset(get_color("window_frame_selected"))
         channel_win.box()
@@ -375,7 +388,8 @@ def handle_leftright(char: int) -> None:
         nodes_win.refresh()
         refresh_pad(2)
 
-    draw_focus_arrows()
+    # Draw arrows last; force even in multi-pane to avoid flicker
+    draw_focus_arrows(always=True)
 
 
 def handle_enter(input_text: str) -> str:
@@ -810,7 +824,7 @@ def scroll_messages(direction: int) -> None:
 
     messages_win.refresh()
     refresh_pad(1)
-    draw_focus_arrows()
+    draw_focus_arrows(always=True)
 
 
 def select_node(idx: int) -> None:
