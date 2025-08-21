@@ -413,6 +413,11 @@ def handle_enter(input_text: str) -> str:
         draw_messages_window(True)
         ui_state.last_sent_time = now
         entry_win.erase()
+
+        if ui_state.current_window == 0:
+            ui_state.current_window = 1
+            handle_resize(root_win, False)
+
         return ""
     return input_text
 
