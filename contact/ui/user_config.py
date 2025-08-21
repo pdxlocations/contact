@@ -67,6 +67,10 @@ def edit_value(key: str, current_value: str) -> str:
         sound_options = ["True", "False"]
         return get_list_input("Notification Sound", current_value, sound_options)
 
+    elif key == "single_pane_mode":
+        sound_options = ["True", "False"]
+        return get_list_input("Single-Pane Mode", current_value, sound_options)
+
     # Standard Input Mode (Scrollable)
     edit_win.addstr(7, 2, "New Value: ", get_color("settings_default"))
     curses.curs_set(1)

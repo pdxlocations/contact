@@ -15,6 +15,57 @@ import contact.ui.dialog
 from contact.ui.nav_utils import move_main_highlight, draw_main_arrows, get_msg_window_lines, wrap_text
 from contact.utilities.singleton import ui_state, interface_state, menu_state
 
+MIN_COL = 1  # "effectively zero" without breaking curses
+
+# Root screen window, set in main_ui
+root_win = None  # set in main_ui
+
+
+# Draw arrows for the focused pane. If always=True, draw regardless of single-pane mode.
+def draw_focus_arrows(always: bool = False) -> None:
+    if not always and not ui_state.single_pane_mode:
+        return
+    if ui_state.current_window == 0:
+        draw_main_arrows(channel_win, len(ui_state.channel_list), window=0)
+        channel_win.refresh()
+    elif ui_state.current_window == 1:
+        msg_line_count = messages_pad.getmaxyx()[0]
+        draw_main_arrows(
+            messages_win,
+            msg_line_count,
+            window=1,
+            log_height=packetlog_win.getmaxyx()[0],
+        )
+        messages_win.refresh()
+    elif ui_state.current_window == 2:
+        draw_main_arrows(nodes_win, len(ui_state.node_list), window=2)
+        nodes_win.refresh()
+
+
+def compute_widths(total_w: int, focus: int):
+    # focus: 0=channel, 1=messages, 2=nodes
+    if total_w < 3 * MIN_COL:
+        # tiny terminals: allocate something, anything
+        return max(1, total_w), 0, 0
+
+    if focus == 0:
+        return total_w - 2 * MIN_COL, MIN_COL, MIN_COL
+    if focus == 1:
+        return MIN_COL, total_w - 2 * MIN_COL, MIN_COL
+    return MIN_COL, MIN_COL, total_w - 2 * MIN_COL
+
+
+# Single-pane mode: Focused pane gets all width, others are zero (unless terminal is tiny)
+def compute_single_pane_widths(total_w: int, focus: int):
+    # focus: 0=channel, 1=messages, 2=nodes
+    if total_w < 3 * MIN_COL:
+        return max(1, total_w), 0, 0
+    if focus == 0:
+        return total_w - 2 * MIN_COL, MIN_COL, MIN_COL
+    if focus == 1:
+        return MIN_COL, total_w - 2 * MIN_COL, MIN_COL
+    return MIN_COL, MIN_COL, total_w - 2 * MIN_COL
+
 
 def handle_resize(stdscr: curses.window, firstrun: bool) -> None:
     """Handle terminal resize events and redraw the UI accordingly."""
@@ -23,25 +74,43 @@ def handle_resize(stdscr: curses.window, firstrun: bool) -> None:
     # Calculate window max dimensions
     height, width = stdscr.getmaxyx()
 
-    # Define window dimensions and positions
-    channel_width = int(config.channel_list_16ths) * (width // 16)
-    nodes_width = int(config.node_list_16ths) * (width // 16)
-    messages_width = width - channel_width - nodes_width
+    if ui_state.single_pane_mode:
+        channel_width, messages_width, nodes_width = compute_single_pane_widths(width, ui_state.current_window)
+    else:
+        channel_width = int(config.channel_list_16ths) * (width // 16)
+        nodes_width = int(config.node_list_16ths) * (width // 16)
+        messages_width = width - channel_width - nodes_width
+
+    channel_width = max(MIN_COL, channel_width)
+    messages_width = max(MIN_COL, messages_width)
+    nodes_width = max(MIN_COL, nodes_width)
+
+    # Ensure the three widths sum exactly to the terminal width by adjusting the focused pane
+    total = channel_width + messages_width + nodes_width
+    if total != width:
+        delta = total - width
+        if ui_state.current_window == 0:
+            channel_width = max(MIN_COL, channel_width - delta)
+        elif ui_state.current_window == 1:
+            messages_width = max(MIN_COL, messages_width - delta)
+        else:
+            nodes_width = max(MIN_COL, nodes_width - delta)
 
     entry_height = 3
     function_height = 3
     y_pad = entry_height + function_height
-    packet_log_height = int(height / 3)
+    content_h = max(1, height - y_pad)
+    pkt_h = max(1, int(height / 3))
 
     if firstrun:
         entry_win = curses.newwin(entry_height, width, 0, 0)
-        channel_win = curses.newwin(height - y_pad, channel_width, entry_height, 0)
-        messages_win = curses.newwin(height - y_pad, messages_width, entry_height, channel_width)
-        nodes_win = curses.newwin(height - y_pad, nodes_width, entry_height, channel_width + messages_width)
+
+        channel_win = curses.newwin(content_h, channel_width, entry_height, 0)
+        messages_win = curses.newwin(content_h, messages_width, entry_height, channel_width)
+        nodes_win = curses.newwin(content_h, nodes_width, entry_height, channel_width + messages_width)
+
         function_win = curses.newwin(function_height, width, height - function_height, 0)
-        packetlog_win = curses.newwin(
-            packet_log_height, messages_width, height - packet_log_height - function_height, channel_width
-        )
+        packetlog_win = curses.newwin(pkt_h, messages_width, height - pkt_h - function_height, channel_width)
 
         # Will be resized to what we need when drawn
         messages_pad = curses.newpad(1, 1)
@@ -66,19 +135,19 @@ def handle_resize(stdscr: curses.window, firstrun: bool) -> None:
 
         entry_win.resize(3, width)
 
-        channel_win.resize(height - y_pad, channel_width)
+        channel_win.resize(content_h, channel_width)
 
-        messages_win.resize(height - y_pad, messages_width)
+        messages_win.resize(content_h, messages_width)
         messages_win.mvwin(3, channel_width)
 
-        nodes_win.resize(height - y_pad, nodes_width)
+        nodes_win.resize(content_h, nodes_width)
         nodes_win.mvwin(entry_height, channel_width + messages_width)
 
         function_win.resize(3, width)
         function_win.mvwin(height - function_height, 0)
 
-        packetlog_win.resize(packet_log_height, messages_width)
-        packetlog_win.mvwin(height - packet_log_height - function_height, channel_width)
+        packetlog_win.resize(pkt_h, messages_width)
+        packetlog_win.mvwin(height - pkt_h - function_height, channel_width)
 
     # Draw window borders
     for win in [channel_win, entry_win, nodes_win, messages_win, function_win]:
@@ -93,6 +162,7 @@ def handle_resize(stdscr: curses.window, firstrun: bool) -> None:
         draw_channel_list()
         draw_messages_window(True)
         draw_node_list()
+        draw_focus_arrows(always=True)
 
     except:
         # Resize events can come faster than we can re-draw, which can cause a curses error.
@@ -103,6 +173,9 @@ def handle_resize(stdscr: curses.window, firstrun: bool) -> None:
 def main_ui(stdscr: curses.window) -> None:
     """Main UI loop for the curses interface."""
     global input_text
+    global root_win
+
+    root_win = stdscr
     input_text = ""
     stdscr.keypad(True)
     get_channels()
@@ -206,6 +279,7 @@ def handle_home() -> None:
     elif ui_state.current_window == 1:
         ui_state.selected_message = 0
         refresh_pad(1)
+        draw_focus_arrows()
     elif ui_state.current_window == 2:
         select_node(0)
 
@@ -218,6 +292,7 @@ def handle_end() -> None:
         msg_line_count = messages_pad.getmaxyx()[0]
         ui_state.selected_message = max(msg_line_count - get_msg_window_lines(messages_win, packetlog_win), 0)
         refresh_pad(1)
+        draw_focus_arrows()
     elif ui_state.current_window == 2:
         select_node(len(ui_state.node_list) - 1)
 
@@ -233,6 +308,7 @@ def handle_pageup() -> None:
             ui_state.selected_message - get_msg_window_lines(messages_win, packetlog_win), 0
         )
         refresh_pad(1)
+        draw_focus_arrows()
     elif ui_state.current_window == 2:
         select_node(ui_state.selected_node - (nodes_win.getmaxyx()[0] - 2))  # select_node will bounds check for us
 
@@ -250,6 +326,7 @@ def handle_pagedown() -> None:
             msg_line_count - get_msg_window_lines(messages_win, packetlog_win),
         )
         refresh_pad(1)
+        draw_focus_arrows()
     elif ui_state.current_window == 2:
         select_node(ui_state.selected_node + (nodes_win.getmaxyx()[0] - 2))  # select_node will bounds check for us
 
@@ -259,6 +336,7 @@ def handle_leftright(char: int) -> None:
     delta = -1 if char == curses.KEY_LEFT else 1
     old_window = ui_state.current_window
     ui_state.current_window = (ui_state.current_window + delta) % 3
+    handle_resize(root_win, False)
 
     if old_window == 0:
         channel_win.attrset(get_color("window_frame"))
@@ -297,6 +375,8 @@ def handle_leftright(char: int) -> None:
         nodes_win.refresh()
         refresh_pad(2)
 
+    draw_focus_arrows()
+
 
 def handle_enter(input_text: str) -> str:
     """Handle Enter key events to send messages or select channels."""
@@ -315,9 +395,11 @@ def handle_enter(input_text: str) -> str:
         ui_state.selected_node = 0
         ui_state.current_window = 0
 
+        handle_resize(root_win, False)
         draw_node_list()
         draw_channel_list()
         draw_messages_window(True)
+        draw_focus_arrows()
         return input_text
 
     elif len(input_text) > 0:
@@ -330,7 +412,6 @@ def handle_enter(input_text: str) -> str:
         send_message(input_text, channel=ui_state.selected_channel)
         draw_messages_window(True)
         ui_state.last_sent_time = now
-        # Clear entry window and reset input text
         entry_win.erase()
         return ""
     return input_text
@@ -499,6 +580,10 @@ def handle_ctlr_g(stdscr: curses.window) -> None:
 
 def draw_channel_list() -> None:
     """Update the channel list window and pad based on the current state."""
+
+    if ui_state.current_window != 0 and ui_state.single_pane_mode:
+        return
+
     channel_pad.erase()
     win_width = channel_win.getmaxyx()[1]
 
@@ -539,14 +624,18 @@ def draw_channel_list() -> None:
     channel_win.box()
     channel_win.attrset((get_color("window_frame")))
 
+    channel_win.refresh()
+    refresh_pad(0)
     draw_main_arrows(channel_win, len(ui_state.channel_list), window=0)
     channel_win.refresh()
-
-    refresh_pad(0)
 
 
 def draw_messages_window(scroll_to_bottom: bool = False) -> None:
     """Update the messages window based on the selected channel and scroll position."""
+
+    if ui_state.current_window != 1 and ui_state.single_pane_mode:
+        return
+
     messages_pad.erase()
 
     channel = ui_state.channel_list[ui_state.selected_channel]
@@ -586,10 +675,12 @@ def draw_messages_window(scroll_to_bottom: bool = False) -> None:
     if scroll_to_bottom:
         ui_state.selected_message = max(msg_line_count - visible_lines, 0)
         ui_state.start_index[1] = max(msg_line_count - visible_lines, 0)
-        pass
     else:
         ui_state.selected_message = max(min(ui_state.selected_message, msg_line_count - visible_lines), 0)
 
+    messages_win.refresh()
+    refresh_pad(1)
+    draw_packetlog_win()
     draw_main_arrows(
         messages_win,
         msg_line_count,
@@ -597,10 +688,6 @@ def draw_messages_window(scroll_to_bottom: bool = False) -> None:
         log_height=packetlog_win.getmaxyx()[0],
     )
     messages_win.refresh()
-
-    refresh_pad(1)
-
-    draw_packetlog_win()
     if ui_state.current_window == 4:
         menu_state.need_redraw = True
 
@@ -608,6 +695,9 @@ def draw_messages_window(scroll_to_bottom: bool = False) -> None:
 def draw_node_list() -> None:
     """Update the nodes list window and pad based on the current state."""
     global nodes_pad
+
+    if ui_state.current_window != 2 and ui_state.single_pane_mode:
+        return
 
     # This didn't work, for some reason an error is thown on startup, so we just create the pad every time
     # if nodes_pad is None:
@@ -643,10 +733,10 @@ def draw_node_list() -> None:
     nodes_win.box()
     nodes_win.attrset(get_color("window_frame"))
 
+    nodes_win.refresh()
+    refresh_pad(2)
     draw_main_arrows(nodes_win, len(ui_state.node_list), window=2)
     nodes_win.refresh()
-
-    refresh_pad(2)
 
     # Restore cursor to input field
     entry_win.keypad(True)
@@ -713,15 +803,9 @@ def scroll_messages(direction: int) -> None:
         0, min(ui_state.start_index[ui_state.current_window], max_index - visible_height + 1)
     )
 
-    draw_main_arrows(
-        messages_win,
-        msg_line_count,
-        ui_state.current_window,
-        log_height=packetlog_win.getmaxyx()[0],
-    )
     messages_win.refresh()
-
     refresh_pad(1)
+    draw_focus_arrows()
 
 
 def select_node(idx: int) -> None:
@@ -949,7 +1033,7 @@ def draw_function_win() -> None:
 
 
 def refresh_pad(window: int) -> None:
-
+    # Derive the target box and pad for the requested window
     win_height = channel_win.getmaxyx()[0]
 
     if window == 1:
@@ -977,13 +1061,43 @@ def refresh_pad(window: int) -> None:
         selected_item = ui_state.selected_channel
         start_index = max(0, selected_item - (win_height - 3))  # Leave room for borders
 
+    # If in single-pane mode and this isn't the focused window, skip refreshing its (collapsed) pad
+    if ui_state.single_pane_mode and window != ui_state.current_window:
+        return
+
+    # Compute inner drawable area of the box
+    box_y, box_x = box.getbegyx()
+    box_h, box_w = box.getmaxyx()
+    inner_h = max(0, box_h - 2)  # minus borders
+    inner_w = max(0, box_w - 2)
+
+    if inner_h <= 0 or inner_w <= 0:
+        return
+
+    # Clamp lines to available inner height
+    lines = max(0, min(lines, inner_h))
+
+    # Clamp start_index within the pad's height
+    pad_h, pad_w = pad.getmaxyx()
+    if pad_h <= 0:
+        return
+    start_index = max(0, min(start_index, max(0, pad_h - 1)))
+
+    top = box_y + 1
+    left = box_x + 1
+    bottom = box_y + min(inner_h, lines)  # inclusive
+    right = box_x + min(inner_w, box_w - 2)
+
+    if bottom < top or right < left:
+        return
+
     pad.refresh(
         start_index,
         0,
-        box.getbegyx()[0] + 1,
-        box.getbegyx()[1] + 1,
-        box.getbegyx()[0] + lines,
-        box.getbegyx()[1] + box.getmaxyx()[1] - 3,
+        top,
+        left,
+        bottom,
+        right,
     )
 
 

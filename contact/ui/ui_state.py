@@ -31,6 +31,7 @@ class ChatUIState:
     start_index: List[int] = field(default_factory=lambda: [0, 0, 0])
     show_save_option: bool = False
     menu_path: List[str] = field(default_factory=list)
+    single_pane_mode: bool = False
 
 
 @dataclass

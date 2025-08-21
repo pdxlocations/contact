@@ -72,6 +72,7 @@ def initialize_globals() -> None:
     interface_state.myNodeNum = get_nodeNum()
     ui_state.channel_list = get_channels()
     ui_state.node_list = get_node_list()
+    ui_state.single_pane_mode = config.single_pane_mode.lower() == "true"
     pub.subscribe(on_receive, "meshtastic.receive")
 
     init_nodedb()

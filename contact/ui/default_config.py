@@ -183,6 +183,7 @@ def initialize_config() -> Dict[str, object]:
     default_config_variables = {
         "channel_list_16ths": "3",
         "node_list_16ths": "5",
+        "single_pane_mode": "False",
         "db_file_path": db_file_path,
         "log_file_path": log_file_path,
         "node_configs_file_path": node_configs_file_path,
@@ -228,12 +229,13 @@ def assign_config_variables(loaded_config: Dict[str, object]) -> None:
 
     global db_file_path, log_file_path, node_configs_file_path, message_prefix, sent_message_prefix
     global notification_symbol, ack_implicit_str, ack_str, nak_str, ack_unknown_str
-    global node_list_16ths, channel_list_16ths
+    global node_list_16ths, channel_list_16ths, single_pane_mode
     global theme, COLOR_CONFIG
     global node_sort, notification_sound
 
     channel_list_16ths = loaded_config["channel_list_16ths"]
     node_list_16ths = loaded_config["node_list_16ths"]
+    single_pane_mode = loaded_config["single_pane_mode"]
     db_file_path = loaded_config["db_file_path"]
     log_file_path = loaded_config["log_file_path"]
     node_configs_file_path = loaded_config.get("node_configs_file_path")
