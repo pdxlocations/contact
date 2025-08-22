@@ -55,18 +55,6 @@ def compute_widths(total_w: int, focus: int):
     return MIN_COL, MIN_COL, total_w - 2 * MIN_COL
 
 
-# Single-pane mode: Focused pane gets all width, others are zero (unless terminal is tiny)
-def compute_single_pane_widths(total_w: int, focus: int):
-    # focus: 0=channel, 1=messages, 2=nodes
-    if total_w < 3 * MIN_COL:
-        return max(1, total_w), 0, 0
-    if focus == 0:
-        return total_w - 2 * MIN_COL, MIN_COL, MIN_COL
-    if focus == 1:
-        return MIN_COL, total_w - 2 * MIN_COL, MIN_COL
-    return MIN_COL, MIN_COL, total_w - 2 * MIN_COL
-
-
 def handle_resize(stdscr: curses.window, firstrun: bool) -> None:
     """Handle terminal resize events and redraw the UI accordingly."""
     global messages_pad, messages_win, nodes_pad, nodes_win, channel_pad, channel_win, function_win, packetlog_win, entry_win
@@ -75,7 +63,7 @@ def handle_resize(stdscr: curses.window, firstrun: bool) -> None:
     height, width = stdscr.getmaxyx()
 
     if ui_state.single_pane_mode:
-        channel_width, messages_width, nodes_width = compute_single_pane_widths(width, ui_state.current_window)
+        channel_width, messages_width, nodes_width = compute_widths(width, ui_state.current_window)
     else:
         channel_width = int(config.channel_list_16ths) * (width // 16)
         nodes_width = int(config.node_list_16ths) * (width // 16)
@@ -279,7 +267,6 @@ def handle_home() -> None:
     elif ui_state.current_window == 1:
         ui_state.selected_message = 0
         refresh_pad(1)
-        draw_window_arrows(ui_state.current_window)
     elif ui_state.current_window == 2:
         select_node(0)
 
@@ -294,7 +281,6 @@ def handle_end() -> None:
         msg_line_count = messages_pad.getmaxyx()[0]
         ui_state.selected_message = max(msg_line_count - get_msg_window_lines(messages_win, packetlog_win), 0)
         refresh_pad(1)
-        draw_window_arrows(ui_state.current_window)
     elif ui_state.current_window == 2:
         select_node(len(ui_state.node_list) - 1)
     draw_window_arrows(ui_state.current_window)
@@ -303,26 +289,21 @@ def handle_end() -> None:
 def handle_pageup() -> None:
     """Handle page up key events to scroll the current window by a page."""
     if ui_state.current_window == 0:
-        select_channel(
-            ui_state.selected_channel - (channel_win.getmaxyx()[0] - 2)
-        )  # select_channel will bounds check for us
+        select_channel(ui_state.selected_channel - (channel_win.getmaxyx()[0] - 2))
     elif ui_state.current_window == 1:
         ui_state.selected_message = max(
             ui_state.selected_message - get_msg_window_lines(messages_win, packetlog_win), 0
         )
         refresh_pad(1)
-        draw_window_arrows(ui_state.current_window)
     elif ui_state.current_window == 2:
-        select_node(ui_state.selected_node - (nodes_win.getmaxyx()[0] - 2))  # select_node will bounds check for us
+        select_node(ui_state.selected_node - (nodes_win.getmaxyx()[0] - 2))
     draw_window_arrows(ui_state.current_window)
 
 
 def handle_pagedown() -> None:
     """Handle page down key events to scroll the current window down."""
     if ui_state.current_window == 0:
-        select_channel(
-            ui_state.selected_channel + (channel_win.getmaxyx()[0] - 2)
-        )  # select_channel will bounds check for us
+        select_channel(ui_state.selected_channel + (channel_win.getmaxyx()[0] - 2))
     elif ui_state.current_window == 1:
         msg_line_count = messages_pad.getmaxyx()[0]
         ui_state.selected_message = min(
@@ -330,9 +311,8 @@ def handle_pagedown() -> None:
             msg_line_count - get_msg_window_lines(messages_win, packetlog_win),
         )
         refresh_pad(1)
-        draw_window_arrows(ui_state.current_window)
     elif ui_state.current_window == 2:
-        select_node(ui_state.selected_node + (nodes_win.getmaxyx()[0] - 2))  # select_node will bounds check for us
+        select_node(ui_state.selected_node + (nodes_win.getmaxyx()[0] - 2))
     draw_window_arrows(ui_state.current_window)
 
 
@@ -855,6 +835,9 @@ def draw_packetlog_win() -> None:
     """Draw the packet log window with the latest packets."""
     columns = [10, 10, 15, 30]
     span = 0
+
+    if ui_state.current_window != 1 and ui_state.single_pane_mode:
+        return
 
     if ui_state.display_log:
         packetlog_win.erase()
