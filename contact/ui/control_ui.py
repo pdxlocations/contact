@@ -55,7 +55,11 @@ field_mapping, help_text = parse_ini_file(translation_file)
 
 
 def display_menu() -> tuple[object, object]:
-    min_help_window_height = 6
+    if help_win:
+        min_help_window_height = 6
+    else:
+        min_help_window_height = 0
+
     num_items = len(menu_state.current_menu) + (1 if menu_state.show_save_option else 0)
 
     # Determine the available height for the menu
@@ -240,10 +244,12 @@ def settings_menu(stdscr: object, interface: object) -> None:
             curses.update_lines_cols()
 
             menu_win.erase()
-            help_win.erase()
+            if help_win:
+                help_win.erase()
 
             menu_win.refresh()
-            help_win.refresh()
+            if help_win:
+                help_win.refresh()
 
         elif key == ord("\t") and menu_state.show_save_option:
             old_selected_index = menu_state.selected_index
@@ -263,12 +269,14 @@ def settings_menu(stdscr: object, interface: object) -> None:
             menu_state.need_redraw = True
             menu_state.start_index.append(0)
             menu_win.erase()
-            help_win.erase()
+            if help_win:
+                help_win.erase()
 
             # draw_help_window(menu_win.getbegyx()[0], menu_win.getbegyx()[1], menu_win.getmaxyx()[0], max_help_lines, menu_state.current_menu, selected_index, transform_menu_path(menu_state.menu_path))
 
             menu_win.refresh()
-            help_win.refresh()
+            if help_win:
+                help_win.refresh()
 
             if menu_state.show_save_option and menu_state.selected_index == len(options):
                 save_changes(interface, modified_settings, menu_state)
@@ -547,13 +555,15 @@ def settings_menu(stdscr: object, interface: object) -> None:
             menu_state.need_redraw = True
 
             menu_win.erase()
-            help_win.erase()
+            if help_win:
+                help_win.erase()
 
             # max_help_lines = 4
             # draw_help_window(menu_win.getbegyx()[0], menu_win.getbegyx()[1], menu_win.getmaxyx()[0], max_help_lines, menu_state.current_menu, selected_index, transform_menu_path(menu_state.menu_path))
 
             menu_win.refresh()
-            help_win.refresh()
+            if help_win:
+                help_win.refresh()
 
             # if len(menu_state.menu_path) < 2:
             #     modified_settings.clear()

@@ -24,6 +24,7 @@ WrappedLine = List[Segment]
 
 sensitive_settings = ["Reboot", "Reset Node DB", "Shutdown", "Factory Reset"]
 save_option = "Save Changes"
+MIN_HEIGHT_FOR_HELP = 20
 
 
 def move_highlight(
@@ -167,6 +168,10 @@ def update_help_window(
     help_x: int,
 ) -> object:  # returns a curses window
     """Handles rendering the help window consistently."""
+
+    if curses.LINES < MIN_HEIGHT_FOR_HELP:
+        return None
+
     # Clamp target position and width to the current terminal size
     help_x = max(0, help_x)
     help_y = max(0, help_y)
