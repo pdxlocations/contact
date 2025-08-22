@@ -24,7 +24,7 @@ from contact.utilities.db_handler import (
 )
 import contact.ui.default_config as config
 
-from contact.utilities.singleton import ui_state, interface_state, app_state
+from contact.utilities.singleton import ui_state, interface_state, app_state, menu_state
 
 
 def play_sound():
@@ -84,6 +84,9 @@ def on_receive(packet: Dict[str, Any], interface: Any) -> None:
 
         if ui_state.display_log:
             draw_packetlog_win()
+
+            if ui_state.current_window == 4:
+                menu_state.need_redraw = True
         try:
             if "decoded" not in packet:
                 return
