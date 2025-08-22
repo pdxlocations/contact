@@ -4,6 +4,20 @@ import curses
 import ipaddress
 from typing import Any, Optional, List
 
+# Dialogs should be at most 80 cols, but shrink on small terminals
+MAX_DIALOG_WIDTH = 80
+MIN_DIALOG_WIDTH = 20
+
+
+def get_dialog_width() -> int:
+    # Leave 2 columns for borders and clamp to a sane minimum
+    try:
+        return max(MIN_DIALOG_WIDTH, min(MAX_DIALOG_WIDTH, curses.COLS - 2))
+    except Exception:
+        # Fallback if curses not ready yet
+        return MAX_DIALOG_WIDTH
+
+
 from contact.ui.colors import get_color
 from contact.ui.nav_utils import move_highlight, draw_arrows, wrap_text
 from contact.ui.dialog import dialog
@@ -45,13 +59,13 @@ def get_text_input(prompt: str, selected_config: str, input_type: str) -> Option
         input_win.refresh()
 
     height = 8
-    width = 80
+    width = get_dialog_width()
     margin = 2  # Left and right margin
     input_width = width - (2 * margin)  # Space available for text
     max_input_rows = height - 4  # Space for input
 
-    start_y = (curses.LINES - height) // 2
-    start_x = (curses.COLS - width) // 2
+    start_y = max(0, (curses.LINES - height) // 2)
+    start_x = max(0, (curses.COLS - width) // 2)
 
     input_win = curses.newwin(height, width, start_y, start_x)
     input_win.timeout(200)
@@ -204,9 +218,7 @@ def get_text_input(prompt: str, selected_config: str, input_type: str) -> Option
         # Clear only the input area (without touching prompt text)
         for i in range(max_input_rows):
             if row + 1 + i < height - 1:
-                input_win.addstr(
-                    row + 1 + i, margin, " " * min(input_width, width - margin - 1), get_color("settings_default")
-                )
+                input_win.addstr(row + 1 + i, margin, " " * input_width, get_color("settings_default"))
 
         # Redraw the prompt text so it never disappears
         input_win.addstr(row + 1, margin, prompt_text, get_color("settings_default"))
@@ -244,9 +256,9 @@ def get_admin_key_input(current_value: List[bytes]) -> Optional[List[str]]:
 
     cvalue = to_base64(current_value)  # Convert current values to Base64
     height = 9
-    width = 80
-    start_y = (curses.LINES - height) // 2
-    start_x = (curses.COLS - width) // 2
+    width = get_dialog_width()
+    start_y = max(0, (curses.LINES - height) // 2)
+    start_x = max(0, (curses.COLS - width) // 2)
 
     admin_key_win = curses.newwin(height, width, start_y, start_x)
     admin_key_win.timeout(200)
@@ -322,9 +334,9 @@ from contact.utilities.singleton import menu_state  # Required if not already im
 
 def get_repeated_input(current_value: List[str]) -> Optional[str]:
     height = 9
-    width = 80
-    start_y = (curses.LINES - height) // 2
-    start_x = (curses.COLS - width) // 2
+    width = get_dialog_width()
+    start_y = max(0, (curses.LINES - height) // 2)
+    start_x = max(0, (curses.COLS - width) // 2)
 
     repeated_win = curses.newwin(height, width, start_y, start_x)
     repeated_win.timeout(200)
@@ -344,15 +356,17 @@ def get_repeated_input(current_value: List[str]) -> Optional[str]:
         repeated_win.border()
         repeated_win.addstr(1, 2, "Edit up to 3 Values:", get_color("settings_default", bold=True))
 
+        win_h, win_w = repeated_win.getmaxyx()
         for i, line in enumerate(user_values):
             prefix = "→ " if i == cursor_pos else "  "
             repeated_win.addstr(
                 3 + i, 2, f"{prefix}Value{i + 1}: ", get_color("settings_default", bold=(i == cursor_pos))
             )
-            repeated_win.addstr(3 + i, 18, line[: width - 20])  # Prevent overflow
+            repeated_win.addstr(3 + i, 18, line[: max(0, win_w - 20)])  # Prevent overflow
 
         if invalid_input:
-            repeated_win.addstr(7, 2, invalid_input[: width - 4], get_color("settings_default", bold=True))
+            win_h, win_w = repeated_win.getmaxyx()
+            repeated_win.addstr(7, 2, invalid_input[: max(0, win_w - 4)], get_color("settings_default", bold=True))
 
         repeated_win.move(3 + cursor_pos, 18 + len(user_values[cursor_pos]))
         repeated_win.refresh()
@@ -404,9 +418,9 @@ def get_fixed32_input(current_value: int) -> int:
     original_value = current_value
     ip_string = str(ipaddress.IPv4Address(current_value))
     height = 10
-    width = 80
-    start_y = (curses.LINES - height) // 2
-    start_x = (curses.COLS - width) // 2
+    width = get_dialog_width()
+    start_y = max(0, (curses.LINES - height) // 2)
+    start_x = max(0, (curses.COLS - width) // 2)
 
     fixed32_win = curses.newwin(height, width, start_y, start_x)
     fixed32_win.bkgd(get_color("background"))
@@ -483,9 +497,9 @@ def get_list_input(
     selected_index = list_options.index(current_option) if current_option in list_options else 0
 
     height = min(len(list_options) + 5, curses.LINES)
-    width = 80
-    start_y = (curses.LINES - height) // 2
-    start_x = (curses.COLS - width) // 2
+    width = get_dialog_width()
+    start_y = max(0, (curses.LINES - height) // 2)
+    start_x = max(0, (curses.COLS - width) // 2)
 
     list_win = curses.newwin(height, width, start_y, start_x)
     list_win.timeout(200)
@@ -493,7 +507,7 @@ def get_list_input(
     list_win.attrset(get_color("window_frame"))
     list_win.keypad(True)
 
-    list_pad = curses.newpad(len(list_options) + 1, width - 8)
+    list_pad = curses.newpad(len(list_options) + 1, max(1, width - 8))
     list_pad.bkgd(get_color("background"))
 
     max_index = len(list_options) - 1
@@ -504,9 +518,11 @@ def get_list_input(
         list_win.border()
         list_win.addstr(1, 2, prompt, get_color("settings_default", bold=True))
 
+        win_h, win_w = list_win.getmaxyx()
+        pad_w = max(1, win_w - 8)
         for idx, item in enumerate(list_options):
             color = get_color("settings_default", reverse=(idx == selected_index))
-            list_pad.addstr(idx, 0, item.ljust(width - 8), color)
+            list_pad.addstr(idx, 0, item[:pad_w].ljust(pad_w), color)
 
         list_win.refresh()
         list_pad.refresh(
@@ -517,7 +533,9 @@ def get_list_input(
             list_win.getbegyx()[0] + list_win.getmaxyx()[0] - 2,
             list_win.getbegyx()[1] + list_win.getmaxyx()[1] - 4,
         )
-        draw_arrows(list_win, visible_height, max_index, [0], show_save_option=False)
+        # Recompute visible height each draw in case of resize
+        vis_h = list_win.getmaxyx()[0] - 5
+        draw_arrows(list_win, vis_h, max_index, [0], show_save_option=False)
 
     # Initial draw
     redraw_list_ui()

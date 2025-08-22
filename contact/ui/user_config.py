@@ -10,9 +10,15 @@ from contact.utilities.input_handlers import get_list_input
 from contact.utilities.singleton import menu_state
 
 
-width = 80
+MAX_MENU_WIDTH = 80  # desired max; will shrink on small terminals
 max_help_lines = 6
 save_option = "Save Changes"
+
+
+# Compute an effective width that fits the current terminal
+def get_effective_width() -> int:
+    # Leave space for borders; ensure a sane minimum
+    return max(20, min(MAX_MENU_WIDTH, curses.COLS - 2))
 
 
 def edit_color_pair(key: str, current_value: List[str]) -> List[str]:
@@ -28,13 +34,14 @@ def edit_color_pair(key: str, current_value: List[str]) -> List[str]:
 
 def edit_value(key: str, current_value: str) -> str:
 
+    w = get_effective_width()
     height = 10
-    input_width = width - 16  # Allow space for "New Value: "
+    input_width = w - 16  # Allow space for "New Value: "
     start_y = (curses.LINES - height) // 2
-    start_x = (curses.COLS - width) // 2
+    start_x = max(0, (curses.COLS - w) // 2)
 
     # Create a centered window
-    edit_win = curses.newwin(height, width, start_y, start_x)
+    edit_win = curses.newwin(height, w, start_y, start_x)
     edit_win.bkgd(get_color("background"))
     edit_win.attrset(get_color("window_frame"))
     edit_win.border()
@@ -43,7 +50,7 @@ def edit_value(key: str, current_value: str) -> str:
     edit_win.addstr(1, 2, f"Editing {key}", get_color("settings_default", bold=True))
     edit_win.addstr(3, 2, "Current Value:", get_color("settings_default"))
 
-    wrap_width = width - 4  # Account for border and padding
+    wrap_width = w - 4  # Account for border and padding
     wrapped_lines = [current_value[i : i + wrap_width] for i in range(0, len(current_value), wrap_width)]
 
     for i, line in enumerate(wrapped_lines[:4]):  # Limit display to fit the window height
@@ -86,7 +93,7 @@ def edit_value(key: str, current_value: str) -> str:
             menu_state.need_redraw = False
 
             # Re-create the window to fully reset state
-            edit_win = curses.newwin(height, width, start_y, start_x)
+            edit_win = curses.newwin(height, w, start_y, start_x)
             edit_win.timeout(200)
             edit_win.bkgd(get_color("background"))
             edit_win.attrset(get_color("window_frame"))
@@ -154,11 +161,12 @@ def display_menu() -> tuple[Any, Any, List[str]]:
     max_menu_height = curses.LINES
     menu_height = min(max_menu_height, num_items + 5)
     num_items = len(options)
+    w = get_effective_width()
     start_y = (curses.LINES - menu_height) // 2
-    start_x = (curses.COLS - width) // 2
+    start_x = max(0, (curses.COLS - w) // 2)
 
     # Create the window
-    menu_win = curses.newwin(menu_height, width, start_y, start_x)
+    menu_win = curses.newwin(menu_height, w, start_y, start_x)
     menu_win.erase()
     menu_win.bkgd(get_color("background"))
     menu_win.attrset(get_color("window_frame"))
@@ -166,13 +174,13 @@ def display_menu() -> tuple[Any, Any, List[str]]:
     menu_win.keypad(True)
 
     # Create the pad for scrolling
-    menu_pad = curses.newpad(num_items + 1, width - 8)
+    menu_pad = curses.newpad(num_items + 1, w - 8)
     menu_pad.bkgd(get_color("background"))
 
     # Display the menu path
     header = " > ".join(menu_state.menu_path)
-    if len(header) > width - 4:
-        header = header[: width - 7] + "..."
+    if len(header) > w - 4:
+        header = header[: w - 7] + "..."
     menu_win.addstr(1, 2, header, get_color("settings_breadcrumbs", bold=True))
 
     # Populate the pad with menu options
@@ -182,18 +190,18 @@ def display_menu() -> tuple[Any, Any, List[str]]:
             if isinstance(menu_state.current_menu, dict)
             else menu_state.current_menu[int(key.strip("[]"))]
         )
-        display_key = f"{key}"[: width // 2 - 2]
-        display_value = f"{value}"[: width // 2 - 8]
+        display_key = f"{key}"[: w // 2 - 2]
+        display_value = f"{value}"[: w // 2 - 8]
 
         color = get_color("settings_default", reverse=(idx == menu_state.selected_index))
-        menu_pad.addstr(idx, 0, f"{display_key:<{width // 2 - 2}} {display_value}".ljust(width - 8), color)
+        menu_pad.addstr(idx, 0, f"{display_key:<{w // 2 - 2}} {display_value}".ljust(w - 8), color)
 
     # Add Save button to the main window
     if menu_state.show_save_option:
         save_position = menu_height - 2
         menu_win.addstr(
             save_position,
-            (width - len(save_option)) // 2,
+            (w - len(save_option)) // 2,
             save_option,
             get_color("settings_save", reverse=(menu_state.selected_index == len(menu_state.current_menu))),
         )

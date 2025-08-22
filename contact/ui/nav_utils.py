@@ -22,7 +22,6 @@ def get_node_color(node_index: int, reverse: bool = False):
 Segment = tuple[str, str, bool, bool]
 WrappedLine = List[Segment]
 
-width = 80
 sensitive_settings = ["Reboot", "Reset Node DB", "Shutdown", "Factory Reset"]
 save_option = "Save Changes"
 
@@ -73,9 +72,8 @@ def move_highlight(
 
     # Clear old selection
     if show_save_option and old_idx == max_index:
-        menu_win.chgat(
-            menu_win.getmaxyx()[0] - 2, (width - len(save_option)) // 2, len(save_option), get_color("settings_save")
-        )
+        win_h, win_w = menu_win.getmaxyx()
+        menu_win.chgat(win_h - 2, (win_w - len(save_option)) // 2, len(save_option), get_color("settings_save"))
     else:
         menu_pad.chgat(
             old_idx,
@@ -90,9 +88,10 @@ def move_highlight(
 
     # Highlight new selection
     if show_save_option and new_idx == max_index:
+        win_h, win_w = menu_win.getmaxyx()
         menu_win.chgat(
-            menu_win.getmaxyx()[0] - 2,
-            (width - len(save_option)) // 2,
+            win_h - 2,
+            (win_w - len(save_option)) // 2,
             len(save_option),
             get_color("settings_save", reverse=True),
         )
@@ -124,13 +123,14 @@ def move_highlight(
     selected_option = options[new_idx] if new_idx < len(options) else None
     help_y = menu_win.getbegyx()[0] + menu_win.getmaxyx()[0]
     if help_win:
+        win_h, win_w = menu_win.getmaxyx()
         help_win = update_help_window(
             help_win,
             help_text,
             transformed_path,
             selected_option,
             max_help_lines,
-            width,
+            win_w,
             help_y,
             menu_win.getbegyx()[1],
         )
@@ -167,23 +167,42 @@ def update_help_window(
     help_x: int,
 ) -> object:  # returns a curses window
     """Handles rendering the help window consistently."""
-    wrapped_help = get_wrapped_help_text(help_text, transformed_path, selected_option, width, max_help_lines)
+    # Clamp target position and width to the current terminal size
+    help_x = max(0, help_x)
+    help_y = max(0, help_y)
+    # Ensure requested width fits on screen from help_x
+    max_w_from_x = max(1, curses.COLS - help_x)
+    safe_width = min(width, max_w_from_x)
+    # Always leave a minimal border area; enforce a minimum usable width of 3
+    safe_width = max(3, safe_width)
+
+    wrapped_help = get_wrapped_help_text(help_text, transformed_path, selected_option, safe_width, max_help_lines)
 
     help_height = min(len(wrapped_help) + 2, max_help_lines + 2)  # +2 for border
     help_height = max(help_height, 3)  # Ensure at least 3 rows (1 text + border)
 
-    # Ensure help window does not exceed screen size
+    # Re-clamp Y to keep the window visible
     if help_y + help_height > curses.LINES:
-        help_y = curses.LINES - help_height
+        help_y = max(0, curses.LINES - help_height)
+
+    # If width would overflow the screen, shrink it
+    if help_x + safe_width > curses.COLS:
+        safe_width = max(3, curses.COLS - help_x)
 
     # Create or update the help window
     if help_win is None:
-        help_win = curses.newwin(help_height, width, help_y, help_x)
+        help_win = curses.newwin(help_height, safe_width, help_y, help_x)
     else:
         help_win.erase()
         help_win.refresh()
-        help_win.resize(help_height, width)
-        help_win.mvwin(help_y, help_x)
+        help_win.resize(help_height, safe_width)
+        try:
+            help_win.mvwin(help_y, help_x)
+        except curses.error:
+            # If moving fails due to edge conditions, pin to (0,0) as a fallback
+            help_y = 0
+            help_x = 0
+            help_win.mvwin(help_y, help_x)
 
     help_win.bkgd(get_color("background"))
     help_win.attrset(get_color("window_frame"))
@@ -295,14 +314,16 @@ def get_wrapped_help_text(
 
     return wrapped_help
 
+
 def text_width(text: str) -> int:
     return sum(2 if east_asian_width(c) in "FW" else 1 for c in text)
+
 
 def wrap_text(text: str, wrap_width: int) -> List[str]:
     """Wraps text while preserving spaces and breaking long words."""
 
-    whitespace = '\t\n\x0b\x0c\r '
-    whitespace_trans = dict.fromkeys(map(ord, whitespace), ord(' '))
+    whitespace = "\t\n\x0b\x0c\r "
+    whitespace_trans = dict.fromkeys(map(ord, whitespace), ord(" "))
     text = text.translate(whitespace_trans)
 
     words = re.findall(r"\S+|\s+", text)  # Capture words and spaces separately
