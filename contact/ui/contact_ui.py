@@ -16,13 +16,10 @@ from contact.ui.nav_utils import move_main_highlight, draw_main_arrows, get_msg_
 from contact.utilities.singleton import ui_state, interface_state, menu_state
 
 MIN_COL = 1  # "effectively zero" without breaking curses
-
-# Root screen window, set in main_ui
 root_win = None  # set in main_ui
 
 
 # Draw arrows for a specific window id (0=channel,1=messages,2=nodes).
-# If always=True, draw regardless of single-pane mode.
 def draw_window_arrows(window_id: int) -> None:
 
     if window_id == 0:
@@ -53,6 +50,13 @@ def compute_widths(total_w: int, focus: int):
     if focus == 1:
         return MIN_COL, total_w - 2 * MIN_COL, MIN_COL
     return MIN_COL, MIN_COL, total_w - 2 * MIN_COL
+
+
+def paint_frame(win, selected: bool) -> None:
+    win.attrset(get_color("window_frame_selected") if selected else get_color("window_frame"))
+    win.box()
+    win.attrset(get_color("window_frame"))
+    win.refresh()
 
 
 def handle_resize(stdscr: curses.window, firstrun: bool) -> None:
@@ -324,43 +328,28 @@ def handle_leftright(char: int) -> None:
     handle_resize(root_win, False)
 
     if old_window == 0:
-        channel_win.attrset(get_color("window_frame"))
-        channel_win.box()
-        channel_win.refresh()
+        paint_frame(channel_win, selected=False)
         refresh_pad(0)
     if old_window == 1:
-        messages_win.attrset(get_color("window_frame"))
-        messages_win.box()
-        messages_win.refresh()
+        paint_frame(messages_win, selected=False)
         refresh_pad(1)
     elif old_window == 2:
         draw_function_win()
-        nodes_win.attrset(get_color("window_frame"))
-        nodes_win.box()
-        nodes_win.refresh()
+        paint_frame(nodes_win, selected=False)
         refresh_pad(2)
 
     if not ui_state.single_pane_mode:
         draw_window_arrows(old_window)
 
     if ui_state.current_window == 0:
-        channel_win.attrset(get_color("window_frame_selected"))
-        channel_win.box()
-        channel_win.attrset(get_color("window_frame"))
-        channel_win.refresh()
+        paint_frame(channel_win, selected=True)
         refresh_pad(0)
     elif ui_state.current_window == 1:
-        messages_win.attrset(get_color("window_frame_selected"))
-        messages_win.box()
-        messages_win.attrset(get_color("window_frame"))
-        messages_win.refresh()
+        paint_frame(messages_win, selected=True)
         refresh_pad(1)
     elif ui_state.current_window == 2:
         draw_function_win()
-        nodes_win.attrset(get_color("window_frame_selected"))
-        nodes_win.box()
-        nodes_win.attrset(get_color("window_frame"))
-        nodes_win.refresh()
+        paint_frame(nodes_win, selected=True)
         refresh_pad(2)
 
     # Draw arrows last; force even in multi-pane to avoid flicker
@@ -612,15 +601,9 @@ def draw_channel_list() -> None:
         channel_pad.addstr(idx, 1, truncated_channel, color)
         idx += 1
 
-    channel_win.attrset(
-        get_color("window_frame_selected") if ui_state.current_window == 0 else get_color("window_frame")
-    )
-    channel_win.box()
-    channel_win.attrset((get_color("window_frame")))
-
-    channel_win.refresh()
+    paint_frame(channel_win, selected=(ui_state.current_window == 0))
     refresh_pad(0)
-    draw_main_arrows(channel_win, len(ui_state.channel_list), window=0)
+    draw_window_arrows(0)
     channel_win.refresh()
 
 
@@ -657,12 +640,7 @@ def draw_messages_window(scroll_to_bottom: bool = False) -> None:
                 messages_pad.addstr(row, 1, line, color)
                 row += 1
 
-    messages_win.attrset(
-        get_color("window_frame_selected") if ui_state.current_window == 1 else get_color("window_frame")
-    )
-    messages_win.box()
-    messages_win.attrset(get_color("window_frame"))
-    messages_win.refresh()
+    paint_frame(messages_win, selected=(ui_state.current_window == 1))
 
     visible_lines = get_msg_window_lines(messages_win, packetlog_win)
 
@@ -675,12 +653,7 @@ def draw_messages_window(scroll_to_bottom: bool = False) -> None:
     messages_win.refresh()
     refresh_pad(1)
     draw_packetlog_win()
-    draw_main_arrows(
-        messages_win,
-        msg_line_count,
-        window=1,
-        log_height=packetlog_win.getmaxyx()[0],
-    )
+    draw_window_arrows(1)
     messages_win.refresh()
     if ui_state.current_window == 4:
         menu_state.need_redraw = True
@@ -721,15 +694,10 @@ def draw_node_list() -> None:
             i, 1, node_str, get_color(color, reverse=ui_state.selected_node == i and ui_state.current_window == 2)
         )
 
-    nodes_win.attrset(
-        get_color("window_frame_selected") if ui_state.current_window == 2 else get_color("window_frame")
-    )
-    nodes_win.box()
-    nodes_win.attrset(get_color("window_frame"))
-
+    paint_frame(nodes_win, selected=(ui_state.current_window == 2))
     nodes_win.refresh()
     refresh_pad(2)
-    draw_main_arrows(nodes_win, len(ui_state.node_list), window=2)
+    draw_window_arrows(2)
     nodes_win.refresh()
 
     # Restore cursor to input field
@@ -877,9 +845,7 @@ def draw_packetlog_win() -> None:
             # Add to the window
             packetlog_win.addstr(i + 2, 1, logString, get_color("log"))
 
-        packetlog_win.attrset(get_color("window_frame"))
-        packetlog_win.box()
-        packetlog_win.refresh()
+        paint_frame(packetlog_win, selected=False)
 
     # Restore cursor to input field
     entry_win.keypad(True)

@@ -23,7 +23,7 @@ from contact.ui.nav_utils import move_highlight, draw_arrows, update_help_window
 from contact.ui.user_config import json_editor
 from contact.utilities.singleton import menu_state
 
-# Constants
+# Setup Variables
 width = 80
 save_option = "Save Changes"
 max_help_lines = 0
