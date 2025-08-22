@@ -23,9 +23,8 @@ root_win = None  # set in main_ui
 
 # Draw arrows for a specific window id (0=channel,1=messages,2=nodes).
 # If always=True, draw regardless of single-pane mode.
-def draw_window_arrows(window_id: int, always: bool = False) -> None:
-    if not always and not ui_state.single_pane_mode:
-        return
+def draw_window_arrows(window_id: int) -> None:
+
     if window_id == 0:
         draw_main_arrows(channel_win, len(ui_state.channel_list), window=0)
         channel_win.refresh()
@@ -41,11 +40,6 @@ def draw_window_arrows(window_id: int, always: bool = False) -> None:
     elif window_id == 2:
         draw_main_arrows(nodes_win, len(ui_state.node_list), window=2)
         nodes_win.refresh()
-
-
-# Draw arrows for the focused pane. If always=True, draw regardless of single-pane mode.
-def draw_focus_arrows(always: bool = False) -> None:
-    draw_window_arrows(ui_state.current_window, always=always)
 
 
 def compute_widths(total_w: int, focus: int):
@@ -168,7 +162,7 @@ def handle_resize(stdscr: curses.window, firstrun: bool) -> None:
         draw_channel_list()
         draw_messages_window(True)
         draw_node_list()
-        draw_focus_arrows(always=True)
+        draw_window_arrows(ui_state.current_window)
 
     except:
         # Resize events can come faster than we can re-draw, which can cause a curses error.
@@ -285,11 +279,11 @@ def handle_home() -> None:
     elif ui_state.current_window == 1:
         ui_state.selected_message = 0
         refresh_pad(1)
-        draw_focus_arrows()
+        draw_window_arrows(ui_state.current_window)
     elif ui_state.current_window == 2:
         select_node(0)
 
-    draw_focus_arrows(always=True)
+    draw_window_arrows(ui_state.current_window)
 
 
 def handle_end() -> None:
@@ -300,10 +294,10 @@ def handle_end() -> None:
         msg_line_count = messages_pad.getmaxyx()[0]
         ui_state.selected_message = max(msg_line_count - get_msg_window_lines(messages_win, packetlog_win), 0)
         refresh_pad(1)
-        draw_focus_arrows()
+        draw_window_arrows(ui_state.current_window)
     elif ui_state.current_window == 2:
         select_node(len(ui_state.node_list) - 1)
-    draw_focus_arrows(always=True)
+    draw_window_arrows(ui_state.current_window)
 
 
 def handle_pageup() -> None:
@@ -317,10 +311,10 @@ def handle_pageup() -> None:
             ui_state.selected_message - get_msg_window_lines(messages_win, packetlog_win), 0
         )
         refresh_pad(1)
-        draw_focus_arrows()
+        draw_window_arrows(ui_state.current_window)
     elif ui_state.current_window == 2:
         select_node(ui_state.selected_node - (nodes_win.getmaxyx()[0] - 2))  # select_node will bounds check for us
-    draw_focus_arrows(always=True)
+    draw_window_arrows(ui_state.current_window)
 
 
 def handle_pagedown() -> None:
@@ -336,10 +330,10 @@ def handle_pagedown() -> None:
             msg_line_count - get_msg_window_lines(messages_win, packetlog_win),
         )
         refresh_pad(1)
-        draw_focus_arrows()
+        draw_window_arrows(ui_state.current_window)
     elif ui_state.current_window == 2:
         select_node(ui_state.selected_node + (nodes_win.getmaxyx()[0] - 2))  # select_node will bounds check for us
-    draw_focus_arrows(always=True)
+    draw_window_arrows(ui_state.current_window)
 
 
 def handle_leftright(char: int) -> None:
@@ -366,7 +360,8 @@ def handle_leftright(char: int) -> None:
         nodes_win.refresh()
         refresh_pad(2)
 
-    draw_window_arrows(old_window, always=True)
+    if not ui_state.single_pane_mode:
+        draw_window_arrows(old_window)
 
     if ui_state.current_window == 0:
         channel_win.attrset(get_color("window_frame_selected"))
@@ -389,7 +384,7 @@ def handle_leftright(char: int) -> None:
         refresh_pad(2)
 
     # Draw arrows last; force even in multi-pane to avoid flicker
-    draw_focus_arrows(always=True)
+    draw_window_arrows(ui_state.current_window)
 
 
 def handle_enter(input_text: str) -> str:
@@ -413,7 +408,7 @@ def handle_enter(input_text: str) -> str:
         draw_node_list()
         draw_channel_list()
         draw_messages_window(True)
-        draw_focus_arrows()
+        draw_window_arrows(ui_state.current_window)
         return input_text
 
     elif len(input_text) > 0:
@@ -824,7 +819,7 @@ def scroll_messages(direction: int) -> None:
 
     messages_win.refresh()
     refresh_pad(1)
-    draw_focus_arrows(always=True)
+    draw_window_arrows(ui_state.current_window)
 
 
 def select_node(idx: int) -> None:
