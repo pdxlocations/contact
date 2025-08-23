@@ -7,6 +7,7 @@ from typing import Union
 from contact.utilities.utils import get_channels, get_readable_duration, get_time_ago, refresh_node_list
 from contact.settings import settings_menu
 from contact.message_handlers.tx_handler import send_message, send_traceroute
+from contact.utilities.utils import parse_protobuf
 from contact.ui.colors import get_color
 from contact.utilities.db_handler import get_name_from_database, update_node_info_in_db, is_chat_archived
 from contact.utilities.input_handlers import get_list_input
@@ -14,6 +15,7 @@ import contact.ui.default_config as config
 import contact.ui.dialog
 from contact.ui.nav_utils import move_main_highlight, draw_main_arrows, get_msg_window_lines, wrap_text
 from contact.utilities.singleton import ui_state, interface_state, menu_state
+
 
 MIN_COL = 1  # "effectively zero" without breaking curses
 root_win = None  # set in main_ui
@@ -832,14 +834,14 @@ def draw_packetlog_win() -> None:
                 else get_name_from_database(packet["to"], "short").ljust(columns[1])
             )
             if "decoded" in packet:
-                port = packet["decoded"]["portnum"].ljust(columns[2])
-                payload = (packet["decoded"]["payload"]).ljust(columns[3])
+                port = str(packet["decoded"].get("portnum", "")).ljust(columns[2])
+                parsed_payload = parse_protobuf(packet)
             else:
                 port = "NO KEY".ljust(columns[2])
-                payload = "NO KEY".ljust(columns[3])
+                parsed_payload = "NO KEY"
 
             # Combine and truncate if necessary
-            logString = f"{from_id} {to_id} {port} {payload}"
+            logString = f"{from_id} {to_id} {port} {parsed_payload}"
             logString = logString[: width - 3]
 
             # Add to the window

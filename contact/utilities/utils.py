@@ -1,8 +1,11 @@
 import datetime
 import time
-from meshtastic.protobuf import config_pb2
-import contact.ui.default_config as config
+from typing import Optional, Union
+from google.protobuf.message import DecodeError
 
+from meshtastic import protocols
+from meshtastic.protobuf import config_pb2, mesh_pb2, portnums_pb2
+import contact.ui.default_config as config
 from contact.utilities.singleton import ui_state, interface_state
 
 
@@ -136,6 +139,7 @@ def get_time_ago(timestamp):
         return f"{value} {unit} ago"
     return "now"
 
+
 def add_new_message(channel_id, prefix, message):
     if channel_id not in ui_state.all_messages:
         ui_state.all_messages[channel_id] = []
@@ -162,4 +166,29 @@ def add_new_message(channel_id, prefix, message):
         ui_state.all_messages[channel_id].append((f"-- {current_hour} --", ""))
 
     # Add the message
-    ui_state.all_messages[channel_id].append((prefix,message))
+    ui_state.all_messages[channel_id].append((prefix, message))
+
+
+def parse_protobuf(packet: dict) -> Union[str, dict]:
+    """Attempt to parse a decoded payload using the registered protobuf handler."""
+    try:
+        decoded = packet.get("decoded") or {}
+        portnum = decoded.get("portnum")
+        payload = decoded.get("payload")
+
+        if isinstance(payload, str):
+            return payload
+
+        handler = protocols.get(portnums_pb2.PortNum.Value(portnum)) if portnum is not None else None
+        if handler is not None and handler.protobufFactory is not None:
+            try:
+                pb = handler.protobufFactory()
+                pb.ParseFromString(bytes(payload))
+                return str(pb).replace("\n", " ").replace("\r", " ").strip()
+            except DecodeError:
+                return payload
+
+        return payload
+
+    except Exception:
+        return payload
