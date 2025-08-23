@@ -184,6 +184,8 @@ def parse_protobuf(packet: dict) -> Union[str, dict]:
             try:
                 pb = handler.protobufFactory()
                 pb.ParseFromString(bytes(payload))
+                if hasattr(pb, "device_metrics") and pb.HasField("device_metrics"):
+                    return str(pb.device_metrics).replace("\n", " ").replace("\r", " ").strip()
                 return str(pb).replace("\n", " ").replace("\r", " ").strip()
             except DecodeError:
                 return payload
