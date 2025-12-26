@@ -453,79 +453,84 @@ def handle_f5_key(stdscr: curses.window) -> None:
     node = None
     try:
         node = interface_state.interface.nodesByNum[ui_state.node_list[ui_state.selected_node]]
+
+        message_parts = []
+
+        message_parts.append("**📋 Basic Information:**")
+        message_parts.append(f"• Device: {node.get('user', {}).get('longName', 'Unknown')}")
+        message_parts.append(f"• Short name: {node.get('user', {}).get('shortName', 'Unknown')}")
+        message_parts.append(f"• Hardware: {node.get('user', {}).get('hwModel', 'Unknown')}")
+
+        role = f"{node.get('user', {}).get('role', 'Unknown')}"
+        message_parts.append(f"• Role: {role}")
+
+        pk = f"{node.get('user', {}).get('publicKey')}"
+        message_parts.append(f"Public key: {pk}")
+
+        message_parts.append(f"• Node ID: {node.get('num', 'Unknown')}")
+        if "position" in node:
+            pos = node["position"]
+            if pos.get("latitude") and pos.get("longitude"):
+                message_parts.append(f"• Position: {pos['latitude']:.4f}, {pos['longitude']:.4f}")
+            if pos.get("altitude"):
+                message_parts.append(f"• Altitude: {pos['altitude']}m")
+            message_parts.append(f"https://maps.google.com/?q={pos['latitude']:.4f},{pos['longitude']:.4f}")
+
+        if any(key in node for key in ["snr", "hopsAway", "lastHeard"]):
+            message_parts.append("\n**🌐 Network Metrics:**")
+
+            if "snr" in node:
+                snr = node["snr"]
+                snr_status = (
+                    "🟢 Excellent"
+                    if snr > 10
+                    else (
+                        "🟡 Good"
+                        if snr > 3
+                        else "🟠 Fair" if snr > -10 else "🔴 Poor" if snr > -20 else "💀 Very Poor"
+                    )
+                )
+                message_parts.append(f"• SNR: {snr}dB {snr_status}")
+
+            if "hopsAway" in node:
+                hops = node["hopsAway"]
+                hop_emoji = "📡" if hops == 0 else "🔄" if hops == 1 else "⏩"
+                message_parts.append(f"• Hops away: {hop_emoji} {hops}")
+
+            if "lastHeard" in node and node["lastHeard"]:
+                message_parts.append(f"• Last heard: 🕐 {get_time_ago(node['lastHeard'])}")
+
+        if node.get("deviceMetrics"):
+            metrics = node["deviceMetrics"]
+            message_parts.append("\n**📊 Device Metrics:**")
+
+            if "batteryLevel" in metrics:
+                battery = metrics["batteryLevel"]
+                battery_emoji = "🟢" if battery > 50 else "🟡" if battery > 20 else "🔴"
+                voltage_info = f" ({metrics['voltage']}v)" if "voltage" in metrics else ""
+                message_parts.append(f"• Battery: {battery_emoji} {battery}%{voltage_info}")
+
+            if "uptimeSeconds" in metrics:
+                message_parts.append(f"• Uptime: ⏱️ {get_readable_duration(metrics['uptimeSeconds'])}")
+
+            if "channelUtilization" in metrics:
+                util = metrics["channelUtilization"]
+                util_emoji = "🔴" if util > 80 else "🟡" if util > 50 else "🟢"
+                message_parts.append(f"• Channel utilization: {util_emoji} {util:.2f}%")
+
+            if "airUtilTx" in metrics:
+                air_util = metrics["airUtilTx"]
+                air_emoji = "🔴" if air_util > 80 else "🟡" if air_util > 50 else "🟢"
+                message_parts.append(f"• Air utilization TX: {air_emoji} {air_util:.2f}%")
+
+        message = "\n".join(message_parts)
+
+        contact.ui.dialog.dialog(f"📡 Node Details: {node.get('user', {}).get('shortName', 'Unknown')}", message)
+        curses.curs_set(1)  # Show cursor again
+        handle_resize(stdscr, False)
+
     except KeyError:
         return
-
-    message_parts = []
-
-    message_parts.append("**📋 Basic Information:**")
-    message_parts.append(f"• Device: {node.get('user', {}).get('longName', 'Unknown')}")
-    message_parts.append(f"• Short name: {node.get('user', {}).get('shortName', 'Unknown')}")
-    message_parts.append(f"• Hardware: {node.get('user', {}).get('hwModel', 'Unknown')}")
-
-    role = f"{node.get('user', {}).get('role', 'Unknown')}"
-    message_parts.append(f"• Role: {role}")
-
-    pk = f"{node.get('user', {}).get('publicKey')}"
-    message_parts.append(f"Public key: {pk}")
-
-    message_parts.append(f"• Node ID: {node.get('num', 'Unknown')}")
-    if "position" in node:
-        pos = node["position"]
-        if pos.get("latitude") and pos.get("longitude"):
-            message_parts.append(f"• Position: {pos['latitude']:.4f}, {pos['longitude']:.4f}")
-        if pos.get("altitude"):
-            message_parts.append(f"• Altitude: {pos['altitude']}m")
-        message_parts.append(f"https://maps.google.com/?q={pos['latitude']:.4f},{pos['longitude']:.4f}")
-
-    if any(key in node for key in ["snr", "hopsAway", "lastHeard"]):
-        message_parts.append("\n**🌐 Network Metrics:**")
-
-        if "snr" in node:
-            snr = node["snr"]
-            snr_status = (
-                "🟢 Excellent"
-                if snr > 10
-                else "🟡 Good" if snr > 3 else "🟠 Fair" if snr > -10 else "🔴 Poor" if snr > -20 else "💀 Very Poor"
-            )
-            message_parts.append(f"• SNR: {snr}dB {snr_status}")
-
-        if "hopsAway" in node:
-            hops = node["hopsAway"]
-            hop_emoji = "📡" if hops == 0 else "🔄" if hops == 1 else "⏩"
-            message_parts.append(f"• Hops away: {hop_emoji} {hops}")
-
-        if "lastHeard" in node and node["lastHeard"]:
-            message_parts.append(f"• Last heard: 🕐 {get_time_ago(node['lastHeard'])}")
-
-    if node.get("deviceMetrics"):
-        metrics = node["deviceMetrics"]
-        message_parts.append("\n**📊 Device Metrics:**")
-
-        if "batteryLevel" in metrics:
-            battery = metrics["batteryLevel"]
-            battery_emoji = "🟢" if battery > 50 else "🟡" if battery > 20 else "🔴"
-            voltage_info = f" ({metrics['voltage']}v)" if "voltage" in metrics else ""
-            message_parts.append(f"• Battery: {battery_emoji} {battery}%{voltage_info}")
-
-        if "uptimeSeconds" in metrics:
-            message_parts.append(f"• Uptime: ⏱️ {get_readable_duration(metrics['uptimeSeconds'])}")
-
-        if "channelUtilization" in metrics:
-            util = metrics["channelUtilization"]
-            util_emoji = "🔴" if util > 80 else "🟡" if util > 50 else "🟢"
-            message_parts.append(f"• Channel utilization: {util_emoji} {util:.2f}%")
-
-        if "airUtilTx" in metrics:
-            air_util = metrics["airUtilTx"]
-            air_emoji = "🔴" if air_util > 80 else "🟡" if air_util > 50 else "🟢"
-            message_parts.append(f"• Air utilization TX: {air_emoji} {air_util:.2f}%")
-
-    message = "\n".join(message_parts)
-
-    contact.ui.dialog.dialog(f"📡 Node Details: {node.get('user', {}).get('shortName', 'Unknown')}", message)
-    curses.curs_set(1)  # Show cursor again
-    handle_resize(stdscr, False)
 
 
 def handle_ctrl_t(stdscr: curses.window) -> None:
