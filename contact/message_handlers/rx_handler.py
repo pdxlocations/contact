@@ -2,7 +2,46 @@ import logging
 import os
 import platform
 import shutil
+import time
 import subprocess
+import threading
+ # Debounce notification sounds so a burst of queued messages only plays once.
+_SOUND_DEBOUNCE_SECONDS = 0.8
+_sound_timer: threading.Timer | None = None
+_sound_timer_lock = threading.Lock()
+_last_sound_request = 0.0
+
+
+def schedule_notification_sound(delay: float = _SOUND_DEBOUNCE_SECONDS) -> None:
+    """Schedule a notification sound after a short quiet period.
+
+    If more messages arrive before the delay elapses, the timer is reset.
+    This prevents playing a sound for each message when a backlog flushes.
+    """
+    global _sound_timer, _last_sound_request
+
+    now = time.monotonic()
+    with _sound_timer_lock:
+        _last_sound_request = now
+
+        # Cancel any previously scheduled sound.
+        if _sound_timer is not None:
+            try:
+                _sound_timer.cancel()
+            except Exception:
+                pass
+            _sound_timer = None
+
+        def _fire(expected_request_time: float) -> None:
+            # Only play if nothing newer has been scheduled.
+            with _sound_timer_lock:
+                if expected_request_time != _last_sound_request:
+                    return
+            play_sound()
+
+        _sound_timer = threading.Timer(delay, _fire, args=(now,))
+        _sound_timer.daemon = True
+        _sound_timer.start()
 from typing import Any, Dict
 
 from contact.utilities.utils import (
@@ -108,7 +147,7 @@ def on_receive(packet: Dict[str, Any], interface: Any) -> None:
 
 
                 if config.notification_sound == "True":
-                    play_sound()
+                    schedule_notification_sound()
 
                 message_bytes = packet["decoded"]["payload"]
                 message_string = message_bytes.decode("utf-8")
