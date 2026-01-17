@@ -16,7 +16,6 @@ jobs:
           name: pdxlocations/contact
           repository: pdxlocations/contact
           path: ./contact
-          ref: dockerfile-init
       -
         name: Set up QEMU
         uses: docker/setup-qemu-action@master
