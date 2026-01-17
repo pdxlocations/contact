@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       -
-        name: clone https://github.com/pdxlocations/contact
+        name: clone https://github.com/pdxlocations/contact.git
         uses: actions/checkout@master
         with:
           name: pdxlocations/contact
