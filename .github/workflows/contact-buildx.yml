@@ -1,0 +1,44 @@
+name: contact-buildx
+
+on:
+  schedule:
+    - cron: "0 0 * * Mon"
+  workflow_dispatch:
+
+jobs:
+  build-and-push-contact:
+    runs-on: ubuntu-latest
+    steps:
+      -
+        name: clone https://github.com/pdxlocations/contact
+        uses: actions/checkout@master
+        with:
+          name: pdxlocations/contact
+          repository: pdxlocations/contact
+          path: ./contact
+          ref: dockerfile-init
+      -
+        name: Set up QEMU
+        uses: docker/setup-qemu-action@master
+      -
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@master
+      -
+        name: Login to DockerHub
+        uses: docker/login-action@master
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      -
+        name: Get current commit
+        run: |
+          echo version=$(git -C ./contact rev-parse HEAD) >> $GITHUB_ENV
+      -
+        name: Build and push pdxlocations/contact
+        uses: docker/build-push-action@master
+        with:
+          context: ./contact
+          file: ./contact/Dockerfile
+          platforms: linux/amd64,linux/arm64,linux/armhf
+          push: true
+          tags: pdxlocations/contact:latest,pdxlocations/contact:${{ env.version }}
