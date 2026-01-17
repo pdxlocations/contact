@@ -24,6 +24,20 @@ The settings dialogue can be accessed within the client or may be run standalone
 
 <img width="696" alt="Screenshot 2025-04-08 at 6 10 06 PM" src="https://github.com/user-attachments/assets/3d5e3964-f009-4772-bd6e-91b907c65a3b" />
 
+### Docker install
+
+Install with Docker:
+
+```
+docker build -t contact .
+
+# Change /tmp/data to a directory you'd like to persist the database in
+export DATA_DIR="/tmp/contact"
+
+mkdir -p "$DATA_DIR"
+docker run -it --rm -v $DATA_DIR:/data --workdir /data --device=/dev/ttyUSB0 contact --port /dev/ttyUSB0
+```
+
 ## Message Persistence 
 
 All messages will saved in a SQLite DB and restored upon relaunch of the app.  You may delete `client.db` if you wish to erase all stored messages and node data.  If multiple nodes are used, each will independently store data in the database, but the data will not be shared or viewable between nodes.
