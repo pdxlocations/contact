@@ -5,7 +5,7 @@ from typing import Any, List, Dict, Optional
 
 from contact.ui.colors import get_color, setup_colors, COLOR_MAP
 import contact.ui.default_config as config
-from contact.ui.nav_utils import move_highlight, draw_arrows
+from contact.ui.nav_utils import move_highlight, draw_arrows, update_help_window
 from contact.utilities.control_utils import parse_ini_file
 from contact.utilities.input_handlers import get_list_input
 from contact.utilities.singleton import menu_state
@@ -15,15 +15,15 @@ MAX_MENU_WIDTH = 80  # desired max; will shrink on small terminals
 max_help_lines = 6
 save_option = "Save Changes"
 translation_file = config.get_localisation_file(config.language)
-field_mapping, _ = parse_ini_file(translation_file)
+field_mapping, help_text = parse_ini_file(translation_file)
 translation_language = config.language
 
 
 def reload_translations(language: Optional[str] = None) -> None:
-    global translation_file, field_mapping, translation_language
+    global translation_file, field_mapping, help_text, translation_language
     target_language = language or config.language
     translation_file = config.get_localisation_file(target_language)
-    field_mapping, _ = parse_ini_file(translation_file)
+    field_mapping, help_text = parse_ini_file(translation_file)
     translation_language = target_language
 
 
@@ -35,6 +35,15 @@ def get_app_settings_key(menu_path: List[str], selected_key: str) -> str:
         parts.append(part)
     parts.append(selected_key)
     return ".".join(parts)
+
+
+def get_app_settings_path_parts(menu_path: List[str]) -> List[str]:
+    parts = ["app_settings"]
+    for part in menu_path:
+        if part in ("Main Menu", "App Settings"):
+            continue
+        parts.append(part)
+    return parts
 
 
 def lookup_app_settings_label(full_key: str, fallback: str) -> str:
@@ -193,11 +202,12 @@ def display_menu() -> tuple[Any, Any, List[str]]:
         options = []  # Fallback in case of unexpected data types
 
     # Calculate dynamic dimensions for the menu
+    min_help_window_height = 6
     max_menu_height = curses.LINES
-    menu_height = min(max_menu_height, num_items + 5)
+    menu_height = min(max_menu_height - min_help_window_height, num_items + 5)
     num_items = len(options)
     w = get_effective_width()
-    start_y = (curses.LINES - menu_height) // 2
+    start_y = (curses.LINES - menu_height) // 2 - (min_help_window_height // 2)
     start_x = max(0, (curses.COLS - w) // 2)
 
     # Create the window
@@ -261,7 +271,41 @@ def display_menu() -> tuple[Any, Any, List[str]]:
 
     draw_arrows(menu_win, visible_height, max_index, menu_state.start_index, menu_state.show_save_option)
 
+    # Draw help window below the menu
+    global max_help_lines
+    remaining_space = curses.LINES - (start_y + menu_height + 2)
+    max_help_lines = max(remaining_space, 1)
+    transformed_path = get_app_settings_path_parts(menu_state.menu_path)
+    selected_option = options[menu_state.selected_index] if options else None
+    help_y = menu_win.getbegyx()[0] + menu_win.getmaxyx()[0]
+    menu_state.help_win = update_help_window(
+        menu_state.help_win,
+        help_text,
+        transformed_path,
+        selected_option,
+        max_help_lines,
+        w,
+        help_y,
+        menu_win.getbegyx()[1],
+    )
+
     return menu_win, menu_pad, options
+
+
+def update_app_settings_help(menu_win: curses.window, options: List[str]) -> None:
+    transformed_path = get_app_settings_path_parts(menu_state.menu_path)
+    selected_option = options[menu_state.selected_index] if menu_state.selected_index < len(options) else None
+    help_y = menu_win.getbegyx()[0] + menu_win.getmaxyx()[0]
+    menu_state.help_win = update_help_window(
+        menu_state.help_win,
+        help_text,
+        transformed_path,
+        selected_option,
+        max_help_lines,
+        menu_win.getmaxyx()[1],
+        help_y,
+        menu_win.getbegyx()[1],
+    )
 
 
 def json_editor(stdscr: curses.window, menu_state: Any) -> None:
@@ -291,6 +335,7 @@ def json_editor(stdscr: curses.window, menu_state: Any) -> None:
 
     # Render the menu
     menu_win, menu_pad, options = display_menu()
+    update_app_settings_help(menu_win, options)
     menu_state.need_redraw = True
 
     while True:
@@ -298,6 +343,7 @@ def json_editor(stdscr: curses.window, menu_state: Any) -> None:
             menu_state.need_redraw = False
             menu_win, menu_pad, options = display_menu()
             menu_win.refresh()
+            update_app_settings_help(menu_win, options)
 
         max_index = len(options) + (1 if menu_state.show_save_option else 0) - 1
 
@@ -311,6 +357,7 @@ def json_editor(stdscr: curses.window, menu_state: Any) -> None:
             menu_state.help_win = move_highlight(
                 old_selected_index, options, menu_win, menu_pad, menu_state=menu_state, max_help_lines=max_help_lines
             )
+            update_app_settings_help(menu_win, options)
 
         elif key == curses.KEY_DOWN:
 
@@ -319,6 +366,7 @@ def json_editor(stdscr: curses.window, menu_state: Any) -> None:
             menu_state.help_win = move_highlight(
                 old_selected_index, options, menu_win, menu_pad, menu_state=menu_state, max_help_lines=max_help_lines
             )
+            update_app_settings_help(menu_win, options)
 
         elif key == ord("\t") and menu_state.show_save_option:
             old_selected_index = menu_state.selected_index
@@ -326,12 +374,16 @@ def json_editor(stdscr: curses.window, menu_state: Any) -> None:
             menu_state.help_win = move_highlight(
                 old_selected_index, options, menu_win, menu_pad, menu_state=menu_state, max_help_lines=max_help_lines
             )
+            update_app_settings_help(menu_win, options)
 
         elif key in (curses.KEY_RIGHT, 10, 13):  # 10 = \n, 13 = carriage return
 
             menu_state.need_redraw = True
             menu_win.erase()
             menu_win.refresh()
+            if menu_state.help_win:
+                menu_state.help_win.erase()
+                menu_state.help_win.refresh()
 
             if menu_state.selected_index < len(options):  # Handle selection of a menu item
                 selected_key = options[menu_state.selected_index]
@@ -399,6 +451,9 @@ def json_editor(stdscr: curses.window, menu_state: Any) -> None:
             menu_state.need_redraw = True
             menu_win.erase()
             menu_win.refresh()
+            if menu_state.help_win:
+                menu_state.help_win.erase()
+                menu_state.help_win.refresh()
 
             # menu_state.selected_index = menu_state.menu_index[-1]
 
