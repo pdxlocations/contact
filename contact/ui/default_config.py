@@ -1,7 +1,7 @@
 import json
 import logging
 import os
-from typing import Dict
+from typing import Dict, List, Optional
 from contact.ui.colors import setup_colors
 
 # Get the parent directory of the script
@@ -65,6 +65,44 @@ json_file_path = os.path.join(config_root, "config.json")
 log_file_path = os.path.join(config_root, "client.log")
 db_file_path = os.path.join(config_root, "client.db")
 node_configs_file_path = os.path.join(config_root, "node-configs/")
+localisations_dir = os.path.join(parent_dir, "localisations")
+
+
+def get_localisation_options(localisations_path: Optional[str] = None) -> List[str]:
+    """
+    Return available localisation codes from the localisations folder.
+    """
+    localisations_path = localisations_path or localisations_dir
+    if not os.path.isdir(localisations_path):
+        return []
+
+    options = []
+    for filename in os.listdir(localisations_path):
+        if filename.startswith(".") or not filename.endswith(".ini"):
+            continue
+        options.append(os.path.splitext(filename)[0])
+
+    return sorted(options)
+
+
+def get_localisation_file(language: str, localisations_path: Optional[str] = None) -> str:
+    """
+    Return a valid localisation file path, falling back to a default when missing.
+    """
+    localisations_path = localisations_path or localisations_dir
+    available = get_localisation_options(localisations_path)
+    if not available:
+        return os.path.join(localisations_path, "en.ini")
+
+    normalized = (language or "").strip().lower()
+    if normalized.endswith(".ini"):
+        normalized = normalized[:-4]
+
+    if normalized in available:
+        return os.path.join(localisations_path, f"{normalized}.ini")
+
+    fallback = "en" if "en" in available else available[0]
+    return os.path.join(localisations_path, f"{fallback}.ini")
 
 
 def format_json_single_line_arrays(data: Dict[str, object], indent: int = 4) -> str:
@@ -180,6 +218,8 @@ def initialize_config() -> Dict[str, object]:
         "node_favorite": ["cyan", "green"],
         "node_ignored": ["red", "black"],
     }
+    available_languages = get_localisation_options()
+    default_language = "en" if "en" in available_languages else (available_languages[0] if available_languages else "en")
     default_config_variables = {
         "channel_list_16ths": "3",
         "node_list_16ths": "5",
@@ -187,6 +227,7 @@ def initialize_config() -> Dict[str, object]:
         "db_file_path": db_file_path,
         "log_file_path": log_file_path,
         "node_configs_file_path": node_configs_file_path,
+        "language": default_language,
         "message_prefix": ">>",
         "sent_message_prefix": ">> Sent",
         "notification_symbol": "*",
@@ -230,7 +271,7 @@ def assign_config_variables(loaded_config: Dict[str, object]) -> None:
     global db_file_path, log_file_path, node_configs_file_path, message_prefix, sent_message_prefix
     global notification_symbol, ack_implicit_str, ack_str, nak_str, ack_unknown_str
     global node_list_16ths, channel_list_16ths, single_pane_mode
-    global theme, COLOR_CONFIG
+    global theme, COLOR_CONFIG, language
     global node_sort, notification_sound
 
     channel_list_16ths = loaded_config["channel_list_16ths"]
@@ -239,6 +280,7 @@ def assign_config_variables(loaded_config: Dict[str, object]) -> None:
     db_file_path = loaded_config["db_file_path"]
     log_file_path = loaded_config["log_file_path"]
     node_configs_file_path = loaded_config.get("node_configs_file_path")
+    language = loaded_config["language"]
     message_prefix = loaded_config["message_prefix"]
     sent_message_prefix = loaded_config["sent_message_prefix"]
     notification_symbol = loaded_config["notification_symbol"]

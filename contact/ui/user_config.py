@@ -66,6 +66,12 @@ def edit_value(key: str, current_value: str) -> str:
         ]
         return get_list_input("Select Theme", current_value, theme_options)
 
+    elif key == "language":
+        language_options = config.get_localisation_options()
+        if not language_options:
+            return current_value
+        return get_list_input("Select Language", current_value, language_options)
+
     elif key == "node_sort":
         sort_options = ["lastHeard", "name", "hops"]
         return get_list_input("Sort By", current_value, sort_options)
