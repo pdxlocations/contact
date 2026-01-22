@@ -1,11 +1,12 @@
 import os
 import json
 import curses
-from typing import Any, List, Dict
+from typing import Any, List, Dict, Optional
 
 from contact.ui.colors import get_color, setup_colors, COLOR_MAP
 import contact.ui.default_config as config
 from contact.ui.nav_utils import move_highlight, draw_arrows
+from contact.utilities.control_utils import parse_ini_file
 from contact.utilities.input_handlers import get_list_input
 from contact.utilities.singleton import menu_state
 
@@ -13,6 +14,31 @@ from contact.utilities.singleton import menu_state
 MAX_MENU_WIDTH = 80  # desired max; will shrink on small terminals
 max_help_lines = 6
 save_option = "Save Changes"
+translation_file = config.get_localisation_file(config.language)
+field_mapping, _ = parse_ini_file(translation_file)
+translation_language = config.language
+
+
+def reload_translations(language: Optional[str] = None) -> None:
+    global translation_file, field_mapping, translation_language
+    target_language = language or config.language
+    translation_file = config.get_localisation_file(target_language)
+    field_mapping, _ = parse_ini_file(translation_file)
+    translation_language = target_language
+
+
+def get_app_settings_key(menu_path: List[str], selected_key: str) -> str:
+    parts = ["app_settings"]
+    for part in menu_path:
+        if part in ("Main Menu", "App Settings"):
+            continue
+        parts.append(part)
+    parts.append(selected_key)
+    return ".".join(parts)
+
+
+def lookup_app_settings_label(full_key: str, fallback: str) -> str:
+    return field_mapping.get(full_key, fallback)
 
 
 # Compute an effective width that fits the current terminal
@@ -21,18 +47,18 @@ def get_effective_width() -> int:
     return max(20, min(MAX_MENU_WIDTH, curses.COLS - 2))
 
 
-def edit_color_pair(key: str, current_value: List[str]) -> List[str]:
+def edit_color_pair(key: str, display_label: str, current_value: List[str]) -> List[str]:
     """
     Allows the user to select a foreground and background color for a key.
     """
     color_list = [" "] + list(COLOR_MAP.keys())
-    fg_color = get_list_input(f"Select Foreground Color for {key}", current_value[0], color_list)
-    bg_color = get_list_input(f"Select Background Color for {key}", current_value[1], color_list)
+    fg_color = get_list_input(f"Select Foreground Color for {display_label}", current_value[0], color_list)
+    bg_color = get_list_input(f"Select Background Color for {display_label}", current_value[1], color_list)
 
     return [fg_color, bg_color]
 
 
-def edit_value(key: str, current_value: str) -> str:
+def edit_value(key: str, display_label: str, current_value: str) -> str:
 
     w = get_effective_width()
     height = 10
@@ -47,7 +73,7 @@ def edit_value(key: str, current_value: str) -> str:
     edit_win.border()
 
     # Display instructions
-    edit_win.addstr(1, 2, f"Editing {key}", get_color("settings_default", bold=True))
+    edit_win.addstr(1, 2, f"Editing {display_label}", get_color("settings_default", bold=True))
     edit_win.addstr(3, 2, "Current Value:", get_color("settings_default"))
 
     wrap_width = w - 4  # Account for border and padding
@@ -64,25 +90,25 @@ def edit_value(key: str, current_value: str) -> str:
         theme_options = [
             k.split("_", 2)[2].lower() for k in config.loaded_config.keys() if k.startswith("COLOR_CONFIG")
         ]
-        return get_list_input("Select Theme", current_value, theme_options)
+        return get_list_input(f"Select {display_label}", current_value, theme_options)
 
     elif key == "language":
         language_options = config.get_localisation_options()
         if not language_options:
             return current_value
-        return get_list_input("Select Language", current_value, language_options)
+        return get_list_input(f"Select {display_label}", current_value, language_options)
 
     elif key == "node_sort":
         sort_options = ["lastHeard", "name", "hops"]
-        return get_list_input("Sort By", current_value, sort_options)
+        return get_list_input(f"{display_label}", current_value, sort_options)
 
     elif key == "notification_sound":
         sound_options = ["True", "False"]
-        return get_list_input("Notification Sound", current_value, sound_options)
+        return get_list_input(f"{display_label}", current_value, sound_options)
 
     elif key == "single_pane_mode":
         sound_options = ["True", "False"]
-        return get_list_input("Single-Pane Mode", current_value, sound_options)
+        return get_list_input(f"{display_label}", current_value, sound_options)
 
     # Standard Input Mode (Scrollable)
     edit_win.addstr(7, 2, "New Value: ", get_color("settings_default"))
@@ -106,7 +132,7 @@ def edit_value(key: str, current_value: str) -> str:
             edit_win.border()
 
             # Redraw static content
-            edit_win.addstr(1, 2, f"Editing {key}", get_color("settings_default", bold=True))
+            edit_win.addstr(1, 2, f"Editing {display_label}", get_color("settings_default", bold=True))
             edit_win.addstr(3, 2, "Current Value:", get_color("settings_default"))
             for i, line in enumerate(wrapped_lines[:4]):
                 edit_win.addstr(4 + i, 2, line, get_color("settings_default"))
@@ -153,6 +179,9 @@ def display_menu() -> tuple[Any, Any, List[str]]:
     """
     Render the configuration menu with a Save button directly added to the window.
     """
+    if translation_language != config.language:
+        reload_translations()
+
     num_items = len(menu_state.current_menu) + (1 if menu_state.show_save_option else 0)
 
     # Determine menu items based on the type of current_menu
@@ -196,7 +225,12 @@ def display_menu() -> tuple[Any, Any, List[str]]:
             if isinstance(menu_state.current_menu, dict)
             else menu_state.current_menu[int(key.strip("[]"))]
         )
-        display_key = f"{key}"[: w // 2 - 2]
+        if isinstance(menu_state.current_menu, dict):
+            full_key = get_app_settings_key(menu_state.menu_path, key)
+            display_key = lookup_app_settings_label(full_key, key)
+        else:
+            display_key = key
+        display_key = f"{display_key}"[: w // 2 - 2]
         display_value = f"{value}"[: w // 2 - 8]
 
         color = get_color("settings_default", reverse=(idx == menu_state.selected_index))
@@ -314,10 +348,20 @@ def json_editor(stdscr: curses.window, menu_state: Any) -> None:
                 elif isinstance(menu_state.current_menu, list):
                     selected_data = menu_state.current_menu[int(selected_key.strip("[]"))]
 
+                display_label = selected_key
+                if isinstance(menu_state.current_menu, dict):
+                    path_for_label = (
+                        menu_state.menu_path[:-1]
+                        if menu_state.menu_path and menu_state.menu_path[-1] == str(selected_key)
+                        else menu_state.menu_path
+                    )
+                    full_key = get_app_settings_key(path_for_label, selected_key)
+                    display_label = lookup_app_settings_label(full_key, selected_key)
+
                 if isinstance(selected_data, list) and len(selected_data) == 2:
                     # Edit color pair
                     old = selected_data
-                    new_value = edit_color_pair(selected_key, selected_data)
+                    new_value = edit_color_pair(selected_key, display_label, selected_data)
                     menu_state.menu_path.pop()
                     menu_state.start_index.pop()
                     menu_state.menu_index.pop()
@@ -333,7 +377,7 @@ def json_editor(stdscr: curses.window, menu_state: Any) -> None:
                 else:
                     # General value editing
                     old = selected_data
-                    new_value = edit_value(selected_key, selected_data)
+                    new_value = edit_value(selected_key, display_label, selected_data)
                     menu_state.menu_path.pop()
                     menu_state.menu_index.pop()
                     menu_state.start_index.pop()
@@ -397,6 +441,7 @@ def save_json(file_path: str, data: Dict[str, Any]) -> None:
     with open(file_path, "w", encoding="utf-8") as f:
         f.write(formatted_json)
     setup_colors(reinit=True)
+    reload_translations(data.get("language"))
 
 
 def main(stdscr: curses.window) -> None:
