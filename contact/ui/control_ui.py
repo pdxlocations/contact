@@ -45,13 +45,19 @@ parent_dir = os.path.abspath(os.path.join(script_dir, os.pardir))
 
 # Paths
 # locals_dir = os.path.dirname(os.path.abspath(sys.argv[0]))  # Current script directory
-translation_file = os.path.join(parent_dir, "localisations", "en.ini")
+translation_file = config.get_localisation_file(config.language)
 
 # config_folder = os.path.join(locals_dir, "node-configs")
 config_folder = os.path.abspath(config.node_configs_file_path)
 
 # Load translations
 field_mapping, help_text = parse_ini_file(translation_file)
+
+
+def reload_translations() -> None:
+    global translation_file, field_mapping, help_text
+    translation_file = config.get_localisation_file(config.language)
+    field_mapping, help_text = parse_ini_file(translation_file)
 
 
 def display_menu() -> tuple[object, object]:
@@ -411,6 +417,7 @@ def settings_menu(stdscr: object, interface: object) -> None:
                 menu_state.menu_path.append("App Settings")
                 menu_state.menu_index.append(menu_state.selected_index)
                 json_editor(stdscr, menu_state)  # Open the App Settings menu
+                reload_translations()
                 menu_state.current_menu = menu["Main Menu"]
                 menu_state.menu_path = ["Main Menu"]
                 menu_state.start_index.pop()
