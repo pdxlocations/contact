@@ -47,7 +47,21 @@ def get_app_settings_path_parts(menu_path: List[str]) -> List[str]:
 
 
 def lookup_app_settings_label(full_key: str, fallback: str) -> str:
-    return field_mapping.get(full_key, fallback)
+    label = field_mapping.get(full_key)
+    if label:
+        return label
+    parts = full_key.split(".")
+    if len(parts) >= 2 and parts[1].startswith("COLOR_CONFIG_"):
+        unified_key = ".".join([parts[0], "color_config"] + parts[2:])
+        return field_mapping.get(unified_key, fallback)
+    return fallback
+
+
+def get_app_settings_help_path_parts(menu_path: List[str]) -> List[str]:
+    parts = get_app_settings_path_parts(menu_path)
+    if parts and parts[-1] in ("COLOR_CONFIG_DARK", "COLOR_CONFIG_LIGHT", "COLOR_CONFIG_GREEN"):
+        parts[-1] = "color_config"
+    return parts
 
 
 # Compute an effective width that fits the current terminal
@@ -275,8 +289,10 @@ def display_menu() -> tuple[Any, Any, List[str]]:
     global max_help_lines
     remaining_space = curses.LINES - (start_y + menu_height + 2)
     max_help_lines = max(remaining_space, 1)
-    transformed_path = get_app_settings_path_parts(menu_state.menu_path)
-    selected_option = options[menu_state.selected_index] if options else None
+    transformed_path = get_app_settings_help_path_parts(menu_state.menu_path)
+    selected_option = (
+        options[min(menu_state.selected_index, len(options) - 1)] if options and menu_state.selected_index >= 0 else None
+    )
     help_y = menu_win.getbegyx()[0] + menu_win.getmaxyx()[0]
     menu_state.help_win = update_help_window(
         menu_state.help_win,
@@ -293,7 +309,7 @@ def display_menu() -> tuple[Any, Any, List[str]]:
 
 
 def update_app_settings_help(menu_win: curses.window, options: List[str]) -> None:
-    transformed_path = get_app_settings_path_parts(menu_state.menu_path)
+    transformed_path = get_app_settings_help_path_parts(menu_state.menu_path)
     selected_option = options[menu_state.selected_index] if menu_state.selected_index < len(options) else None
     help_y = menu_win.getbegyx()[0] + menu_win.getmaxyx()[0]
     menu_state.help_win = update_help_window(
