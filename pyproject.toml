@@ -1,6 +1,6 @@
 [project]
 name = "contact"
-version = "1.4.10"
+version = "1.4.11"
 description = "This Python curses client for Meshtastic is a terminal-based client designed to manage device settings, enable mesh chat communication, and handle configuration backups and restores."
 authors = [
     {name = "Ben Lipsey",email = "ben@pdxlocations.com"}
