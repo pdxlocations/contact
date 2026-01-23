@@ -64,6 +64,21 @@ def get_app_settings_help_path_parts(menu_path: List[str]) -> List[str]:
     return parts
 
 
+def get_app_settings_header(menu_path: List[str]) -> str:
+    if not menu_path:
+        return ""
+    translated_parts = []
+    for idx, part in enumerate(menu_path):
+        if idx == 0:
+            translated_parts.append(field_mapping.get(part, part))
+            continue
+        if part in ("Main Menu", "App Settings"):
+            continue
+        full_key = ".".join(get_app_settings_path_parts(menu_path[: idx + 1]))
+        translated_parts.append(lookup_app_settings_label(full_key, part))
+    return " > ".join(translated_parts)
+
+
 # Compute an effective width that fits the current terminal
 def get_effective_width() -> int:
     # Leave space for borders; ensure a sane minimum
@@ -237,7 +252,7 @@ def display_menu() -> tuple[Any, Any, List[str]]:
     menu_pad.bkgd(get_color("background"))
 
     # Display the menu path
-    header = " > ".join(menu_state.menu_path)
+    header = get_app_settings_header(menu_state.menu_path)
     if len(header) > w - 4:
         header = header[: w - 7] + "..."
     menu_win.addstr(1, 2, header, get_color("settings_breadcrumbs", bold=True))

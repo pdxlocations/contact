@@ -60,6 +60,21 @@ def reload_translations() -> None:
     field_mapping, help_text = parse_ini_file(translation_file)
 
 
+def get_translated_header(menu_path: List[str]) -> str:
+    if not menu_path:
+        return ""
+
+    transformed_path = transform_menu_path(menu_path)
+    translated_parts = []
+    for idx, part in enumerate(menu_path):
+        if idx == 0:
+            translated_parts.append(field_mapping.get(part, part))
+            continue
+        full_key = ".".join(transformed_path[:idx])
+        translated_parts.append(field_mapping.get(full_key, part))
+    return " > ".join(translated_parts)
+
+
 def display_menu() -> tuple[object, object]:
     # if help_win:
     #     min_help_window_height = 6
@@ -92,7 +107,7 @@ def display_menu() -> tuple[object, object]:
     menu_pad = curses.newpad(len(menu_state.current_menu) + 1, w - 8)
     menu_pad.bkgd(get_color("background"))
 
-    header = " > ".join(word.title() for word in menu_state.menu_path)
+    header = get_translated_header(menu_state.menu_path)
     if len(header) > w - 4:
         header = header[: w - 7] + "..."
     menu_win.addstr(1, 2, header, get_color("settings_breadcrumbs", bold=True))
