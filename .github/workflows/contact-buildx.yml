@@ -1,8 +1,12 @@
 name: contact-buildx
 
 on:
-  schedule:
-    - cron: "0 0 * * Mon"
+  push:
+    tags:
+      - "[0-9]+.[0-9]+.[0-9]+"
+      - "[0-9]+.[0-9]+.[0-9]+a[0-9]+"
+      - "[0-9]+.[0-9]+.[0-9]+b[0-9]+"
+      - "[0-9]+.[0-9]+.[0-9]+rc[0-9]+"
   workflow_dispatch:
 
 jobs:
