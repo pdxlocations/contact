@@ -1,11 +1,12 @@
 import os
 import json
 import curses
-from typing import Any, List, Dict
+from typing import Any, List, Dict, Optional
 
 from contact.ui.colors import get_color, setup_colors, COLOR_MAP
 import contact.ui.default_config as config
-from contact.ui.nav_utils import move_highlight, draw_arrows
+from contact.ui.nav_utils import move_highlight, draw_arrows, update_help_window
+from contact.utilities.control_utils import parse_ini_file
 from contact.utilities.input_handlers import get_list_input
 from contact.utilities.singleton import menu_state
 
@@ -13,6 +14,54 @@ from contact.utilities.singleton import menu_state
 MAX_MENU_WIDTH = 80  # desired max; will shrink on small terminals
 max_help_lines = 6
 save_option = "Save Changes"
+translation_file = config.get_localisation_file(config.language)
+field_mapping, help_text = parse_ini_file(translation_file)
+translation_language = config.language
+
+
+def reload_translations(language: Optional[str] = None) -> None:
+    global translation_file, field_mapping, help_text, translation_language
+    target_language = language or config.language
+    translation_file = config.get_localisation_file(target_language)
+    field_mapping, help_text = parse_ini_file(translation_file)
+    translation_language = target_language
+
+
+def get_app_settings_key(menu_path: List[str], selected_key: str) -> str:
+    parts = ["app_settings"]
+    for part in menu_path:
+        if part in ("Main Menu", "App Settings"):
+            continue
+        parts.append(part)
+    parts.append(selected_key)
+    return ".".join(parts)
+
+
+def get_app_settings_path_parts(menu_path: List[str]) -> List[str]:
+    parts = ["app_settings"]
+    for part in menu_path:
+        if part in ("Main Menu", "App Settings"):
+            continue
+        parts.append(part)
+    return parts
+
+
+def lookup_app_settings_label(full_key: str, fallback: str) -> str:
+    label = field_mapping.get(full_key)
+    if label:
+        return label
+    parts = full_key.split(".")
+    if len(parts) >= 2 and parts[1].startswith("COLOR_CONFIG_"):
+        unified_key = ".".join([parts[0], "color_config"] + parts[2:])
+        return field_mapping.get(unified_key, fallback)
+    return fallback
+
+
+def get_app_settings_help_path_parts(menu_path: List[str]) -> List[str]:
+    parts = get_app_settings_path_parts(menu_path)
+    if parts and parts[-1] in ("COLOR_CONFIG_DARK", "COLOR_CONFIG_LIGHT", "COLOR_CONFIG_GREEN"):
+        parts[-1] = "color_config"
+    return parts
 
 
 # Compute an effective width that fits the current terminal
@@ -21,18 +70,18 @@ def get_effective_width() -> int:
     return max(20, min(MAX_MENU_WIDTH, curses.COLS - 2))
 
 
-def edit_color_pair(key: str, current_value: List[str]) -> List[str]:
+def edit_color_pair(key: str, display_label: str, current_value: List[str]) -> List[str]:
     """
     Allows the user to select a foreground and background color for a key.
     """
     color_list = [" "] + list(COLOR_MAP.keys())
-    fg_color = get_list_input(f"Select Foreground Color for {key}", current_value[0], color_list)
-    bg_color = get_list_input(f"Select Background Color for {key}", current_value[1], color_list)
+    fg_color = get_list_input(f"Select Foreground Color for {display_label}", current_value[0], color_list)
+    bg_color = get_list_input(f"Select Background Color for {display_label}", current_value[1], color_list)
 
     return [fg_color, bg_color]
 
 
-def edit_value(key: str, current_value: str) -> str:
+def edit_value(key: str, display_label: str, current_value: str) -> str:
 
     w = get_effective_width()
     height = 10
@@ -47,7 +96,7 @@ def edit_value(key: str, current_value: str) -> str:
     edit_win.border()
 
     # Display instructions
-    edit_win.addstr(1, 2, f"Editing {key}", get_color("settings_default", bold=True))
+    edit_win.addstr(1, 2, f"Editing {display_label}", get_color("settings_default", bold=True))
     edit_win.addstr(3, 2, "Current Value:", get_color("settings_default"))
 
     wrap_width = w - 4  # Account for border and padding
@@ -64,25 +113,25 @@ def edit_value(key: str, current_value: str) -> str:
         theme_options = [
             k.split("_", 2)[2].lower() for k in config.loaded_config.keys() if k.startswith("COLOR_CONFIG")
         ]
-        return get_list_input("Select Theme", current_value, theme_options)
+        return get_list_input(f"Select {display_label}", current_value, theme_options)
 
     elif key == "language":
         language_options = config.get_localisation_options()
         if not language_options:
             return current_value
-        return get_list_input("Select Language", current_value, language_options)
+        return get_list_input(f"Select {display_label}", current_value, language_options)
 
     elif key == "node_sort":
         sort_options = ["lastHeard", "name", "hops"]
-        return get_list_input("Sort By", current_value, sort_options)
+        return get_list_input(f"{display_label}", current_value, sort_options)
 
     elif key == "notification_sound":
         sound_options = ["True", "False"]
-        return get_list_input("Notification Sound", current_value, sound_options)
+        return get_list_input(f"{display_label}", current_value, sound_options)
 
     elif key == "single_pane_mode":
         sound_options = ["True", "False"]
-        return get_list_input("Single-Pane Mode", current_value, sound_options)
+        return get_list_input(f"{display_label}", current_value, sound_options)
 
     # Standard Input Mode (Scrollable)
     edit_win.addstr(7, 2, "New Value: ", get_color("settings_default"))
@@ -106,7 +155,7 @@ def edit_value(key: str, current_value: str) -> str:
             edit_win.border()
 
             # Redraw static content
-            edit_win.addstr(1, 2, f"Editing {key}", get_color("settings_default", bold=True))
+            edit_win.addstr(1, 2, f"Editing {display_label}", get_color("settings_default", bold=True))
             edit_win.addstr(3, 2, "Current Value:", get_color("settings_default"))
             for i, line in enumerate(wrapped_lines[:4]):
                 edit_win.addstr(4 + i, 2, line, get_color("settings_default"))
@@ -153,6 +202,9 @@ def display_menu() -> tuple[Any, Any, List[str]]:
     """
     Render the configuration menu with a Save button directly added to the window.
     """
+    if translation_language != config.language:
+        reload_translations()
+
     num_items = len(menu_state.current_menu) + (1 if menu_state.show_save_option else 0)
 
     # Determine menu items based on the type of current_menu
@@ -164,11 +216,12 @@ def display_menu() -> tuple[Any, Any, List[str]]:
         options = []  # Fallback in case of unexpected data types
 
     # Calculate dynamic dimensions for the menu
+    min_help_window_height = 6
     max_menu_height = curses.LINES
-    menu_height = min(max_menu_height, num_items + 5)
+    menu_height = min(max_menu_height - min_help_window_height, num_items + 5)
     num_items = len(options)
     w = get_effective_width()
-    start_y = (curses.LINES - menu_height) // 2
+    start_y = (curses.LINES - menu_height) // 2 - (min_help_window_height // 2)
     start_x = max(0, (curses.COLS - w) // 2)
 
     # Create the window
@@ -196,7 +249,12 @@ def display_menu() -> tuple[Any, Any, List[str]]:
             if isinstance(menu_state.current_menu, dict)
             else menu_state.current_menu[int(key.strip("[]"))]
         )
-        display_key = f"{key}"[: w // 2 - 2]
+        if isinstance(menu_state.current_menu, dict):
+            full_key = get_app_settings_key(menu_state.menu_path, key)
+            display_key = lookup_app_settings_label(full_key, key)
+        else:
+            display_key = key
+        display_key = f"{display_key}"[: w // 2 - 2]
         display_value = f"{value}"[: w // 2 - 8]
 
         color = get_color("settings_default", reverse=(idx == menu_state.selected_index))
@@ -227,7 +285,43 @@ def display_menu() -> tuple[Any, Any, List[str]]:
 
     draw_arrows(menu_win, visible_height, max_index, menu_state.start_index, menu_state.show_save_option)
 
+    # Draw help window below the menu
+    global max_help_lines
+    remaining_space = curses.LINES - (start_y + menu_height + 2)
+    max_help_lines = max(remaining_space, 1)
+    transformed_path = get_app_settings_help_path_parts(menu_state.menu_path)
+    selected_option = (
+        options[min(menu_state.selected_index, len(options) - 1)] if options and menu_state.selected_index >= 0 else None
+    )
+    help_y = menu_win.getbegyx()[0] + menu_win.getmaxyx()[0]
+    menu_state.help_win = update_help_window(
+        menu_state.help_win,
+        help_text,
+        transformed_path,
+        selected_option,
+        max_help_lines,
+        w,
+        help_y,
+        menu_win.getbegyx()[1],
+    )
+
     return menu_win, menu_pad, options
+
+
+def update_app_settings_help(menu_win: curses.window, options: List[str]) -> None:
+    transformed_path = get_app_settings_help_path_parts(menu_state.menu_path)
+    selected_option = options[menu_state.selected_index] if menu_state.selected_index < len(options) else None
+    help_y = menu_win.getbegyx()[0] + menu_win.getmaxyx()[0]
+    menu_state.help_win = update_help_window(
+        menu_state.help_win,
+        help_text,
+        transformed_path,
+        selected_option,
+        max_help_lines,
+        menu_win.getmaxyx()[1],
+        help_y,
+        menu_win.getbegyx()[1],
+    )
 
 
 def json_editor(stdscr: curses.window, menu_state: Any) -> None:
@@ -257,6 +351,7 @@ def json_editor(stdscr: curses.window, menu_state: Any) -> None:
 
     # Render the menu
     menu_win, menu_pad, options = display_menu()
+    update_app_settings_help(menu_win, options)
     menu_state.need_redraw = True
 
     while True:
@@ -264,6 +359,7 @@ def json_editor(stdscr: curses.window, menu_state: Any) -> None:
             menu_state.need_redraw = False
             menu_win, menu_pad, options = display_menu()
             menu_win.refresh()
+            update_app_settings_help(menu_win, options)
 
         max_index = len(options) + (1 if menu_state.show_save_option else 0) - 1
 
@@ -277,6 +373,7 @@ def json_editor(stdscr: curses.window, menu_state: Any) -> None:
             menu_state.help_win = move_highlight(
                 old_selected_index, options, menu_win, menu_pad, menu_state=menu_state, max_help_lines=max_help_lines
             )
+            update_app_settings_help(menu_win, options)
 
         elif key == curses.KEY_DOWN:
 
@@ -285,6 +382,7 @@ def json_editor(stdscr: curses.window, menu_state: Any) -> None:
             menu_state.help_win = move_highlight(
                 old_selected_index, options, menu_win, menu_pad, menu_state=menu_state, max_help_lines=max_help_lines
             )
+            update_app_settings_help(menu_win, options)
 
         elif key == ord("\t") and menu_state.show_save_option:
             old_selected_index = menu_state.selected_index
@@ -292,12 +390,16 @@ def json_editor(stdscr: curses.window, menu_state: Any) -> None:
             menu_state.help_win = move_highlight(
                 old_selected_index, options, menu_win, menu_pad, menu_state=menu_state, max_help_lines=max_help_lines
             )
+            update_app_settings_help(menu_win, options)
 
         elif key in (curses.KEY_RIGHT, 10, 13):  # 10 = \n, 13 = carriage return
 
             menu_state.need_redraw = True
             menu_win.erase()
             menu_win.refresh()
+            if menu_state.help_win:
+                menu_state.help_win.erase()
+                menu_state.help_win.refresh()
 
             if menu_state.selected_index < len(options):  # Handle selection of a menu item
                 selected_key = options[menu_state.selected_index]
@@ -314,10 +416,20 @@ def json_editor(stdscr: curses.window, menu_state: Any) -> None:
                 elif isinstance(menu_state.current_menu, list):
                     selected_data = menu_state.current_menu[int(selected_key.strip("[]"))]
 
+                display_label = selected_key
+                if isinstance(menu_state.current_menu, dict):
+                    path_for_label = (
+                        menu_state.menu_path[:-1]
+                        if menu_state.menu_path and menu_state.menu_path[-1] == str(selected_key)
+                        else menu_state.menu_path
+                    )
+                    full_key = get_app_settings_key(path_for_label, selected_key)
+                    display_label = lookup_app_settings_label(full_key, selected_key)
+
                 if isinstance(selected_data, list) and len(selected_data) == 2:
                     # Edit color pair
                     old = selected_data
-                    new_value = edit_color_pair(selected_key, selected_data)
+                    new_value = edit_color_pair(selected_key, display_label, selected_data)
                     menu_state.menu_path.pop()
                     menu_state.start_index.pop()
                     menu_state.menu_index.pop()
@@ -333,7 +445,7 @@ def json_editor(stdscr: curses.window, menu_state: Any) -> None:
                 else:
                     # General value editing
                     old = selected_data
-                    new_value = edit_value(selected_key, selected_data)
+                    new_value = edit_value(selected_key, display_label, selected_data)
                     menu_state.menu_path.pop()
                     menu_state.menu_index.pop()
                     menu_state.start_index.pop()
@@ -355,6 +467,9 @@ def json_editor(stdscr: curses.window, menu_state: Any) -> None:
             menu_state.need_redraw = True
             menu_win.erase()
             menu_win.refresh()
+            if menu_state.help_win:
+                menu_state.help_win.erase()
+                menu_state.help_win.refresh()
 
             # menu_state.selected_index = menu_state.menu_index[-1]
 
@@ -397,6 +512,7 @@ def save_json(file_path: str, data: Dict[str, Any]) -> None:
     with open(file_path, "w", encoding="utf-8") as f:
         f.write(formatted_json)
     setup_colors(reinit=True)
+    reload_translations(data.get("language"))
 
 
 def main(stdscr: curses.window) -> None:
