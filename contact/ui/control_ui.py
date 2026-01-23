@@ -16,6 +16,7 @@ from contact.utilities.input_handlers import (
     get_list_input,
     get_admin_key_input,
 )
+from contact.utilities.i18n import t
 from contact.ui.colors import get_color
 from contact.ui.dialog import dialog
 from contact.ui.menus import generate_menu_from_protobuf
@@ -134,10 +135,11 @@ def display_menu() -> tuple[object, object]:
 
     if menu_state.show_save_option:
         save_position = menu_height - 2
+        save_label = t("ui.save_changes", default=save_option)
         menu_win.addstr(
             save_position,
-            (w - len(save_option)) // 2,
-            save_option,
+            (w - len(save_label)) // 2,
+            save_label,
             get_color("settings_save", reverse=(menu_state.selected_index == len(menu_state.current_menu))),
         )
 
@@ -322,7 +324,11 @@ def settings_menu(stdscr: object, interface: object) -> None:
 
             elif selected_option == "Export Config File":
 
-                filename = get_text_input("Enter a filename for the config file", None, None)
+                filename = get_text_input(
+                    t("ui.prompt.config_filename", default="Enter a filename for the config file"),
+                    None,
+                    None,
+                )
                 if not filename:
                     logging.info("Export aborted: No filename provided.")
                     menu_state.start_index.pop()
@@ -335,7 +341,15 @@ def settings_menu(stdscr: object, interface: object) -> None:
                     yaml_file_path = os.path.join(config_folder, filename)
 
                     if os.path.exists(yaml_file_path):
-                        overwrite = get_list_input(f"{filename} already exists. Overwrite?", None, ["Yes", "No"])
+                        overwrite = get_list_input(
+                            t(
+                                "ui.confirm.overwrite_file",
+                                default="{filename} already exists. Overwrite?",
+                                filename=filename,
+                            ),
+                            None,
+                            ["Yes", "No"],
+                        )
                         if overwrite == "No":
                             logging.info("Export cancelled: User chose not to overwrite.")
                             menu_state.start_index.pop()
@@ -344,7 +358,7 @@ def settings_menu(stdscr: object, interface: object) -> None:
                     with open(yaml_file_path, "w", encoding="utf-8") as file:
                         file.write(config_text)
                     logging.info(f"Config file saved to {yaml_file_path}")
-                    dialog("Config File Saved:", yaml_file_path)
+                    dialog(t("ui.dialog.config_saved_title", default="Config File Saved:"), yaml_file_path)
                     menu_state.need_redraw = True
                     menu_state.start_index.pop()
                     continue
@@ -361,7 +375,7 @@ def settings_menu(stdscr: object, interface: object) -> None:
 
                 # Check if folder exists and is not empty
                 if not os.path.exists(config_folder) or not any(os.listdir(config_folder)):
-                    dialog("", " No config files found. Export a config first.")
+                    dialog("", t("ui.dialog.no_config_files", default=" No config files found. Export a config first."))
                     menu_state.need_redraw = True
                     continue  # Return to menu
 
@@ -369,14 +383,24 @@ def settings_menu(stdscr: object, interface: object) -> None:
 
                 # Ensure file_list is not empty before proceeding
                 if not file_list:
-                    dialog("", " No config files found. Export a config first.")
+                    dialog("", t("ui.dialog.no_config_files", default=" No config files found. Export a config first."))
                     menu_state.need_redraw = True
                     continue
 
-                filename = get_list_input("Choose a config file", None, file_list)
+                filename = get_list_input(
+                    t("ui.prompt.choose_config_file", default="Choose a config file"), None, file_list
+                )
                 if filename:
                     file_path = os.path.join(config_folder, filename)
-                    overwrite = get_list_input(f"Are you sure you want to load {filename}?", None, ["Yes", "No"])
+                    overwrite = get_list_input(
+                        t(
+                            "ui.confirm.load_config_file",
+                            default="Are you sure you want to load {filename}?",
+                            filename=filename,
+                        ),
+                        None,
+                        ["Yes", "No"],
+                    )
                     if overwrite == "Yes":
                         config_import(interface, file_path)
                 menu_state.start_index.pop()
@@ -384,10 +408,22 @@ def settings_menu(stdscr: object, interface: object) -> None:
 
             elif selected_option == "Config URL":
                 current_value = interface.localNode.getURL()
-                new_value = get_text_input(f"Config URL is currently: {current_value}", None, str)
+                new_value = get_text_input(
+                    t(
+                        "ui.prompt.config_url_current",
+                        default="Config URL is currently: {value}",
+                        value=current_value,
+                    ),
+                    None,
+                    str,
+                )
                 if new_value is not None:
                     current_value = new_value
-                    overwrite = get_list_input(f"Are you sure you want to load this config?", None, ["Yes", "No"])
+                    overwrite = get_list_input(
+                        t("ui.confirm.load_config_url", default="Are you sure you want to load this config?"),
+                        None,
+                        ["Yes", "No"],
+                    )
                     if overwrite == "Yes":
                         interface.localNode.setURL(new_value)
                         logging.info(f"New Config URL sent to node")
@@ -395,7 +431,9 @@ def settings_menu(stdscr: object, interface: object) -> None:
                 continue
 
             elif selected_option == "Reboot":
-                confirmation = get_list_input("Are you sure you want to Reboot?", None, ["Yes", "No"])
+                confirmation = get_list_input(
+                    t("ui.confirm.reboot", default="Are you sure you want to Reboot?"), None, ["Yes", "No"]
+                )
                 if confirmation == "Yes":
                     interface.localNode.reboot()
                     logging.info(f"Node Reboot Requested by menu")
@@ -403,7 +441,11 @@ def settings_menu(stdscr: object, interface: object) -> None:
                 continue
 
             elif selected_option == "Reset Node DB":
-                confirmation = get_list_input("Are you sure you want to Reset Node DB?", None, ["Yes", "No"])
+                confirmation = get_list_input(
+                    t("ui.confirm.reset_node_db", default="Are you sure you want to Reset Node DB?"),
+                    None,
+                    ["Yes", "No"],
+                )
                 if confirmation == "Yes":
                     interface.localNode.resetNodeDb()
                     logging.info(f"Node DB Reset Requested by menu")
@@ -411,7 +453,9 @@ def settings_menu(stdscr: object, interface: object) -> None:
                 continue
 
             elif selected_option == "Shutdown":
-                confirmation = get_list_input("Are you sure you want to Shutdown?", None, ["Yes", "No"])
+                confirmation = get_list_input(
+                    t("ui.confirm.shutdown", default="Are you sure you want to Shutdown?"), None, ["Yes", "No"]
+                )
                 if confirmation == "Yes":
                     interface.localNode.shutdown()
                     logging.info(f"Node Shutdown Requested by menu")
@@ -419,7 +463,11 @@ def settings_menu(stdscr: object, interface: object) -> None:
                 continue
 
             elif selected_option == "Factory Reset":
-                confirmation = get_list_input("Are you sure you want to Factory Reset?", None, ["Yes", "No"])
+                confirmation = get_list_input(
+                    t("ui.confirm.factory_reset", default="Are you sure you want to Factory Reset?"),
+                    None,
+                    ["Yes", "No"],
+                )
                 if confirmation == "Yes":
                     interface.localNode.factoryReset()
                     logging.info(f"Factory Reset Requested by menu")
@@ -570,7 +618,11 @@ def settings_menu(stdscr: object, interface: object) -> None:
 
                 current_section = menu_state.menu_path[-1]
                 save_prompt = get_list_input(
-                    f"You have unsaved changes in {current_section}. Save before exiting?",
+                    t(
+                        "ui.confirm.save_before_exit_section",
+                        default="You have unsaved changes in {section}. Save before exiting?",
+                        section=current_section,
+                    ),
                     None,
                     ["Yes", "No", "Cancel"],
                     mandatory=True,
@@ -637,7 +689,9 @@ def set_region(interface: object) -> None:
 
     regions = list(region_name_to_number.keys())
 
-    new_region_name = get_list_input("Select your region:", "UNSET", regions)
+    new_region_name = get_list_input(
+        t("ui.prompt.select_region", default="Select your region:"), "UNSET", regions
+    )
 
     # Convert region name to corresponding enum number
     new_region_number = region_name_to_number.get(new_region_name, 0)  # Default to 0 if not found

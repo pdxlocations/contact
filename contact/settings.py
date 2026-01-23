@@ -7,6 +7,7 @@ import traceback
 
 import contact.ui.default_config as config
 from contact.utilities.input_handlers import get_list_input
+from contact.utilities.i18n import t
 from contact.ui.colors import setup_colors
 from contact.ui.splash import draw_splash
 from contact.ui.control_ui import set_region, settings_menu
@@ -28,7 +29,11 @@ def main(stdscr: curses.window) -> None:
             interface = initialize_interface(args)
 
             if interface.localNode.localConfig.lora.region == 0:
-                confirmation = get_list_input("Your region is UNSET.  Set it now?", "Yes", ["Yes", "No"])
+                confirmation = get_list_input(
+                    t("ui.confirm.region_unset", default="Your region is UNSET.  Set it now?"),
+                    "Yes",
+                    ["Yes", "No"],
+                )
                 if confirmation == "Yes":
                     set_region(interface)
                     interface.close()

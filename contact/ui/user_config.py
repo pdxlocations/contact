@@ -8,6 +8,7 @@ import contact.ui.default_config as config
 from contact.ui.nav_utils import move_highlight, draw_arrows, update_help_window
 from contact.utilities.control_utils import parse_ini_file
 from contact.utilities.input_handlers import get_list_input
+from contact.utilities.i18n import t
 from contact.utilities.singleton import menu_state
 
 
@@ -90,8 +91,24 @@ def edit_color_pair(key: str, display_label: str, current_value: List[str]) -> L
     Allows the user to select a foreground and background color for a key.
     """
     color_list = [" "] + list(COLOR_MAP.keys())
-    fg_color = get_list_input(f"Select Foreground Color for {display_label}", current_value[0], color_list)
-    bg_color = get_list_input(f"Select Background Color for {display_label}", current_value[1], color_list)
+    fg_color = get_list_input(
+        t(
+            "ui.prompt.select_foreground_color",
+            default="Select Foreground Color for {label}",
+            label=display_label,
+        ),
+        current_value[0],
+        color_list,
+    )
+    bg_color = get_list_input(
+        t(
+            "ui.prompt.select_background_color",
+            default="Select Background Color for {label}",
+            label=display_label,
+        ),
+        current_value[1],
+        color_list,
+    )
 
     return [fg_color, bg_color]
 
@@ -111,8 +128,13 @@ def edit_value(key: str, display_label: str, current_value: str) -> str:
     edit_win.border()
 
     # Display instructions
-    edit_win.addstr(1, 2, f"Editing {display_label}", get_color("settings_default", bold=True))
-    edit_win.addstr(3, 2, "Current Value:", get_color("settings_default"))
+    edit_win.addstr(
+        1,
+        2,
+        t("ui.label.editing", default="Editing {label}", label=display_label),
+        get_color("settings_default", bold=True),
+    )
+    edit_win.addstr(3, 2, t("ui.label.current_value", default="Current Value:"), get_color("settings_default"))
 
     wrap_width = w - 4  # Account for border and padding
     wrapped_lines = [current_value[i : i + wrap_width] for i in range(0, len(current_value), wrap_width)]
@@ -128,28 +150,36 @@ def edit_value(key: str, display_label: str, current_value: str) -> str:
         theme_options = [
             k.split("_", 2)[2].lower() for k in config.loaded_config.keys() if k.startswith("COLOR_CONFIG")
         ]
-        return get_list_input(f"Select {display_label}", current_value, theme_options)
+        return get_list_input(
+            t("ui.prompt.select_value", default="Select {label}", label=display_label),
+            current_value,
+            theme_options,
+        )
 
     elif key == "language":
         language_options = config.get_localisation_options()
         if not language_options:
             return current_value
-        return get_list_input(f"Select {display_label}", current_value, language_options)
+        return get_list_input(
+            t("ui.prompt.select_value", default="Select {label}", label=display_label),
+            current_value,
+            language_options,
+        )
 
     elif key == "node_sort":
         sort_options = ["lastHeard", "name", "hops"]
-        return get_list_input(f"{display_label}", current_value, sort_options)
+        return get_list_input(display_label, current_value, sort_options)
 
     elif key == "notification_sound":
         sound_options = ["True", "False"]
-        return get_list_input(f"{display_label}", current_value, sound_options)
+        return get_list_input(display_label, current_value, sound_options)
 
     elif key == "single_pane_mode":
         sound_options = ["True", "False"]
-        return get_list_input(f"{display_label}", current_value, sound_options)
+        return get_list_input(display_label, current_value, sound_options)
 
     # Standard Input Mode (Scrollable)
-    edit_win.addstr(7, 2, "New Value: ", get_color("settings_default"))
+    edit_win.addstr(7, 2, t("ui.label.new_value", default="New Value: "), get_color("settings_default"))
     curses.curs_set(1)
 
     scroll_offset = 0  # Determines which part of the text is visible
@@ -170,11 +200,20 @@ def edit_value(key: str, display_label: str, current_value: str) -> str:
             edit_win.border()
 
             # Redraw static content
-            edit_win.addstr(1, 2, f"Editing {display_label}", get_color("settings_default", bold=True))
-            edit_win.addstr(3, 2, "Current Value:", get_color("settings_default"))
+            edit_win.addstr(
+                1,
+                2,
+                t("ui.label.editing", default="Editing {label}", label=display_label),
+                get_color("settings_default", bold=True),
+            )
+            edit_win.addstr(
+                3, 2, t("ui.label.current_value", default="Current Value:"), get_color("settings_default")
+            )
             for i, line in enumerate(wrapped_lines[:4]):
                 edit_win.addstr(4 + i, 2, line, get_color("settings_default"))
-            edit_win.addstr(7, 2, "New Value: ", get_color("settings_default"))
+            edit_win.addstr(
+                7, 2, t("ui.label.new_value", default="New Value: "), get_color("settings_default")
+            )
 
         visible_text = user_input[scroll_offset : scroll_offset + input_width]
         edit_win.addstr(row, col, " " * input_width, get_color("settings_default"))
@@ -278,10 +317,11 @@ def display_menu() -> tuple[Any, Any, List[str]]:
     # Add Save button to the main window
     if menu_state.show_save_option:
         save_position = menu_height - 2
+        save_label = t("ui.save_changes", default=save_option)
         menu_win.addstr(
             save_position,
-            (w - len(save_option)) // 2,
-            save_option,
+            (w - len(save_label)) // 2,
+            save_label,
             get_color("settings_save", reverse=(menu_state.selected_index == len(menu_state.current_menu))),
         )
 
@@ -505,7 +545,7 @@ def json_editor(stdscr: curses.window, menu_state: Any) -> None:
                 # Exit the editor
                 if made_changes:
                     save_prompt = get_list_input(
-                        "You have unsaved changes. Save before exiting?",
+                        t("ui.confirm.save_before_exit", default="You have unsaved changes. Save before exiting?"),
                         None,
                         ["Yes", "No", "Cancel"],
                         mandatory=True,

@@ -3,6 +3,7 @@ import re
 from unicodedata import east_asian_width
 
 from contact.ui.colors import get_color
+from contact.utilities.i18n import t
 from contact.utilities.control_utils import transform_menu_path
 from typing import Any, Optional, List, Dict
 from contact.utilities.singleton import interface_state, ui_state
@@ -24,6 +25,10 @@ WrappedLine = List[Segment]
 
 sensitive_settings = ["Reboot", "Reset Node DB", "Shutdown", "Factory Reset"]
 save_option = "Save Changes"
+
+
+def get_save_option_label() -> str:
+    return t("ui.save_changes", default=save_option)
 MIN_HEIGHT_FOR_HELP = 20
 
 
@@ -54,6 +59,9 @@ def move_highlight(
 
     if "max_help_lines" in kwargs:
         max_help_lines = kwargs["max_help_lines"]
+    if not options:
+        return
+
     if old_idx == new_idx:  # No-op
         return
 
@@ -74,8 +82,11 @@ def move_highlight(
     # Clear old selection
     if show_save_option and old_idx == max_index:
         win_h, win_w = menu_win.getmaxyx()
-        menu_win.chgat(win_h - 2, (win_w - len(save_option)) // 2, len(save_option), get_color("settings_save"))
-    else:
+        save_label = get_save_option_label()
+        menu_win.chgat(
+            win_h - 2, (win_w - len(save_label)) // 2, len(save_label), get_color("settings_save")
+        )
+    elif 0 <= old_idx < len(options):
         menu_pad.chgat(
             old_idx,
             0,
@@ -90,13 +101,14 @@ def move_highlight(
     # Highlight new selection
     if show_save_option and new_idx == max_index:
         win_h, win_w = menu_win.getmaxyx()
+        save_label = get_save_option_label()
         menu_win.chgat(
             win_h - 2,
-            (win_w - len(save_option)) // 2,
-            len(save_option),
+            (win_w - len(save_label)) // 2,
+            len(save_label),
             get_color("settings_save", reverse=True),
         )
-    else:
+    elif 0 <= new_idx < len(options):
         menu_pad.chgat(
             new_idx,
             0,
@@ -233,7 +245,7 @@ def get_wrapped_help_text(
     """Fetches and formats help text for display, ensuring it fits within the allowed lines."""
 
     full_help_key = ".".join(transformed_path + [selected_option]) if selected_option else None
-    help_content = help_text.get(full_help_key, "No help available.")
+    help_content = help_text.get(full_help_key, t("ui.help.no_help", default="No help available."))
 
     wrap_width = max(width - 6, 10)  # Ensure a valid wrapping width
 

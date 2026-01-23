@@ -7,6 +7,7 @@ from typing import Any, Optional, List
 from contact.ui.colors import get_color
 from contact.ui.nav_utils import move_highlight, draw_arrows, wrap_text
 from contact.ui.dialog import dialog
+from contact.utilities.i18n import t, t_text
 from contact.utilities.validation_rules import get_validation_for
 from contact.utilities.singleton import menu_state
 
@@ -28,7 +29,7 @@ def invalid_input(window: curses.window, message: str, redraw_func: Optional[cal
     """Displays an invalid input message in the given window and redraws if needed."""
     cursor_y, cursor_x = window.getyx()
     curses.curs_set(0)
-    dialog("Invalid Input", message)
+    dialog(t("ui.dialog.invalid_input", default="Invalid Input"), t_text(message))
     if redraw_func:
         redraw_func()  # Redraw the original window content that got obscured
     else:
@@ -72,6 +73,7 @@ def get_text_input(prompt: str, selected_config: str, input_type: str) -> Option
     input_win.attrset(get_color("window_frame"))
     input_win.border()
 
+    prompt = t_text(prompt)
     # Wrap the prompt text
     wrapped_prompt = wrap_text(prompt, wrap_width=input_width)
     row = 1
@@ -82,7 +84,7 @@ def get_text_input(prompt: str, selected_config: str, input_type: str) -> Option
         if row >= height - 3:  # Prevent overflow
             break
 
-    prompt_text = "Enter new value: "
+    prompt_text = t("ui.prompt.enter_new_value", default="Enter new value: ")
     input_win.addstr(row + 1, margin, prompt_text, get_color("settings_default"))
 
     input_win.refresh()
@@ -125,41 +127,58 @@ def get_text_input(prompt: str, selected_config: str, input_type: str) -> Option
             menu_state.need_redraw = True
 
             if not user_input.strip():
-                invalid_input(input_win, "Value cannot be empty.", redraw_func=redraw_input_win)
+                invalid_input(
+                    input_win,
+                    t("ui.error.value_empty", default="Value cannot be empty."),
+                    redraw_func=redraw_input_win,
+                )
                 continue
 
             length = len(user_input)
             if min_length == max_length and max_length is not None:
                 if length != min_length:
                     invalid_input(
-                        input_win, f"Value must be exactly {min_length} characters long.", redraw_func=redraw_input_win
+                        input_win,
+                        t("ui.error.value_exact_length", default="Value must be exactly {length} characters long.", length=min_length),
+                        redraw_func=redraw_input_win,
                     )
                     continue
             else:
                 if length < min_length:
                     invalid_input(
                         input_win,
-                        f"Value must be at least {min_length} characters long.",
+                        t("ui.error.value_min_length", default="Value must be at least {length} characters long.", length=min_length),
                         redraw_func=redraw_input_win,
                     )
                     continue
                 if max_length is not None and length > max_length:
                     invalid_input(
                         input_win,
-                        f"Value must be no more than {max_length} characters long.",
+                        t("ui.error.value_max_length", default="Value must be no more than {length} characters long.", length=max_length),
                         redraw_func=redraw_input_win,
                     )
                     continue
 
             if input_type is int:
                 if not user_input.isdigit():
-                    invalid_input(input_win, "Only numeric digits (0–9) allowed.", redraw_func=redraw_input_win)
+                    invalid_input(
+                        input_win,
+                        t("ui.error.digits_only", default="Only numeric digits (0-9) allowed."),
+                        redraw_func=redraw_input_win,
+                    )
                     continue
 
                 int_val = int(user_input)
                 if not (min_value <= int_val <= max_value):
                     invalid_input(
-                        input_win, f"Enter a number between {min_value} and {max_value}.", redraw_func=redraw_input_win
+                        input_win,
+                        t(
+                            "ui.error.number_range",
+                            default="Enter a number between {min_value} and {max_value}.",
+                            min_value=min_value,
+                            max_value=max_value,
+                        ),
+                        redraw_func=redraw_input_win,
                     )
                     continue
 
@@ -172,12 +191,21 @@ def get_text_input(prompt: str, selected_config: str, input_type: str) -> Option
                     if not (min_value <= float_val <= max_value):
                         invalid_input(
                             input_win,
-                            f"Enter a number between {min_value} and {max_value}.",
+                            t(
+                                "ui.error.number_range",
+                                default="Enter a number between {min_value} and {max_value}.",
+                                min_value=min_value,
+                                max_value=max_value,
+                            ),
                             redraw_func=redraw_input_win,
                         )
                         continue
                 except ValueError:
-                    invalid_input(input_win, "Must be a valid floating point number.", redraw_func=redraw_input_win)
+                    invalid_input(
+                        input_win,
+                        t("ui.error.float_invalid", default="Must be a valid floating point number."),
+                        redraw_func=redraw_input_win,
+                    )
                     continue
                 else:
                     curses.curs_set(0)
@@ -276,13 +304,21 @@ def get_admin_key_input(current_value: List[bytes]) -> Optional[List[str]]:
     while True:
         admin_key_win.erase()
         admin_key_win.border()
-        admin_key_win.addstr(1, 2, "Edit up to 3 Admin Keys:", get_color("settings_default", bold=True))
+        admin_key_win.addstr(
+            1,
+            2,
+            t("ui.prompt.edit_admin_keys", default="Edit up to 3 Admin Keys:"),
+            get_color("settings_default", bold=True),
+        )
 
         # Display current values, allowing editing
         for i, line in enumerate(user_values):
             prefix = "→ " if i == cursor_pos else "  "  # Highlight the current line
             admin_key_win.addstr(
-                3 + i, 2, f"{prefix}Admin Key {i + 1}: ", get_color("settings_default", bold=(i == cursor_pos))
+                3 + i,
+                2,
+                f"{prefix}{t('ui.label.admin_key', default='Admin Key')} {i + 1}: ",
+                get_color("settings_default", bold=(i == cursor_pos)),
             )
             admin_key_win.addstr(3 + i, 18, line)  # Align text for easier editing
 
@@ -292,7 +328,7 @@ def get_admin_key_input(current_value: List[bytes]) -> Optional[List[str]]:
 
         # Show error message if needed
         if invalid_input:
-            admin_key_win.addstr(7, 2, invalid_input, get_color("settings_default", bold=True))
+            admin_key_win.addstr(7, 2, t_text(invalid_input), get_color("settings_default", bold=True))
 
         admin_key_win.refresh()
         key = admin_key_win.getch()
@@ -312,7 +348,10 @@ def get_admin_key_input(current_value: List[bytes]) -> Optional[List[str]]:
                 curses.curs_set(0)
                 return user_values  # Return the edited Base64 values
             else:
-                invalid_input = "Error: Each key must be valid Base64 and 32 bytes long!"
+                invalid_input = t(
+                    "ui.error.admin_key_invalid",
+                    default="Error: Each key must be valid Base64 and 32 bytes long!",
+                )
         elif key == curses.KEY_UP:  # Move cursor up
             cursor_pos = (cursor_pos - 1) % len(user_values)
         elif key == curses.KEY_DOWN:  # Move cursor down
@@ -353,13 +392,21 @@ def get_repeated_input(current_value: List[str]) -> Optional[str]:
     def redraw():
         repeated_win.erase()
         repeated_win.border()
-        repeated_win.addstr(1, 2, "Edit up to 3 Values:", get_color("settings_default", bold=True))
+        repeated_win.addstr(
+            1,
+            2,
+            t("ui.prompt.edit_values", default="Edit up to 3 Values:"),
+            get_color("settings_default", bold=True),
+        )
 
         win_h, win_w = repeated_win.getmaxyx()
         for i, line in enumerate(user_values):
             prefix = "→ " if i == cursor_pos else "  "
             repeated_win.addstr(
-                3 + i, 2, f"{prefix}Value{i + 1}: ", get_color("settings_default", bold=(i == cursor_pos))
+                3 + i,
+                2,
+                f"{prefix}{t('ui.label.value', default='Value')}{i + 1}: ",
+                get_color("settings_default", bold=(i == cursor_pos)),
             )
             repeated_win.addstr(3 + i, 18, line[: max(0, win_w - 20)])  # Prevent overflow
 
@@ -434,9 +481,21 @@ def get_fixed32_input(current_value: int) -> int:
     def redraw():
         fixed32_win.erase()
         fixed32_win.border()
-        fixed32_win.addstr(1, 2, "Enter an IP address (xxx.xxx.xxx.xxx):", get_color("settings_default", bold=True))
-        fixed32_win.addstr(3, 2, f"Current: {ip_string}", get_color("settings_default"))
-        fixed32_win.addstr(5, 2, f"New value: {user_input}", get_color("settings_default"))
+        fixed32_win.addstr(
+            1,
+            2,
+            t("ui.prompt.enter_ip", default="Enter an IP address (xxx.xxx.xxx.xxx):"),
+            get_color("settings_default", bold=True),
+        )
+        fixed32_win.addstr(
+            3, 2, f"{t('ui.label.current', default='Current')}: {ip_string}", get_color("settings_default")
+        )
+        fixed32_win.addstr(
+            5,
+            2,
+            f"{t('ui.label.new_value', default='New value')}: {user_input}",
+            get_color("settings_default"),
+        )
         fixed32_win.refresh()
 
     while True:
@@ -467,7 +526,12 @@ def get_fixed32_input(current_value: int) -> int:
                 curses.curs_set(0)
                 return int(ipaddress.ip_address(user_input))
             else:
-                fixed32_win.addstr(7, 2, "Invalid IP address. Try again.", get_color("settings_default", bold=True))
+                fixed32_win.addstr(
+                    7,
+                    2,
+                    t("ui.error.ip_invalid", default="Invalid IP address. Try again."),
+                    get_color("settings_default", bold=True),
+                )
                 fixed32_win.refresh()
                 curses.napms(1500)
                 user_input = ""
@@ -513,15 +577,17 @@ def get_list_input(
     visible_height = list_win.getmaxyx()[0] - 5
 
     def redraw_list_ui():
+        translated_prompt = t_text(prompt)
         list_win.erase()
         list_win.border()
-        list_win.addstr(1, 2, prompt, get_color("settings_default", bold=True))
+        list_win.addstr(1, 2, translated_prompt, get_color("settings_default", bold=True))
 
         win_h, win_w = list_win.getmaxyx()
         pad_w = max(1, win_w - 8)
         for idx, item in enumerate(list_options):
             color = get_color("settings_default", reverse=(idx == selected_index))
-            list_pad.addstr(idx, 0, item[:pad_w].ljust(pad_w), color)
+            display_item = t_text(item)
+            list_pad.addstr(idx, 0, display_item[:pad_w].ljust(pad_w), color)
 
         list_win.refresh()
         list_pad.refresh(

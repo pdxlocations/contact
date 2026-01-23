@@ -11,6 +11,7 @@ from contact.utilities.utils import parse_protobuf
 from contact.ui.colors import get_color
 from contact.utilities.db_handler import get_name_from_database, update_node_info_in_db, is_chat_archived
 from contact.utilities.input_handlers import get_list_input
+from contact.utilities.i18n import t
 import contact.ui.default_config as config
 import contact.ui.dialog
 from contact.ui.nav_utils import move_main_highlight, draw_main_arrows, get_msg_window_lines, wrap_text
@@ -433,7 +434,10 @@ def handle_enter(input_text: str) -> str:
         # TODO: This is a hack to prevent sending messages too quickly. Let's get errors from the node.
         now = time.monotonic()
         if now - ui_state.last_sent_time < 2.5:
-            contact.ui.dialog.dialog("Slow down", "Please wait 2 seconds between messages.")
+            contact.ui.dialog.dialog(
+                t("ui.dialog.slow_down_title", default="Slow down"),
+                t("ui.dialog.slow_down_body", default="Please wait 2 seconds between messages."),
+            )
             return input_text
         # Enter key pressed, send user input as message
         send_message(input_text, channel=ui_state.selected_channel)
@@ -525,7 +529,14 @@ def handle_f5_key(stdscr: curses.window) -> None:
 
         message = "\n".join(message_parts)
 
-        contact.ui.dialog.dialog(f"📡 Node Details: {node.get('user', {}).get('shortName', 'Unknown')}", message)
+        contact.ui.dialog.dialog(
+            t(
+                "ui.dialog.node_details_title",
+                default="📡 Node Details: {name}",
+                name=node.get("user", {}).get("shortName", "Unknown"),
+            ),
+            message,
+        )
         curses.curs_set(1)  # Show cursor again
         handle_resize(stdscr, False)
 
@@ -542,7 +553,12 @@ def handle_ctrl_t(stdscr: curses.window) -> None:
     if remaining > 0:
         curses.curs_set(0)  # Hide cursor
         contact.ui.dialog.dialog(
-            "Traceroute Not Sent", f"Please wait {int(remaining)} seconds before sending another traceroute."
+            t("ui.dialog.traceroute_not_sent_title", default="Traceroute Not Sent"),
+            t(
+                "ui.dialog.traceroute_not_sent_body",
+                default="Please wait {seconds} seconds before sending another traceroute.",
+                seconds=int(remaining),
+            ),
         )
         curses.curs_set(1)  # Show cursor again
         handle_resize(stdscr, False)
@@ -552,8 +568,12 @@ def handle_ctrl_t(stdscr: curses.window) -> None:
     ui_state.last_traceroute_time = now
     curses.curs_set(0)  # Hide cursor
     contact.ui.dialog.dialog(
-        f"Traceroute Sent To: {get_name_from_database(ui_state.node_list[ui_state.selected_node])}",
-        "Results will appear in messages window.",
+        t(
+            "ui.dialog.traceroute_sent_title",
+            default="Traceroute Sent To: {name}",
+            name=get_name_from_database(ui_state.node_list[ui_state.selected_node]),
+        ),
+        t("ui.dialog.traceroute_sent_body", default="Results will appear in messages window."),
     )
     curses.curs_set(1)  # Show cursor again
     handle_resize(stdscr, False)
@@ -601,23 +621,23 @@ def handle_ctrl_k(stdscr: curses.window) -> None:
     curses.curs_set(0)
 
     cmds = [
-        "↑/↓ = Scroll",
-        "←/→ = Switch window",
-        "F1/F2/F3 = Jump to Channel/Messages/Nodes",
-        "ENTER = Send / Select",
-        "` or F12 = Settings",
-        "ESC = Quit",
-        "Ctrl+P = Toggle Packet Log",
-        "Ctrl+T or F4 = Traceroute",
-        "F5 = Full node info",
-        "Ctrl+D = Archive chat / remove node",
-        "Ctrl+F = Favorite",
-        "Ctrl+G = Ignore",
-        "Ctrl+/ = Search",
-        "Ctrl+K = Help",
+        t("ui.help.scroll", default="Up/Down = Scroll"),
+        t("ui.help.switch_window", default="Left/Right = Switch window"),
+        t("ui.help.jump_windows", default="F1/F2/F3 = Jump to Channel/Messages/Nodes"),
+        t("ui.help.enter", default="ENTER = Send / Select"),
+        t("ui.help.settings", default="` or F12 = Settings"),
+        t("ui.help.quit", default="ESC = Quit"),
+        t("ui.help.packet_log", default="Ctrl+P = Toggle Packet Log"),
+        t("ui.help.traceroute", default="Ctrl+T or F4 = Traceroute"),
+        t("ui.help.node_info", default="F5 = Full node info"),
+        t("ui.help.archive_chat", default="Ctrl+D = Archive chat / remove node"),
+        t("ui.help.favorite", default="Ctrl+F = Favorite"),
+        t("ui.help.ignore", default="Ctrl+G = Ignore"),
+        t("ui.help.search", default="Ctrl+/ = Search"),
+        t("ui.help.help", default="Ctrl+K = Help"),
     ]
 
-    contact.ui.dialog.dialog("Help — Shortcut Keys", "\n".join(cmds))
+    contact.ui.dialog.dialog(t("ui.dialog.help_title", default="Help - Shortcut Keys"), "\n".join(cmds))
 
     curses.curs_set(1)
     handle_resize(stdscr, False)
@@ -642,7 +662,11 @@ def handle_ctrl_d() -> None:
     if ui_state.current_window == 2:
         curses.curs_set(0)
         confirmation = get_list_input(
-            f"Remove {get_name_from_database(ui_state.node_list[ui_state.selected_node])} from nodedb?",
+            t(
+                "ui.confirm.remove_from_nodedb",
+                default="Remove {name} from nodedb?",
+                name=get_name_from_database(ui_state.node_list[ui_state.selected_node]),
+            ),
             "No",
             ["Yes", "No"],
         )
@@ -680,7 +704,11 @@ def handle_ctrl_f(stdscr: curses.window) -> None:
 
         if "isFavorite" not in selectedNode or selectedNode["isFavorite"] == False:
             confirmation = get_list_input(
-                f"Set {get_name_from_database(ui_state.node_list[ui_state.selected_node])} as Favorite?",
+                t(
+                    "ui.confirm.set_favorite",
+                    default="Set {name} as Favorite?",
+                    name=get_name_from_database(ui_state.node_list[ui_state.selected_node]),
+                ),
                 None,
                 ["Yes", "No"],
             )
@@ -693,7 +721,11 @@ def handle_ctrl_f(stdscr: curses.window) -> None:
 
         else:
             confirmation = get_list_input(
-                f"Remove {get_name_from_database(ui_state.node_list[ui_state.selected_node])} from Favorites?",
+                t(
+                    "ui.confirm.remove_favorite",
+                    default="Remove {name} from Favorites?",
+                    name=get_name_from_database(ui_state.node_list[ui_state.selected_node]),
+                ),
                 None,
                 ["Yes", "No"],
             )
@@ -716,7 +748,11 @@ def handle_ctlr_g(stdscr: curses.window) -> None:
 
         if "isIgnored" not in selectedNode or selectedNode["isIgnored"] == False:
             confirmation = get_list_input(
-                f"Set {get_name_from_database(ui_state.node_list[ui_state.selected_node])} as Ignored?",
+                t(
+                    "ui.confirm.set_ignored",
+                    default="Set {name} as Ignored?",
+                    name=get_name_from_database(ui_state.node_list[ui_state.selected_node]),
+                ),
                 "No",
                 ["Yes", "No"],
             )
@@ -725,7 +761,11 @@ def handle_ctlr_g(stdscr: curses.window) -> None:
                 interface_state.interface.nodesByNum[ui_state.node_list[ui_state.selected_node]]["isIgnored"] = True
         else:
             confirmation = get_list_input(
-                f"Remove {get_name_from_database(ui_state.node_list[ui_state.selected_node])} from Ignored?",
+                t(
+                    "ui.confirm.remove_ignored",
+                    default="Remove {name} from Ignored?",
+                    name=get_name_from_database(ui_state.node_list[ui_state.selected_node]),
+                ),
                 "No",
                 ["Yes", "No"],
             )
