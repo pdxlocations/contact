@@ -1,7 +1,7 @@
 from typing import Optional
 
 import contact.ui.default_config as config
-from contact.utilities.control_utils import parse_ini_file
+from contact.utilities.ini_utils import parse_ini_file
 
 _translations = {}
 _language = None

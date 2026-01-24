@@ -6,7 +6,7 @@ from typing import Any, List, Dict, Optional
 from contact.ui.colors import get_color, setup_colors, COLOR_MAP
 import contact.ui.default_config as config
 from contact.ui.nav_utils import move_highlight, draw_arrows, update_help_window
-from contact.utilities.control_utils import parse_ini_file
+from contact.utilities.ini_utils import parse_ini_file
 from contact.utilities.input_handlers import get_list_input
 from contact.utilities.i18n import t
 from contact.utilities.singleton import menu_state

@@ -8,7 +8,9 @@ from typing import List
 from contact.utilities.save_to_radio import save_changes
 import contact.ui.default_config as config
 from contact.utilities.config_io import config_export, config_import
-from contact.utilities.control_utils import parse_ini_file, transform_menu_path
+from contact.utilities.control_utils import transform_menu_path
+from contact.utilities.i18n import t
+from contact.utilities.ini_utils import parse_ini_file
 from contact.utilities.input_handlers import (
     get_repeated_input,
     get_text_input,
@@ -16,7 +18,6 @@ from contact.utilities.input_handlers import (
     get_list_input,
     get_admin_key_input,
 )
-from contact.utilities.i18n import t
 from contact.ui.colors import get_color
 from contact.ui.dialog import dialog
 from contact.ui.menus import generate_menu_from_protobuf
