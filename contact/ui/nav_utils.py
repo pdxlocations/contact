@@ -29,8 +29,6 @@ save_option = "Save Changes"
 
 def get_save_option_label() -> str:
     return t("ui.save_changes", default=save_option)
-MIN_HEIGHT_FOR_HELP = 20
-
 
 def move_highlight(
     old_idx: int, options: List[str], menu_win: curses.window, menu_pad: curses.window, **kwargs: Any
@@ -180,9 +178,6 @@ def update_help_window(
     help_x: int,
 ) -> object:  # returns a curses window
     """Handles rendering the help window consistently."""
-
-    if curses.LINES < MIN_HEIGHT_FOR_HELP:
-        return None
 
     # Clamp target position and width to the current terminal size
     help_x = max(0, help_x)
