@@ -33,6 +33,8 @@ from contact.ui.splash import draw_splash
 from contact.utilities.arg_parser import setup_parser
 from contact.utilities.db_handler import init_nodedb, load_messages_from_db
 from contact.utilities.input_handlers import get_list_input
+from contact.utilities.i18n import t
+from contact.ui.dialog import dialog
 from contact.utilities.interfaces import initialize_interface
 from contact.utilities.utils import get_channels, get_nodeNum, get_node_list
 from contact.utilities.singleton import ui_state, interface_state, app_state
@@ -85,6 +87,7 @@ def main(stdscr: curses.window) -> None:
     output_capture = io.StringIO()
     try:
         setup_colors()
+        ensure_min_rows(stdscr)
         draw_splash(stdscr)
 
         args = setup_parser().parse_args()
@@ -118,6 +121,24 @@ def main(stdscr: curses.window) -> None:
 
     except Exception:
         raise
+
+
+def ensure_min_rows(stdscr: curses.window, min_rows: int = 11) -> None:
+    while True:
+        rows, _ = stdscr.getmaxyx()
+        if rows >= min_rows:
+            return
+        dialog(
+            t("ui.dialog.resize_title", default="Resize Terminal"),
+            t(
+                "ui.dialog.resize_body",
+                default="Please resize the terminal to at least {rows} rows.",
+                rows=min_rows,
+            ),
+        )
+        curses.update_lines_cols()
+        stdscr.clear()
+        stdscr.refresh()
 
 
 def start() -> None:

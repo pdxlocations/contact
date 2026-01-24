@@ -8,6 +8,8 @@ import traceback
 import contact.ui.default_config as config
 from contact.utilities.input_handlers import get_list_input
 from contact.utilities.i18n import t
+from contact.ui.dialog import dialog
+from contact.utilities.i18n import t
 from contact.ui.colors import setup_colors
 from contact.ui.splash import draw_splash
 from contact.ui.control_ui import set_region, settings_menu
@@ -20,6 +22,7 @@ def main(stdscr: curses.window) -> None:
     try:
         with contextlib.redirect_stdout(output_capture), contextlib.redirect_stderr(output_capture):
             setup_colors()
+            ensure_min_rows(stdscr)
             draw_splash(stdscr)
             curses.curs_set(0)
             stdscr.keypad(True)
@@ -48,6 +51,24 @@ def main(stdscr: curses.window) -> None:
         logging.error("Traceback: %s", traceback.format_exc())
         logging.error("Console output before crash:\n%s", console_output)
         raise
+
+
+def ensure_min_rows(stdscr: curses.window, min_rows: int = 11) -> None:
+    while True:
+        rows, _ = stdscr.getmaxyx()
+        if rows >= min_rows:
+            return
+        dialog(
+            t("ui.dialog.resize_title", default="Resize Terminal"),
+            t(
+                "ui.dialog.resize_body",
+                default="Please resize the terminal to at least {rows} rows.",
+                rows=min_rows,
+            ),
+        )
+        curses.update_lines_cols()
+        stdscr.clear()
+        stdscr.refresh()
 
 
 logging.basicConfig(  # Run `tail -f client.log` in another terminal to view live
