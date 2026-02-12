@@ -536,7 +536,7 @@ def get_fixed32_input(current_value: int) -> int:
                 curses.napms(1500)
                 user_input = ""
 
-        elif key in (curses.KEY_BACKSPACE, 127):
+        elif key in (curses.KEY_BACKSPACE, curses.KEY_DC, 127, 8, "\b", "\x7f"):
             user_input = user_input[:-1]
 
         else:

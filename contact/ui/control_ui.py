@@ -1,5 +1,6 @@
 import base64
 import curses
+import ipaddress
 import logging
 import os
 import sys
@@ -121,6 +122,18 @@ def display_menu() -> tuple[object, object]:
         current_value = field_info[1] if isinstance(field_info, tuple) else ""
         full_key = ".".join(transformed_path + [option])
         display_name = field_mapping.get(full_key, option)
+
+        if full_key.startswith("config.network.ipv4_config.") and option in {"ip", "gateway", "subnet", "dns"}:
+            if isinstance(current_value, int):
+                try:
+                    current_value = str(ipaddress.IPv4Address(current_value))
+                except ipaddress.AddressValueError:
+                    pass
+            elif isinstance(current_value, str) and current_value.isdigit():
+                try:
+                    current_value = str(ipaddress.IPv4Address(int(current_value)))
+                except ipaddress.AddressValueError:
+                    pass
 
         display_option = f"{display_name}"[: w // 2 - 2]
         display_value = f"{current_value}"[: w // 2 - 4]
