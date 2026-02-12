@@ -112,16 +112,23 @@ def save_changes(interface, modified_settings, menu_state):
         else:
             config_category = None
 
+        # Resolve the target config container, including nested sub-messages (e.g., network.ipv4_config)
+        config_container = None
+        if hasattr(node.localConfig, config_category):
+            config_container = getattr(node.localConfig, config_category)
+        elif hasattr(node.moduleConfig, config_category):
+            config_container = getattr(node.moduleConfig, config_category)
+        else:
+            logging.warning(f"Config category '{config_category}' not found in config.")
+            return
+
+        if len(menu_state.menu_path) >= 4:
+            nested_key = menu_state.menu_path[3]
+            if hasattr(config_container, nested_key):
+                config_container = getattr(config_container, nested_key)
+
         for config_item, new_value in modified_settings.items():
-            # Check if the category exists in localConfig
-            if hasattr(node.localConfig, config_category):
-                config_subcategory = getattr(node.localConfig, config_category)
-            # Check if the category exists in moduleConfig
-            elif hasattr(node.moduleConfig, config_category):
-                config_subcategory = getattr(node.moduleConfig, config_category)
-            else:
-                logging.warning(f"Config category '{config_category}' not found in config.")
-                continue
+            config_subcategory = config_container
 
             # Check if the config_item exists in the subcategory
             if hasattr(config_subcategory, config_item):
