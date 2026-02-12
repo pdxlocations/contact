@@ -126,12 +126,16 @@ def display_menu() -> tuple[object, object]:
         if full_key.startswith("config.network.ipv4_config.") and option in {"ip", "gateway", "subnet", "dns"}:
             if isinstance(current_value, int):
                 try:
-                    current_value = str(ipaddress.IPv4Address(current_value))
+                    current_value = str(
+                        ipaddress.IPv4Address(int(current_value).to_bytes(4, "little", signed=False))
+                    )
                 except ipaddress.AddressValueError:
                     pass
             elif isinstance(current_value, str) and current_value.isdigit():
                 try:
-                    current_value = str(ipaddress.IPv4Address(int(current_value)))
+                    current_value = str(
+                        ipaddress.IPv4Address(int(current_value).to_bytes(4, "little", signed=False))
+                    )
                 except ipaddress.AddressValueError:
                     pass
 

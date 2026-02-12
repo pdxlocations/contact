@@ -462,7 +462,10 @@ from contact.utilities.singleton import menu_state  # Ensure this is imported
 
 def get_fixed32_input(current_value: int) -> int:
     original_value = current_value
-    ip_string = str(ipaddress.IPv4Address(current_value))
+    try:
+        ip_string = str(ipaddress.IPv4Address(int(current_value).to_bytes(4, "little", signed=False)))
+    except Exception:
+        ip_string = str(ipaddress.IPv4Address(current_value))
     height = 10
     width = get_dialog_width()
     start_y = max(0, (curses.LINES - height) // 2)
@@ -524,7 +527,7 @@ def get_fixed32_input(current_value: int) -> int:
             if len(octets) == 4 and all(octet.isdigit() and 0 <= int(octet) <= 255 for octet in octets):
                 curses.noecho()
                 curses.curs_set(0)
-                return int(ipaddress.ip_address(user_input))
+                return int.from_bytes(ipaddress.IPv4Address(user_input).packed, "little", signed=False)
             else:
                 fixed32_win.addstr(
                     7,
