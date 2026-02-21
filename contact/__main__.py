@@ -15,6 +15,7 @@ import curses
 import io
 import logging
 import os
+import queue
 import subprocess
 import sys
 import threading
@@ -54,6 +55,8 @@ logging.basicConfig(
 )
 
 app_state.lock = threading.Lock()
+app_state.rx_queue = queue.SimpleQueue()
+app_state.ui_shutdown = False
 
 
 # ------------------------------------------------------------------------------
@@ -149,11 +152,10 @@ def start() -> None:
         sys.exit(0)
 
     try:
+        app_state.ui_shutdown = False
         curses.wrapper(main)
-        interface_state.interface.close()
     except KeyboardInterrupt:
         logging.info("User exited with Ctrl+C")
-        interface_state.interface.close()
         sys.exit(0)
     except Exception as e:
         logging.critical("Fatal error", exc_info=True)
@@ -164,6 +166,13 @@ def start() -> None:
         print("Fatal error:", e)
         traceback.print_exc()
         sys.exit(1)
+    finally:
+        app_state.ui_shutdown = True
+        try:
+            if interface_state.interface is not None:
+                interface_state.interface.close()
+        except Exception:
+            logging.exception("Error while closing interface")
 
 
 if __name__ == "__main__":

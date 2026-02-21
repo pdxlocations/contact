@@ -1,9 +1,11 @@
 import curses
 import logging
+from queue import Empty
 import time
 import traceback
 from typing import Union
 
+from contact.message_handlers.rx_handler import process_receive_event
 from contact.utilities.utils import get_channels, get_readable_duration, get_time_ago, refresh_node_list
 from contact.settings import settings_menu
 from contact.message_handlers.tx_handler import send_message, send_traceroute
@@ -15,7 +17,7 @@ from contact.utilities.i18n import t
 import contact.ui.default_config as config
 import contact.ui.dialog
 from contact.ui.nav_utils import move_main_highlight, draw_main_arrows, get_msg_window_lines, wrap_text
-from contact.utilities.singleton import ui_state, interface_state, menu_state
+from contact.utilities.singleton import ui_state, interface_state, menu_state, app_state
 
 
 MIN_COL = 1  # "effectively zero" without breaking curses
@@ -161,6 +163,24 @@ def handle_resize(stdscr: curses.window, firstrun: bool) -> None:
         pass
 
 
+def drain_receive_queue(max_events: int = 200) -> None:
+    processed = 0
+    while processed < max_events:
+        try:
+            packet = app_state.rx_queue.get(block=False)
+        except Empty:
+            return
+        except Exception:
+            logging.exception("Error while draining receive queue")
+            return
+
+        try:
+            process_receive_event(packet)
+        except Exception:
+            logging.exception("Error while processing receive event")
+        processed += 1
+
+
 def main_ui(stdscr: curses.window) -> None:
     """Main UI loop for the curses interface."""
     global input_text
@@ -171,12 +191,17 @@ def main_ui(stdscr: curses.window) -> None:
     stdscr.keypad(True)
     get_channels()
     handle_resize(stdscr, True)
+    entry_win.timeout(75)
 
     while True:
+        drain_receive_queue()
         draw_text_field(entry_win, f"Message: {(input_text or '')[-(stdscr.getmaxyx()[1] - 10):]}", get_color("input"))
 
         # Get user input from entry window
-        char = entry_win.get_wch()
+        try:
+            char = entry_win.get_wch()
+        except curses.error:
+            continue
 
         # draw_debug(f"Keypress: {char}")
 
@@ -225,6 +250,7 @@ def main_ui(stdscr: curses.window) -> None:
         elif char == curses.KEY_RESIZE:
             input_text = ""
             handle_resize(stdscr, False)
+            entry_win.timeout(75)
 
         elif char == chr(4):  # Ctrl + D to delete current channel or node
             handle_ctrl_d()

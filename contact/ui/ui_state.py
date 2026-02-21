@@ -1,3 +1,4 @@
+from queue import SimpleQueue
 from typing import Any, Union, List, Dict
 from dataclasses import dataclass, field
 
@@ -44,3 +45,5 @@ class InterfaceState:
 @dataclass
 class AppState:
     lock: Any = None
+    rx_queue: SimpleQueue = field(default_factory=SimpleQueue)
+    ui_shutdown: bool = False
