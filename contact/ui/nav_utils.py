@@ -435,9 +435,15 @@ def draw_main_arrows(win: object, max_index: int, window: int, **kwargs) -> None
     usable_height = height - 2
     usable_width = width - 2
 
+    if usable_height <= 0 or usable_width <= 0:
+        return
+
     if window == 1 and ui_state.display_log:
         if log_height := kwargs.get("log_height"):
             usable_height -= log_height - 1
+
+    if usable_height <= 0:
+        return
 
     if usable_height < max_index:
         if ui_state.start_index[window] > 0:

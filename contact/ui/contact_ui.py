@@ -18,7 +18,7 @@ from contact.ui.nav_utils import move_main_highlight, draw_main_arrows, get_msg_
 from contact.utilities.singleton import ui_state, interface_state, menu_state
 
 
-MIN_COL = 1  # "effectively zero" without breaking curses
+MIN_COL = 2  # keep hidden panes at least border-safe for curses
 root_win = None
 
 
@@ -48,14 +48,18 @@ def compute_widths(total_w: int, focus: int):
         # tiny terminals: allocate something, anything
         return max(1, total_w), 0, 0
 
+    hidden_w = MIN_COL
     if focus == 0:
-        return total_w - 2 * MIN_COL, MIN_COL, MIN_COL
+        return total_w - 2 * hidden_w, hidden_w, hidden_w
     if focus == 1:
-        return MIN_COL, total_w - 2 * MIN_COL, MIN_COL
-    return MIN_COL, MIN_COL, total_w - 2 * MIN_COL
+        return hidden_w, total_w - 2 * hidden_w, hidden_w
+    return hidden_w, hidden_w, total_w - 2 * hidden_w
 
 
 def paint_frame(win, selected: bool) -> None:
+    h, w = win.getmaxyx()
+    if h < 2 or w < 2:
+        return
     win.attrset(get_color("window_frame_selected") if selected else get_color("window_frame"))
     win.box()
     win.attrset(get_color("window_frame"))
@@ -141,9 +145,22 @@ def handle_resize(stdscr: curses.window, firstrun: bool) -> None:
         packetlog_win.resize(pkt_h, messages_width)
         packetlog_win.mvwin(height - pkt_h - entry_height, channel_width)
 
-    # Draw window borders
-    for win in [channel_win, entry_win, nodes_win, messages_win]:
-        win.box()
+    # Draw only currently relevant borders in single-pane mode.
+    if ui_state.single_pane_mode:
+        target_wins = [entry_win]
+        if ui_state.current_window == 0:
+            target_wins.append(channel_win)
+        elif ui_state.current_window == 1:
+            target_wins.append(messages_win)
+        else:
+            target_wins.append(nodes_win)
+    else:
+        target_wins = [channel_win, entry_win, nodes_win, messages_win]
+
+    for win in target_wins:
+        h, w = win.getmaxyx()
+        if h >= 2 and w >= 2:
+            win.box()
         win.refresh()
 
     entry_win.keypad(True)
