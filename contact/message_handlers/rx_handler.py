@@ -5,9 +5,10 @@ import shutil
 import time
 import subprocess
 import threading
+from typing import Any, Dict, Optional
  # Debounce notification sounds so a burst of queued messages only plays once.
 _SOUND_DEBOUNCE_SECONDS = 0.8
-_sound_timer: threading.Timer | None = None
+_sound_timer: Optional[threading.Timer] = None
 _sound_timer_lock = threading.Lock()
 _last_sound_request = 0.0
 
@@ -42,8 +43,6 @@ def schedule_notification_sound(delay: float = _SOUND_DEBOUNCE_SECONDS) -> None:
         _sound_timer = threading.Timer(delay, _fire, args=(now,))
         _sound_timer.daemon = True
         _sound_timer.start()
-from typing import Any, Dict
-
 from contact.utilities.utils import (
     refresh_node_list,
     add_new_message,
