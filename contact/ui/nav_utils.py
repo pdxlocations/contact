@@ -1,11 +1,12 @@
 import curses
 import re
-from unicodedata import east_asian_width
+from typing import Any, Optional, List, Dict
+
+from wcwidth import wcwidth, wcswidth
 
 from contact.ui.colors import get_color
 from contact.utilities.i18n import t
 from contact.utilities.control_utils import transform_menu_path
-from typing import Any, Optional, List, Dict
 from contact.utilities.singleton import interface_state, ui_state
 
 
@@ -328,7 +329,65 @@ def get_wrapped_help_text(
 
 
 def text_width(text: str) -> int:
-    return sum(2 if east_asian_width(c) in "FW" else 1 for c in text)
+    width = wcswidth(text)
+    if width >= 0:
+        return width
+    return sum(max(wcwidth(char), 0) for char in text)
+
+
+def slice_text_to_width(text: str, max_width: int) -> str:
+    """Return the longest prefix that fits within max_width terminal cells."""
+    if max_width <= 0:
+        return ""
+
+    chunk = ""
+    for char in text:
+        candidate = chunk + char
+        if text_width(candidate) > max_width:
+            break
+        chunk = candidate
+
+    return chunk
+
+
+def fit_text(text: str, width: int, suffix: str = "") -> str:
+    """Trim and pad text so its terminal display width fits exactly."""
+    if width <= 0:
+        return ""
+
+    if text_width(text) > width:
+        suffix = slice_text_to_width(suffix, width)
+        available = max(0, width - text_width(suffix))
+        text = slice_text_to_width(text, available).rstrip() + suffix
+
+    padding = max(0, width - text_width(text))
+    return text + (" " * padding)
+
+
+def split_text_to_width(text: str, max_width: int) -> List[str]:
+    """Split text into chunks that each fit within max_width terminal cells."""
+    if max_width <= 0:
+        return [""]
+
+    chunks: List[str] = []
+    chunk = ""
+
+    for char in text:
+        candidate = chunk + char
+        if chunk and text_width(candidate) > max_width:
+            chunks.append(chunk)
+            chunk = char
+        else:
+            chunk = candidate
+
+        if text_width(chunk) > max_width:
+            chunks.append(slice_text_to_width(chunk, max_width))
+            chunk = ""
+
+    if chunk:
+        chunks.append(chunk)
+
+    return chunks or [""]
 
 
 def wrap_text(text: str, wrap_width: int) -> List[str]:
@@ -346,24 +405,18 @@ def wrap_text(text: str, wrap_width: int) -> List[str]:
     wrap_width -= margin
 
     for word in words:
-        word_length = text_width(word)
+        word_chunks = split_text_to_width(word, wrap_width) if text_width(word) > wrap_width else [word]
 
-        if word_length > wrap_width:  # Break long words
-            if line_buffer:
+        for chunk in word_chunks:
+            chunk_length = text_width(chunk)
+
+            if line_length + chunk_length > wrap_width and chunk.strip():
                 wrapped_lines.append(line_buffer.strip())
                 line_buffer = ""
                 line_length = 0
-            for i in range(0, word_length, wrap_width):
-                wrapped_lines.append(word[i : i + wrap_width])
-            continue
 
-        if line_length + word_length > wrap_width and word.strip():
-            wrapped_lines.append(line_buffer.strip())
-            line_buffer = ""
-            line_length = 0
-
-        line_buffer += word
-        line_length += word_length
+            line_buffer += chunk
+            line_length += chunk_length
 
     if line_buffer:
         wrapped_lines.append(line_buffer.strip())
