@@ -1,1 +1,2 @@
 meshtastic
+wcwidth>=0.2.13,<1.0.0

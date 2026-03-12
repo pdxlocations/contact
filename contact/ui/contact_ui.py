@@ -14,7 +14,7 @@ from contact.utilities.input_handlers import get_list_input
 from contact.utilities.i18n import t
 import contact.ui.default_config as config
 import contact.ui.dialog
-from contact.ui.nav_utils import move_main_highlight, draw_main_arrows, get_msg_window_lines, wrap_text
+from contact.ui.nav_utils import draw_main_arrows, fit_text, get_msg_window_lines, move_main_highlight, wrap_text
 from contact.utilities.singleton import ui_state, interface_state, menu_state
 
 
@@ -828,9 +828,7 @@ def draw_channel_list() -> None:
         notification = " " + config.notification_symbol if idx in ui_state.notifications else ""
 
         # Truncate the channel name if it's too long to fit in the window
-        truncated_channel = (
-            (channel[: win_width - 5] + "-" if len(channel) > win_width - 5 else channel) + notification
-        ).ljust(win_width - 3)
+        truncated_channel = fit_text(f"{channel}{notification}", win_width - 3, suffix="-")
 
         color = get_color("channel_list")
         if idx == ui_state.selected_channel:
@@ -936,8 +934,7 @@ def draw_node_list() -> None:
         snr_str = f"  ■  SNR: {node['snr']}dB" if node.get("hopsAway") == 0 and "snr" in node else ""
 
         # Future node name custom formatting possible
-        node_str = f"{status_icon} {node_name}"
-        node_str = node_str.ljust(box_width - 4)[: box_width - 2]
+        node_str = fit_text(f"{status_icon} {node_name}", box_width - 2)
         color = "node_list"
         if "isFavorite" in node and node["isFavorite"]:
             color = "node_favorite"
@@ -1066,9 +1063,16 @@ def draw_packetlog_win() -> None:
             span += column
 
         # Add headers
-        headers = f"{'From':<{columns[0]}} {'To':<{columns[1]}} {'Port':<{columns[2]}} {'Payload':<{width-span}}"
+        headers = " ".join(
+            [
+                fit_text("From", columns[0]),
+                fit_text("To", columns[1]),
+                fit_text("Port", columns[2]),
+                fit_text("Payload", max(1, width - span - 3)),
+            ]
+        )
         packetlog_win.addstr(
-            1, 1, headers[: width - 2], get_color("log_header", underline=True)
+            1, 1, fit_text(headers, width - 2), get_color("log_header", underline=True)
         )  # Truncate headers if they exceed window width
 
         for i, packet in enumerate(reversed(ui_state.packet_buffer)):
@@ -1076,22 +1080,22 @@ def draw_packetlog_win() -> None:
                 break
 
             # Format each field
-            from_id = get_name_from_database(packet["from"], "short").ljust(columns[0])
+            from_id = fit_text(get_name_from_database(packet["from"], "short"), columns[0])
             to_id = (
-                "BROADCAST".ljust(columns[1])
+                fit_text("BROADCAST", columns[1])
                 if str(packet["to"]) == "4294967295"
-                else get_name_from_database(packet["to"], "short").ljust(columns[1])
+                else fit_text(get_name_from_database(packet["to"], "short"), columns[1])
             )
             if "decoded" in packet:
-                port = str(packet["decoded"].get("portnum", "")).ljust(columns[2])
+                port = fit_text(str(packet["decoded"].get("portnum", "")), columns[2])
                 parsed_payload = parse_protobuf(packet)
             else:
-                port = "NO KEY".ljust(columns[2])
+                port = fit_text("NO KEY", columns[2])
                 parsed_payload = "NO KEY"
 
             # Combine and truncate if necessary
             logString = f"{from_id} {to_id} {port} {parsed_payload}"
-            logString = logString[: width - 3]
+            logString = fit_text(logString, width - 3)
 
             # Add to the window
             packetlog_win.addstr(i + 2, 1, logString, get_color("log"))
