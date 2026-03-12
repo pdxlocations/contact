@@ -1,5 +1,6 @@
 import curses
 import re
+import unicodedata
 from typing import Any, Optional, List, Dict
 
 from wcwidth import wcwidth, wcswidth
@@ -8,6 +9,8 @@ from contact.ui.colors import get_color
 from contact.utilities.i18n import t
 from contact.utilities.control_utils import transform_menu_path
 from contact.utilities.singleton import interface_state, ui_state
+
+ZWJ = "\u200d"
 
 
 def get_node_color(node_index: int, reverse: bool = False):
@@ -335,14 +338,60 @@ def text_width(text: str) -> int:
     return sum(max(wcwidth(char), 0) for char in text)
 
 
+def _is_regional_indicator(char: str) -> bool:
+    codepoint = ord(char)
+    return 0x1F1E6 <= codepoint <= 0x1F1FF
+
+
+def _is_emoji_modifier(char: str) -> bool:
+    codepoint = ord(char)
+    return 0x1F3FB <= codepoint <= 0x1F3FF
+
+
+def _is_display_modifier(char: str) -> bool:
+    return unicodedata.category(char) in {"Mn", "Mc", "Me"} or _is_emoji_modifier(char)
+
+
+def iter_display_units(text: str) -> List[str]:
+    """Split text into display units so emoji sequences stay intact."""
+    units: List[str] = []
+    index = 0
+
+    while index < len(text):
+        unit = text[index]
+        index += 1
+
+        if _is_regional_indicator(unit) and index < len(text) and _is_regional_indicator(text[index]):
+            unit += text[index]
+            index += 1
+
+        while index < len(text) and _is_display_modifier(text[index]):
+            unit += text[index]
+            index += 1
+
+        while index < len(text) and text[index] == ZWJ and index + 1 < len(text):
+            unit += text[index]
+            index += 1
+            unit += text[index]
+            index += 1
+
+            while index < len(text) and _is_display_modifier(text[index]):
+                unit += text[index]
+                index += 1
+
+        units.append(unit)
+
+    return units
+
+
 def slice_text_to_width(text: str, max_width: int) -> str:
     """Return the longest prefix that fits within max_width terminal cells."""
     if max_width <= 0:
         return ""
 
     chunk = ""
-    for char in text:
-        candidate = chunk + char
+    for unit in iter_display_units(text):
+        candidate = chunk + unit
         if text_width(candidate) > max_width:
             break
         chunk = candidate
@@ -372,11 +421,11 @@ def split_text_to_width(text: str, max_width: int) -> List[str]:
     chunks: List[str] = []
     chunk = ""
 
-    for char in text:
-        candidate = chunk + char
+    for unit in iter_display_units(text):
+        candidate = chunk + unit
         if chunk and text_width(candidate) > max_width:
             chunks.append(chunk)
-            chunk = char
+            chunk = unit
         else:
             chunk = candidate
 
