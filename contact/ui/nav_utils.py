@@ -11,6 +11,7 @@ from contact.utilities.control_utils import transform_menu_path
 from contact.utilities.singleton import interface_state, ui_state
 
 ZWJ = "\u200d"
+KEYCAP = "\u20e3"
 
 
 def get_node_color(node_index: int, reverse: bool = False):
@@ -331,16 +332,14 @@ def get_wrapped_help_text(
     return wrapped_help
 
 
-def text_width(text: str) -> int:
-    width = wcswidth(text)
-    if width >= 0:
-        return width
-    return sum(max(wcwidth(char), 0) for char in text)
-
-
 def _is_regional_indicator(char: str) -> bool:
     codepoint = ord(char)
     return 0x1F1E6 <= codepoint <= 0x1F1FF
+
+
+def _is_variation_selector(char: str) -> bool:
+    codepoint = ord(char)
+    return 0xFE00 <= codepoint <= 0xFE0F or 0xE0100 <= codepoint <= 0xE01EF
 
 
 def _is_emoji_modifier(char: str) -> bool:
@@ -384,8 +383,48 @@ def iter_display_units(text: str) -> List[str]:
     return units
 
 
+def sanitize_for_curses(text: str) -> str:
+    """Collapse complex emoji sequences to stable fallbacks before rendering."""
+    sanitized: List[str] = []
+
+    for unit in iter_display_units(text):
+        if ZWJ not in unit and KEYCAP not in unit and not any(
+            _is_variation_selector(char) or _is_emoji_modifier(char) for char in unit
+        ):
+            sanitized.append(unit)
+            continue
+
+        visible = [
+            char
+            for char in unit
+            if char != ZWJ and char != KEYCAP and not _is_variation_selector(char) and not _is_emoji_modifier(char)
+        ]
+
+        if KEYCAP in unit and visible:
+            sanitized.append(visible[0])
+        elif ZWJ in unit and visible:
+            sanitized.append(visible[0])
+        elif any(_is_emoji_modifier(char) for char in unit) and visible:
+            sanitized.append(visible[0])
+        elif visible:
+            sanitized.append("".join(visible))
+        else:
+            sanitized.append(unit)
+
+    return "".join(sanitized)
+
+
+def text_width(text: str) -> int:
+    text = sanitize_for_curses(text)
+    width = wcswidth(text)
+    if width >= 0:
+        return width
+    return sum(max(wcwidth(char), 0) for char in text)
+
+
 def slice_text_to_width(text: str, max_width: int) -> str:
     """Return the longest prefix that fits within max_width terminal cells."""
+    text = sanitize_for_curses(text)
     if max_width <= 0:
         return ""
 
@@ -401,6 +440,8 @@ def slice_text_to_width(text: str, max_width: int) -> str:
 
 def fit_text(text: str, width: int, suffix: str = "") -> str:
     """Trim and pad text so its terminal display width fits exactly."""
+    text = sanitize_for_curses(text)
+    suffix = sanitize_for_curses(suffix)
     if width <= 0:
         return ""
 
@@ -415,6 +456,7 @@ def fit_text(text: str, width: int, suffix: str = "") -> str:
 
 def split_text_to_width(text: str, max_width: int) -> List[str]:
     """Split text into chunks that each fit within max_width terminal cells."""
+    text = sanitize_for_curses(text)
     if max_width <= 0:
         return [""]
 
@@ -441,6 +483,7 @@ def split_text_to_width(text: str, max_width: int) -> List[str]:
 
 def wrap_text(text: str, wrap_width: int) -> List[str]:
     """Wraps text while preserving spaces and breaking long words."""
+    text = sanitize_for_curses(text)
 
     whitespace = "\t\n\x0b\x0c\r "
     whitespace_trans = dict.fromkeys(map(ord, whitespace), ord(" "))
