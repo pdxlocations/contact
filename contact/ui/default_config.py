@@ -56,9 +56,13 @@ def _get_config_root(preferred_dir: str, fallback_name: str = ".contact_client")
 
     return fallback_dir
 
-
-# Pick the root now.
-config_root = _get_config_root(parent_dir)
+# Allow overriding config root via environment variable
+config_root = os.getenv("CONTACT_CONFIG_ROOT")
+if config_root:
+    if not _is_writable_dir(config_root):
+        raise RuntimeError(f"CONTACT_CONFIG_ROOT={config_root} is not writable")
+else:
+    config_root = _get_config_root(parent_dir)
 
 # Paths (derived from the chosen root)
 json_file_path = os.path.join(config_root, "config.json")
