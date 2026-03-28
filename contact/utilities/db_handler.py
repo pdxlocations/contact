@@ -380,8 +380,8 @@ def is_chat_archived(user_id: int) -> int:
 
     except sqlite3.Error as e:
         logging.error(f"SQLite error in is_chat_archived: {e}")
-        return "0"
+        return "Unknown"
 
     except Exception as e:
         logging.error(f"Unexpected error in is_chat_archived: {e}")
-        return "0"
+        return "Unknown"
