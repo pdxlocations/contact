@@ -141,7 +141,8 @@ def seed_demo_messages() -> None:
         ack_type TEXT
     """
 
-    with sqlite3.connect(config.db_file_path) as db_connection:
+    with sqlite3.connect(config.db_file_path, timeout=10.0) as db_connection:
+        db_connection.execute("PRAGMA busy_timeout=10000")
         cursor = db_connection.cursor()
 
         for channel_name, rows in _demo_messages().items():

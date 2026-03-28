@@ -31,7 +31,8 @@ def save_message_to_db(channel: str, user_id: str, message_text: str) -> Optiona
         """
         ensure_table_exists(quoted_table_name, schema)
 
-        with sqlite3.connect(config.db_file_path) as db_connection:
+        with sqlite3.connect(config.db_file_path, timeout=10.0) as db_connection:
+            db_connection.execute("PRAGMA busy_timeout=10000")
             db_cursor = db_connection.cursor()
             timestamp = int(time.time())
 
@@ -53,7 +54,8 @@ def save_message_to_db(channel: str, user_id: str, message_text: str) -> Optiona
 
 def update_ack_nak(channel: str, timestamp: int, message: str, ack: str) -> None:
     try:
-        with sqlite3.connect(config.db_file_path) as db_connection:
+        with sqlite3.connect(config.db_file_path, timeout=10.0) as db_connection:
+            db_connection.execute("PRAGMA busy_timeout=10000")
             db_cursor = db_connection.cursor()
             update_query = f"""
                 UPDATE {get_table_name(channel)}
@@ -76,7 +78,8 @@ def update_ack_nak(channel: str, timestamp: int, message: str, ack: str) -> None
 def load_messages_from_db() -> None:
     """Load messages from the database for all channels and update ui_state.all_messages and ui_state.channel_list."""
     try:
-        with sqlite3.connect(config.db_file_path) as db_connection:
+        with sqlite3.connect(config.db_file_path, timeout=10.0) as db_connection:
+            db_connection.execute("PRAGMA busy_timeout=10000")
             db_cursor = db_connection.cursor()
 
             query = "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE ?"
@@ -92,6 +95,7 @@ def load_messages_from_db() -> None:
                 if "ack_type" not in table_columns:
                     update_table_query = f"ALTER TABLE {quoted_table_name} ADD COLUMN ack_type TEXT"
                     db_cursor.execute(update_table_query)
+                    db_connection.commit()
 
                 query = f"SELECT user_id, message_text, timestamp, ack_type FROM {quoted_table_name}"
 
@@ -228,7 +232,8 @@ def update_node_info_in_db(
     try:
         ensure_node_table_exists()  # Ensure the table exists before any operation
 
-        with sqlite3.connect(config.db_file_path) as db_connection:
+        with sqlite3.connect(config.db_file_path, timeout=10.0) as db_connection:
+            db_connection.execute("PRAGMA busy_timeout=10000")
             db_cursor = db_connection.cursor()
             table_name = f'"{interface_state.myNodeNum}_nodedb"'  # Quote in case of numeric names
 
@@ -236,6 +241,7 @@ def update_node_info_in_db(
             if "chat_archived" not in table_columns:
                 update_table_query = f"ALTER TABLE {table_name} ADD COLUMN chat_archived INTEGER"
                 db_cursor.execute(update_table_query)
+                db_connection.commit()
 
             # Fetch existing values to preserve unchanged fields
             db_cursor.execute(f"SELECT * FROM {table_name} WHERE user_id = ?", (user_id,))
@@ -311,7 +317,8 @@ def ensure_node_table_exists() -> None:
 def ensure_table_exists(table_name: str, schema: str) -> None:
     """Ensure the given table exists in the database."""
     try:
-        with sqlite3.connect(config.db_file_path) as db_connection:
+        with sqlite3.connect(config.db_file_path, timeout=10.0) as db_connection:
+            db_connection.execute("PRAGMA busy_timeout=10000")
             db_cursor = db_connection.cursor()
             create_table_query = f"CREATE TABLE IF NOT EXISTS {table_name} ({schema})"
             db_cursor.execute(create_table_query)
@@ -331,7 +338,8 @@ def get_name_from_database(user_id: int, type: str = "long") -> str:
     :return: The retrieved name or the hex of the user id
     """
     try:
-        with sqlite3.connect(config.db_file_path) as db_connection:
+        with sqlite3.connect(config.db_file_path, timeout=10.0) as db_connection:
+            db_connection.execute("PRAGMA busy_timeout=10000")
             db_cursor = db_connection.cursor()
 
             # Construct table name
@@ -359,7 +367,8 @@ def get_name_from_database(user_id: int, type: str = "long") -> str:
 
 def is_chat_archived(user_id: int) -> int:
     try:
-        with sqlite3.connect(config.db_file_path) as db_connection:
+        with sqlite3.connect(config.db_file_path, timeout=10.0) as db_connection:
+            db_connection.execute("PRAGMA busy_timeout=10000")
             db_cursor = db_connection.cursor()
             table_name = f"{str(interface_state.myNodeNum)}_nodedb"
             nodeinfo_table = f'"{table_name}"'
