@@ -2,6 +2,7 @@ import curses
 import logging
 import time
 import traceback
+from numbers import Real
 from typing import Union
 
 from contact.utilities.utils import get_channels, get_readable_duration, get_time_ago, refresh_node_list, add_new_message
@@ -659,24 +660,27 @@ def handle_f5_key(stdscr: curses.window) -> None:
             if has_coords:
                 message_parts.append(f"https://maps.google.com/?q={pos['latitude']:.4f},{pos['longitude']:.4f}")
 
-        if any(key in node for key in ["snr", "hopsAway", "lastHeard"]):
+        if any(node.get(key) is not None for key in ["snr", "hopsAway", "lastHeard"]):
             message_parts.append("")
             message_parts.append("**🌐 Network Metrics:**")
 
-            if "snr" in node:
+            if node.get("snr") is not None:
                 snr = node["snr"]
-                snr_status = (
-                    "🟢 Excellent"
-                    if snr > 10
-                    else (
-                        "🟡 Good"
-                        if snr > 3
-                        else "🟠 Fair" if snr > -10 else "🔴 Poor" if snr > -20 else "💀 Very Poor"
+                if isinstance(snr, Real):
+                    snr_status = (
+                        "🟢 Excellent"
+                        if snr > 10
+                        else (
+                            "🟡 Good"
+                            if snr > 3
+                            else "🟠 Fair" if snr > -10 else "🔴 Poor" if snr > -20 else "💀 Very Poor"
+                        )
                     )
-                )
-                message_parts.append(f"• SNR: {snr}dB {snr_status}")
+                    message_parts.append(f"• SNR: {snr}dB {snr_status}")
+                else:
+                    message_parts.append(f"• SNR: {snr}dB")
 
-            if "hopsAway" in node:
+            if node.get("hopsAway") is not None:
                 hops = node["hopsAway"]
                 hop_emoji = "📡" if hops == 0 else "🔄" if hops == 1 else "⏩"
                 message_parts.append(f"• Hops away: {hop_emoji} {hops}")
@@ -689,24 +693,32 @@ def handle_f5_key(stdscr: curses.window) -> None:
             message_parts.append("")
             message_parts.append("**📊 Device Metrics:**")
 
-            if "batteryLevel" in metrics:
+            if metrics.get("batteryLevel") is not None:
                 battery = metrics["batteryLevel"]
-                battery_emoji = "🟢" if battery > 50 else "🟡" if battery > 20 else "🔴"
+                battery_emoji = "🔴"
+                if isinstance(battery, Real):
+                    battery_emoji = "🟢" if battery > 50 else "🟡" if battery > 20 else "🔴"
                 voltage_info = f" ({metrics['voltage']}v)" if "voltage" in metrics else ""
                 message_parts.append(f"• Battery: {battery_emoji} {battery}%{voltage_info}")
 
-            if "uptimeSeconds" in metrics:
+            if metrics.get("uptimeSeconds") is not None:
                 message_parts.append(f"• Uptime: ⏱️ {get_readable_duration(metrics['uptimeSeconds'])}")
 
-            if "channelUtilization" in metrics:
+            if metrics.get("channelUtilization") is not None:
                 util = metrics["channelUtilization"]
-                util_emoji = "🔴" if util > 80 else "🟡" if util > 50 else "🟢"
-                message_parts.append(f"• Channel utilization: {util_emoji} {util:.2f}%")
+                if isinstance(util, Real):
+                    util_emoji = "🔴" if util > 80 else "🟡" if util > 50 else "🟢"
+                    message_parts.append(f"• Channel utilization: {util_emoji} {util:.2f}%")
+                else:
+                    message_parts.append(f"• Channel utilization: {util}%")
 
-            if "airUtilTx" in metrics:
+            if metrics.get("airUtilTx") is not None:
                 air_util = metrics["airUtilTx"]
-                air_emoji = "🔴" if air_util > 80 else "🟡" if air_util > 50 else "🟢"
-                message_parts.append(f"• Air utilization TX: {air_emoji} {air_util:.2f}%")
+                if isinstance(air_util, Real):
+                    air_emoji = "🔴" if air_util > 80 else "🟡" if air_util > 50 else "🟢"
+                    message_parts.append(f"• Air utilization TX: {air_emoji} {air_util:.2f}%")
+                else:
+                    message_parts.append(f"• Air utilization TX: {air_util}%")
 
         title = t(
             "ui.dialog.node_details_title",
@@ -792,7 +804,10 @@ def handle_f5_key(stdscr: curses.window) -> None:
             curses.doupdate()
 
             dialog_win.timeout(200)
-            char = dialog_win.getch()
+            try:
+                char = dialog_win.getch()
+            except curses.error:
+                continue
 
             if menu_state.need_redraw:
                 menu_state.need_redraw = False
@@ -821,7 +836,7 @@ def handle_f5_key(stdscr: curses.window) -> None:
             elif char == curses.KEY_RESIZE:
                 continue
 
-    except KeyError:
+    except (IndexError, KeyError):
         return
     finally:
         if dialog_win is not None:
@@ -1385,40 +1400,47 @@ def search(win: int) -> None:
 
     search_text = ""
     entry_win.erase()
+    entry_win.timeout(-1)
 
-    while True:
-        draw_centered_text_field(entry_win, f"Search: {search_text}", 0, get_color("input"))
-        char = entry_win.get_wch()
-
-        if char in (chr(27), chr(curses.KEY_ENTER), chr(10), chr(13)):
-            break
-        elif char == "\t":
-            start_idx = ui_state.selected_node + 1 if win == 2 else ui_state.selected_channel + 1
-        elif char in (curses.KEY_BACKSPACE, chr(127)):
-            if search_text:
-                search_text = search_text[:-1]
-                y, x = entry_win.getyx()
-                entry_win.move(y, x - 1)
-                entry_win.addch(" ")  #
-                entry_win.move(y, x - 1)
-                entry_win.erase()
-                entry_win.refresh()
-        elif isinstance(char, str):
-            search_text += char
-
-        search_text_caseless = search_text.casefold()
-
-        l = ui_state.node_list if win == 2 else ui_state.channel_list
-        for i, n in enumerate(l[start_idx:] + l[:start_idx]):
-            if (
-                isinstance(n, int)
-                and search_text_caseless in get_name_from_database(n, "long").casefold()
-                or isinstance(n, int)
-                and search_text_caseless in get_name_from_database(n, "short").casefold()
-                or search_text_caseless in str(n).casefold()
-            ):
-                select_func((i + start_idx) % len(l))
+    try:
+        while True:
+            draw_centered_text_field(entry_win, f"Search: {search_text}", 0, get_color("input"))
+            try:
+                char = entry_win.get_wch()
+            except curses.error:
                 break
+
+            if char in (chr(27), chr(curses.KEY_ENTER), chr(10), chr(13)):
+                break
+            elif char == "\t":
+                start_idx = ui_state.selected_node + 1 if win == 2 else ui_state.selected_channel + 1
+            elif char in (curses.KEY_BACKSPACE, chr(127)):
+                if search_text:
+                    search_text = search_text[:-1]
+                    y, x = entry_win.getyx()
+                    entry_win.move(y, x - 1)
+                    entry_win.addch(" ")  #
+                    entry_win.move(y, x - 1)
+                    entry_win.erase()
+                    entry_win.refresh()
+            elif isinstance(char, str):
+                search_text += char
+
+            search_text_caseless = search_text.casefold()
+
+            l = ui_state.node_list if win == 2 else ui_state.channel_list
+            for i, n in enumerate(l[start_idx:] + l[:start_idx]):
+                if (
+                    isinstance(n, int)
+                    and search_text_caseless in get_name_from_database(n, "long").casefold()
+                    or isinstance(n, int)
+                    and search_text_caseless in get_name_from_database(n, "short").casefold()
+                    or search_text_caseless in str(n).casefold()
+                ):
+                    select_func((i + start_idx) % len(l))
+                    break
+    finally:
+        entry_win.timeout(200)
 
     entry_win.erase()
 

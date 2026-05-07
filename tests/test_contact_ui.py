@@ -200,3 +200,103 @@ class ContactUiTests(unittest.TestCase):
             contact_ui.refresh_pad(1)
 
         contact_ui.messages_win.addstr.assert_called_once_with(0, 2, " Primary ", contact_ui.curses.A_BOLD)
+
+    def test_search_ignores_no_input_from_curses(self) -> None:
+        ui_state.node_list = [101]
+        ui_state.selected_node = 0
+        contact_ui.entry_win = mock.Mock()
+        contact_ui.entry_win.get_wch.side_effect = contact_ui.curses.error("no input")
+
+        with mock.patch.object(contact_ui, "draw_centered_text_field"):
+            with mock.patch.object(contact_ui, "get_color", return_value=0):
+                contact_ui.search(2)
+
+        contact_ui.entry_win.timeout.assert_has_calls([mock.call(-1), mock.call(200)])
+        contact_ui.entry_win.erase.assert_called()
+
+    def test_f5_node_details_ignores_no_input_from_curses(self) -> None:
+        stdscr = mock.Mock()
+        ui_state.node_list = [101]
+        ui_state.selected_node = 0
+        ui_state.current_window = 2
+
+        dialog_win = mock.Mock()
+        dialog_win.getch.side_effect = [contact_ui.curses.error("no input"), 27]
+        msg_win = mock.Mock()
+        dialog_win.derwin.return_value = msg_win
+
+        interface = mock.Mock()
+        interface.nodesByNum = {
+            101: {
+                "num": 101,
+                "user": {
+                    "longName": "Test Node",
+                    "shortName": "TN",
+                    "hwModel": "T-Beam",
+                    "role": "CLIENT",
+                    "publicKey": "abc",
+                },
+            }
+        }
+
+        with mock.patch("contact.ui.contact_ui.interface_state.interface", interface):
+            with mock.patch.object(contact_ui.curses, "LINES", 24, create=True):
+                with mock.patch.object(contact_ui.curses, "COLS", 80, create=True):
+                    with mock.patch.object(contact_ui.curses, "curs_set"):
+                        with mock.patch.object(contact_ui.curses, "update_lines_cols"):
+                            with mock.patch.object(contact_ui.curses, "doupdate"):
+                                with mock.patch.object(contact_ui.curses, "newwin", return_value=dialog_win):
+                                    with mock.patch.object(contact_ui, "get_color", return_value=0):
+                                        with mock.patch.object(contact_ui, "refresh_node_selection"):
+                                            with mock.patch.object(contact_ui, "handle_resize") as handle_resize:
+                                                contact_ui.handle_f5_key(stdscr)
+
+        self.assertEqual(dialog_win.getch.call_count, 2)
+        handle_resize.assert_called_once_with(stdscr, False)
+
+    def test_f5_node_details_tolerates_none_metrics(self) -> None:
+        stdscr = mock.Mock()
+        ui_state.node_list = [101]
+        ui_state.selected_node = 0
+        ui_state.current_window = 2
+
+        dialog_win = mock.Mock()
+        dialog_win.getch.return_value = 27
+        msg_win = mock.Mock()
+        dialog_win.derwin.return_value = msg_win
+
+        interface = mock.Mock()
+        interface.nodesByNum = {
+            101: {
+                "num": 101,
+                "snr": None,
+                "hopsAway": None,
+                "deviceMetrics": {
+                    "batteryLevel": None,
+                    "channelUtilization": None,
+                    "airUtilTx": None,
+                    "uptimeSeconds": None,
+                },
+                "user": {
+                    "longName": "Test Node",
+                    "shortName": "TN",
+                    "hwModel": "T-Beam",
+                    "role": "CLIENT",
+                    "publicKey": "abc",
+                },
+            }
+        }
+
+        with mock.patch("contact.ui.contact_ui.interface_state.interface", interface):
+            with mock.patch.object(contact_ui.curses, "LINES", 24, create=True):
+                with mock.patch.object(contact_ui.curses, "COLS", 80, create=True):
+                    with mock.patch.object(contact_ui.curses, "curs_set"):
+                        with mock.patch.object(contact_ui.curses, "update_lines_cols"):
+                            with mock.patch.object(contact_ui.curses, "doupdate"):
+                                with mock.patch.object(contact_ui.curses, "newwin", return_value=dialog_win):
+                                    with mock.patch.object(contact_ui, "get_color", return_value=0):
+                                        with mock.patch.object(contact_ui, "refresh_node_selection"):
+                                            with mock.patch.object(contact_ui, "handle_resize") as handle_resize:
+                                                contact_ui.handle_f5_key(stdscr)
+
+        handle_resize.assert_called_once_with(stdscr, False)
