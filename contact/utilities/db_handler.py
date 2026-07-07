@@ -6,6 +6,7 @@ from typing import Optional, Union, Dict
 
 from contact.utilities.utils import decimal_to_hex
 import contact.ui.default_config as config
+from contact.utilities.delivery_status import format_sent_prefix, status_text_for_ack_type
 
 
 from contact.utilities.singleton import ui_state, interface_state
@@ -132,20 +133,14 @@ def load_messages_from_db() -> None:
                         if hour not in hourly_messages:
                             hourly_messages[hour] = []
 
-                        ack_str = config.ack_unknown_str
-                        if ack_type == "Implicit":
-                            ack_str = config.ack_implicit_str
-                        elif ack_type == "Ack":
-                            ack_str = config.ack_str
-                        elif ack_type == "Nak":
-                            ack_str = config.nak_str
+                        ack_str = status_text_for_ack_type(ack_type)
 
                         ts_str = datetime.fromtimestamp(timestamp).strftime("[%H:%M:%S]")
 
                         if user_id == str(interface_state.myNodeNum):
                             sanitized_message = message.replace("\x00", "")
                             formatted_message = (
-                                f"{ts_str} {config.sent_message_prefix}{ack_str}: ",
+                                f"{ts_str} {format_sent_prefix(ack_str)}",
                                 sanitized_message,
                             )
                         else:

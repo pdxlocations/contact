@@ -105,3 +105,37 @@ class TxHandlerTests(unittest.TestCase):
 
         update_ack_nak.assert_called_once_with("Primary", 55, "hello", "Implicit")
         self.assertIn(config.ack_implicit_str, ui_state.all_messages["Primary"][0][0])
+
+    def test_on_ack_nak_uses_dm_implicit_status_for_self_ack(self) -> None:
+        interface_state.myNodeNum = 111
+        ui_state.channel_list = [222]
+        ui_state.selected_channel = 0
+        ui_state.all_messages = {222: [("pending", "hello")]}
+        tx_handler.ack_naks["req"] = {"channel": 222, "messageIndex": 0, "timestamp": 55}
+
+        packet = {"from": 111, "decoded": {"requestId": "req", "routing": {"errorReason": "NONE"}}}
+
+        with mock.patch.object(tx_handler, "update_ack_nak") as update_ack_nak:
+            with mock.patch("contact.message_handlers.tx_handler.time.strftime", return_value="[01:02:03] "):
+                with mock.patch("contact.ui.contact_ui.request_ui_redraw"):
+                    tx_handler.onAckNak(packet)
+
+        update_ack_nak.assert_called_once_with(222, 55, "hello", "ImplicitDM")
+        self.assertIn("Relayed, not confirmed by recipient", ui_state.all_messages[222][0][0])
+
+    def test_on_ack_nak_uses_specific_failure_status(self) -> None:
+        interface_state.myNodeNum = 111
+        ui_state.channel_list = ["Primary"]
+        ui_state.selected_channel = 0
+        ui_state.all_messages = {"Primary": [("pending", "hello")]}
+        tx_handler.ack_naks["req"] = {"channel": "Primary", "messageIndex": 0, "timestamp": 55}
+
+        packet = {"from": 222, "decoded": {"requestId": "req", "routing": {"errorReason": "NO_CHANNEL"}}}
+
+        with mock.patch.object(tx_handler, "update_ack_nak") as update_ack_nak:
+            with mock.patch("contact.message_handlers.tx_handler.time.strftime", return_value="[01:02:03] "):
+                with mock.patch("contact.ui.contact_ui.request_ui_redraw"):
+                    tx_handler.onAckNak(packet)
+
+        update_ack_nak.assert_called_once_with("Primary", 55, "hello", "Nak:NO_CHANNEL")
+        self.assertIn("Channel/key mismatch", ui_state.all_messages["Primary"][0][0])

@@ -31,6 +31,22 @@ class DefaultConfigTests(unittest.TestCase):
         self.assertTrue(updated)
         self.assertEqual(actual, {"theme": "dark", "nested": {"language": "ru", "sound": True}})
 
+    def test_migrate_delivery_status_defaults_preserves_custom_values(self) -> None:
+        actual = {
+            "ack_implicit_str": "[◌]",
+            "ack_str": "custom ack",
+            "nak_str": "[x]",
+            "ack_unknown_str": "[…]",
+        }
+
+        updated = default_config.migrate_delivery_status_defaults(actual)
+
+        self.assertTrue(updated)
+        self.assertEqual(actual["ack_implicit_str"], "Delivered to mesh")
+        self.assertEqual(actual["ack_str"], "custom ack")
+        self.assertEqual(actual["nak_str"], "Failed to deliver to mesh")
+        self.assertEqual(actual["ack_unknown_str"], "Sending...")
+
     def test_format_json_single_line_arrays_keeps_arrays_inline(self) -> None:
         rendered = default_config.format_json_single_line_arrays({"items": [1, 2], "nested": {"flags": ["a", "b"]}})
 
