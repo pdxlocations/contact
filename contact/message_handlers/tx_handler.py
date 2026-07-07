@@ -13,6 +13,13 @@ from contact.utilities.db_handler import (
     is_chat_archived,
     update_node_info_in_db,
 )
+from contact.utilities.delivery_status import (
+    ack_type_for_failure,
+    ack_type_for_success,
+    format_sent_prefix,
+    is_success_reason,
+    status_text_for_ack_type,
+)
 import contact.ui.default_config as config
 
 from contact.utilities.singleton import ui_state, interface_state, app_state
@@ -38,21 +45,16 @@ def onAckNak(packet: Dict[str, Any]) -> None:
         acknak = ack_naks.pop(request)
         message = ui_state.all_messages[acknak["channel"]][acknak["messageIndex"]][1]
 
-        confirm_string = " "
-        ack_type = None
-        if packet["decoded"]["routing"]["errorReason"] == "NONE":
-            if packet["from"] == interface_state.myNodeNum:  # Ack "from" ourself means implicit ACK
-                confirm_string = config.ack_implicit_str
-                ack_type = "Implicit"
-            else:
-                confirm_string = config.ack_str
-                ack_type = "Ack"
+        error_reason = packet["decoded"]["routing"]["errorReason"]
+        if is_success_reason(error_reason):
+            is_implicit = packet["from"] == interface_state.myNodeNum
+            is_direct_message = isinstance(acknak["channel"], int)
+            ack_type = ack_type_for_success(is_implicit, is_direct_message)
         else:
-            confirm_string = config.nak_str
-            ack_type = "Nak"
+            ack_type = ack_type_for_failure(error_reason)
 
         ui_state.all_messages[acknak["channel"]][acknak["messageIndex"]] = (
-            time.strftime("[%H:%M:%S] ") + config.sent_message_prefix + confirm_string + ": ",
+            time.strftime("[%H:%M:%S] ") + format_sent_prefix(status_text_for_ack_type(ack_type)),
             message,
         )
 
@@ -186,7 +188,7 @@ def send_message(message: str, destination: int = BROADCAST_NUM, channel: int = 
         channelIndex=send_on_channel,
     )
 
-    add_new_message(channel_id, config.sent_message_prefix + config.ack_unknown_str + ": ", message)
+    add_new_message(channel_id, format_sent_prefix(config.ack_unknown_str), message)
 
     timestamp = save_message_to_db(channel_id, myid, message)
 

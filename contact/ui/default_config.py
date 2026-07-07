@@ -141,6 +141,21 @@ def update_dict(default: Dict[str, object], actual: Dict[str, object]) -> bool:
     return updated
 
 
+def migrate_delivery_status_defaults(actual: Dict[str, object]) -> bool:
+    default_replacements = {
+        "ack_implicit_str": ("[◌]", "Delivered to mesh"),
+        "ack_str": ("[✓]", "Delivered to recipient"),
+        "nak_str": ("[x]", "Failed to deliver to mesh"),
+        "ack_unknown_str": ("[…]", "Sending..."),
+    }
+    updated = False
+    for key, (old_value, new_value) in default_replacements.items():
+        if actual.get(key) == old_value:
+            actual[key] = new_value
+            updated = True
+    return updated
+
+
 def initialize_config() -> Dict[str, object]:
     COLOR_CONFIG_DARK = {
         "default": ["white", "black"],
@@ -236,10 +251,10 @@ def initialize_config() -> Dict[str, object]:
         "sent_message_prefix": ">> Sent",
         "notification_symbol": "*",
         "notification_sound": "True",
-        "ack_implicit_str": "[◌]",
-        "ack_str": "[✓]",
-        "nak_str": "[x]",
-        "ack_unknown_str": "[…]",
+        "ack_implicit_str": "Delivered to mesh",
+        "ack_str": "Delivered to recipient",
+        "nak_str": "Failed to deliver to mesh",
+        "ack_unknown_str": "Sending...",
         "node_sort": "lastHeard",
         "theme": "dark",
         "ping_bot": {
@@ -262,6 +277,7 @@ def initialize_config() -> Dict[str, object]:
 
     # Check and add missing variables
     updated = update_dict(default_config_variables, loaded_config)
+    updated = migrate_delivery_status_defaults(loaded_config) or updated
 
     # Update the JSON file if any variables were missing
     if updated:

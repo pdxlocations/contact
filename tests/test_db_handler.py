@@ -91,7 +91,7 @@ class DbHandlerTests(unittest.TestCase):
         )
 
         with sqlite3.connect(config.db_file_path) as conn:
-            conn.execute('INSERT INTO "123_Primary_messages" VALUES (?, ?, ?, ?)', ("123", "sent", 1700000000, "Ack"))
+            conn.execute('INSERT INTO "123_Primary_messages" VALUES (?, ?, ?, ?)', ("123", "sent", 1700000000, "Nak:NO_CHANNEL"))
             conn.execute('INSERT INTO "123_Primary_messages" VALUES (?, ?, ?, ?)', ("456", "reply", 1700000001, None))
             conn.execute('INSERT INTO "123_789_messages" VALUES (?, ?, ?, ?)', ("789", "hidden", 1700000002, None))
             conn.commit()
@@ -108,7 +108,7 @@ class DbHandlerTests(unittest.TestCase):
 
         messages = ui_state.all_messages["Primary"]
         self.assertTrue(messages[0][0].startswith("-- "))
-        self.assertTrue(any(config.sent_message_prefix in prefix and config.ack_str in prefix for prefix, _ in messages))
+        self.assertTrue(any(config.sent_message_prefix in prefix and "Channel/key mismatch" in prefix for prefix, _ in messages))
         self.assertTrue(any("RM:" in prefix for prefix, _ in messages))
         self.assertEqual(ui_state.all_messages[789][-1][1], "hidden")
 
