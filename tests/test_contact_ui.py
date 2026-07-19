@@ -120,6 +120,14 @@ class ContactUiTests(unittest.TestCase):
 
         self.assertEqual(reply, "<Re: LRY: Thank> ")
 
+    def test_build_reply_prefix_does_not_nest_an_existing_reply_marker(self) -> None:
+        reply = contact_ui.build_reply_prefix(
+            "[06:27:25] >> xT1e: ",
+            "<Re: CATS: Woot!> Woot indeed",
+        )
+
+        self.assertEqual(reply, "<Re: xT1e: Woot > ")
+
     def test_handle_ctrl_r_prefills_reply_for_message_at_cursor(self) -> None:
         ui_state.current_window = 1
         ui_state.channel_list = ["Primary"]
