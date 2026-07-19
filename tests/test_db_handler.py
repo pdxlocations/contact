@@ -137,11 +137,16 @@ class DbHandlerTests(unittest.TestCase):
             ["message-1", "message-2", "message-3", "message-4", "message-5", "message-6"],
         )
         self.assertTrue(ui_state.has_older_messages["Primary"])
+        separators = [prefix for prefix, _ in ui_state.all_messages["Primary"] if prefix.startswith("--")]
+        self.assertEqual(len(separators), 2)
+        self.assertEqual(separators[0], separators[1])
 
         self.assertEqual(db_handler.load_older_messages("Primary", page_size=3), 1)
         loaded_text = [message for _, message in ui_state.all_messages["Primary"] if message]
         self.assertEqual(loaded_text, [f"message-{i}" for i in range(7)])
         self.assertFalse(ui_state.has_older_messages["Primary"])
+        separators = [prefix for prefix, _ in ui_state.all_messages["Primary"] if prefix.startswith("--")]
+        self.assertEqual(len(separators), 3)
 
     def test_message_table_channel_name_may_contain_underscores(self) -> None:
         db_handler.ensure_node_table_exists()
