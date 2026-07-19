@@ -10,7 +10,7 @@ from contact.settings import settings_menu
 from contact.message_handlers.tx_handler import send_message, send_traceroute
 from contact.utilities.utils import parse_protobuf
 from contact.ui.colors import get_color
-from contact.utilities.db_handler import get_name_from_database, update_node_info_in_db, is_chat_archived
+from contact.utilities.db_handler import get_name_from_database, update_node_info_in_db, is_chat_archived, load_older_messages
 from contact.utilities.input_handlers import get_list_input
 from contact.utilities.i18n import t
 from contact.utilities.emoji_utils import normalize_message_text
@@ -1162,18 +1162,13 @@ def draw_messages_window(scroll_to_bottom: bool = False) -> None:
 
     channel = ui_state.channel_list[ui_state.selected_channel]
 
+    msg_line_count = 0
     if channel in ui_state.all_messages:
         messages = ui_state.all_messages[channel]
-
-        msg_line_count = 0
-
-        row = 0
+        rendered_lines = []
         for prefix, message in messages:
             full_message = normalize_message_text(f"{prefix}{message}")
             wrapped_lines = wrap_text(full_message, messages_win.getmaxyx()[1] - 2)
-            msg_line_count += len(wrapped_lines)
-            messages_pad.resize(msg_line_count, messages_win.getmaxyx()[1])
-
             for line in wrapped_lines:
                 if prefix.startswith("--"):
                     color = get_color("timestamps")
@@ -1182,8 +1177,12 @@ def draw_messages_window(scroll_to_bottom: bool = False) -> None:
                 else:
                     color = get_color("rx_messages")
 
-                messages_pad.addstr(row, 1, line, color)
-                row += 1
+                rendered_lines.append((line, color))
+
+        msg_line_count = len(rendered_lines)
+        messages_pad.resize(max(1, msg_line_count), messages_win.getmaxyx()[1])
+        for row, (line, color) in enumerate(rendered_lines):
+            messages_pad.addstr(row, 1, line, color)
 
     paint_frame(messages_win, selected=(ui_state.current_window == 1))
 
@@ -1283,6 +1282,17 @@ def scroll_channels(direction: int) -> None:
 
 def scroll_messages(direction: int) -> None:
     """Scroll through the messages in the current channel by a given direction."""
+    if direction < 0 and ui_state.selected_message == 0 and ui_state.channel_list:
+        channel = ui_state.channel_list[ui_state.selected_channel]
+        previous_height = messages_pad.getmaxyx()[0]
+        if load_older_messages(channel):
+            draw_messages_window()
+            added_height = max(0, messages_pad.getmaxyx()[0] - previous_height)
+            ui_state.selected_message = added_height
+            ui_state.start_index[1] = added_height
+            refresh_pad(1)
+            return
+
     ui_state.selected_message += direction
 
     msg_line_count = messages_pad.getmaxyx()[0]

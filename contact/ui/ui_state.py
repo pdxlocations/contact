@@ -40,6 +40,8 @@ class ChatUIState:
     redraw_packetlog: bool = False
     redraw_full_ui: bool = False
     scroll_messages_to_bottom: bool = False
+    oldest_message_rowid: Dict[Union[str, int], int] = field(default_factory=dict)
+    has_older_messages: Dict[Union[str, int], bool] = field(default_factory=dict)
 
 
 @dataclass

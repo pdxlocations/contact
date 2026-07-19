@@ -112,6 +112,54 @@ class DbHandlerTests(unittest.TestCase):
         self.assertTrue(any("RM:" in prefix for prefix, _ in messages))
         self.assertEqual(ui_state.all_messages[789][-1][1], "hidden")
 
+    def test_message_history_is_loaded_in_bounded_pages(self) -> None:
+        db_handler.update_node_info_in_db(456, long_name="Remote Node", short_name="RM")
+        db_handler.ensure_table_exists(
+            '"123_Primary_messages"',
+            "user_id TEXT, message_text TEXT, timestamp INTEGER, ack_type TEXT",
+        )
+        with sqlite3.connect(config.db_file_path) as conn:
+            conn.executemany(
+                'INSERT INTO "123_Primary_messages" VALUES (?, ?, ?, ?)',
+                [("456", f"message-{i}", 1700000000 + i, None) for i in range(7)],
+            )
+
+        db_handler.load_messages_from_db(page_size=3)
+
+        loaded_text = [message for _, message in ui_state.all_messages["Primary"] if message]
+        self.assertEqual(loaded_text, ["message-4", "message-5", "message-6"])
+        self.assertTrue(ui_state.has_older_messages["Primary"])
+
+        self.assertEqual(db_handler.load_older_messages("Primary", page_size=3), 3)
+        loaded_text = [message for _, message in ui_state.all_messages["Primary"] if message]
+        self.assertEqual(
+            loaded_text,
+            ["message-1", "message-2", "message-3", "message-4", "message-5", "message-6"],
+        )
+        self.assertTrue(ui_state.has_older_messages["Primary"])
+
+        self.assertEqual(db_handler.load_older_messages("Primary", page_size=3), 1)
+        loaded_text = [message for _, message in ui_state.all_messages["Primary"] if message]
+        self.assertEqual(loaded_text, [f"message-{i}" for i in range(7)])
+        self.assertFalse(ui_state.has_older_messages["Primary"])
+
+    def test_message_table_channel_name_may_contain_underscores(self) -> None:
+        db_handler.ensure_node_table_exists()
+        db_handler.ensure_table_exists(
+            '"123_My_Channel_messages"',
+            "user_id TEXT, message_text TEXT, timestamp INTEGER, ack_type TEXT",
+        )
+        with sqlite3.connect(config.db_file_path) as conn:
+            conn.execute(
+                'INSERT INTO "123_My_Channel_messages" VALUES (?, ?, ?, ?)',
+                ("123", "hello", 1700000000, None),
+            )
+
+        db_handler.load_messages_from_db()
+
+        self.assertIn("My_Channel", ui_state.channel_list)
+        self.assertEqual(ui_state.all_messages["My_Channel"][-1][1], "hello")
+
     def test_init_nodedb_inserts_nodes_from_interface(self) -> None:
         interface_state.interface = build_demo_interface()
         interface_state.myNodeNum = DEMO_LOCAL_NODE_NUM
