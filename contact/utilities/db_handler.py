@@ -11,7 +11,7 @@ import contact.ui.default_config as config
 from contact.utilities.singleton import ui_state, interface_state
 
 
-MESSAGE_PAGE_SIZE = 250
+MESSAGE_PAGE_SIZE = 100
 
 
 def get_table_name(channel: str) -> str:
@@ -210,9 +210,9 @@ def load_older_messages(channel, page_size: int = MESSAGE_PAGE_SIZE) -> int:
 
             older = _format_db_messages(db_messages, _load_node_names(db_cursor))
             current = ui_state.all_messages.setdefault(channel, [])
-            last_older_header = next((prefix for prefix, _ in reversed(older) if prefix.startswith("--")), None)
-            if current and current[0][0] == last_older_header:
-                current.pop(0)
+            # Keep the existing page's leading separator even when the older page
+            # falls in the same hour. Removing it makes a timestamp that the user
+            # is looking at jump out of view as soon as another page is loaded.
             ui_state.all_messages[channel] = older + current
             ui_state.oldest_message_rowid[channel] = db_messages[0][0]
             ui_state.has_older_messages[channel] = has_older
