@@ -4,7 +4,7 @@ import logging
 from datetime import datetime
 from typing import Optional, Union, Dict
 
-from contact.utilities.utils import decimal_to_hex
+from contact.utilities.utils import build_reply_prefix, decimal_to_hex
 import contact.ui.default_config as config
 
 
@@ -21,7 +21,21 @@ def get_table_name(channel: str) -> str:
     return quoted_table_name
 
 
-def save_message_to_db(channel: str, user_id: str, message_text: str) -> Optional[int]:
+def _ensure_message_columns(db_cursor, quoted_table_name: str) -> None:
+    """Add fields introduced after the original message-history schema."""
+    table_columns = {row[1] for row in db_cursor.execute(f"PRAGMA table_info({quoted_table_name})")}
+    for column, definition in (("ack_type", "TEXT"), ("packet_id", "INTEGER"), ("reply_id", "INTEGER")):
+        if column not in table_columns:
+            db_cursor.execute(f"ALTER TABLE {quoted_table_name} ADD COLUMN {column} {definition}")
+
+
+def save_message_to_db(
+    channel: str,
+    user_id: str,
+    message_text: str,
+    packet_id: Optional[int] = None,
+    reply_id: Optional[int] = None,
+) -> Optional[int]:
     """Save messages to the database, ensuring the table exists."""
     try:
         quoted_table_name = get_table_name(channel)
@@ -30,21 +44,25 @@ def save_message_to_db(channel: str, user_id: str, message_text: str) -> Optiona
             user_id TEXT,
             message_text TEXT,
             timestamp INTEGER,
-            ack_type TEXT
+            ack_type TEXT,
+            packet_id INTEGER,
+            reply_id INTEGER
         """
         ensure_table_exists(quoted_table_name, schema)
 
         with sqlite3.connect(config.db_file_path, timeout=10.0) as db_connection:
             db_connection.execute("PRAGMA busy_timeout=10000")
             db_cursor = db_connection.cursor()
+            _ensure_message_columns(db_cursor, quoted_table_name)
             timestamp = int(time.time())
 
             # Insert the message
             insert_query = f"""
-                INSERT INTO {quoted_table_name} (user_id, message_text, timestamp, ack_type)
-                VALUES (?, ?, ?, ?)
+                INSERT INTO {quoted_table_name}
+                    (user_id, message_text, timestamp, ack_type, packet_id, reply_id)
+                VALUES (?, ?, ?, ?, ?, ?)
             """
-            db_cursor.execute(insert_query, (user_id, message_text, timestamp, None))
+            db_cursor.execute(insert_query, (user_id, message_text, timestamp, None, packet_id, reply_id))
             db_connection.commit()
 
             return timestamp
@@ -79,9 +97,10 @@ def update_ack_nak(channel: str, timestamp: int, message: str, ack: str) -> None
 
 
 def _format_db_messages(db_messages, node_names):
-    """Format database rows, adding one timestamp separator per hour."""
+    """Format database rows and packet IDs, adding one timestamp separator per hour."""
     hourly_messages = {}
-    for _rowid, user_id, message, timestamp, ack_type in db_messages:
+    known_messages = {}
+    for _rowid, user_id, message, timestamp, ack_type, packet_id, reply_id in db_messages:
         if user_id is None or message is None or timestamp is None:
             logging.warning(f"Skipping row with NULL required field(s): {(user_id, message, timestamp, ack_type)}")
             continue
@@ -108,13 +127,24 @@ def _format_db_messages(db_messages, node_names):
                 f"{ts_str} {config.message_prefix} {node_names.get(str(user_id), fallback_name)}: ",
                 sanitized_message,
             )
-        hourly_messages.setdefault(hour, []).append(formatted_message)
+
+        if reply_id is not None and reply_id in known_messages:
+            referenced_prefix, referenced_message = known_messages[reply_id]
+            formatted_message = (formatted_message[0], build_reply_prefix(referenced_prefix, referenced_message) + sanitized_message)
+
+        hourly_messages.setdefault(hour, []).append((formatted_message, packet_id))
+        if packet_id is not None:
+            known_messages[packet_id] = formatted_message
 
     formatted = []
+    packet_ids = []
     for hour, messages in sorted(hourly_messages.items()):
         formatted.append((f"-- {hour} --", ""))
-        formatted.extend(messages)
-    return formatted
+        packet_ids.append(None)
+        for formatted_message, packet_id in messages:
+            formatted.append(formatted_message)
+            packet_ids.append(packet_id)
+    return formatted, packet_ids
 
 
 def _load_node_names(db_cursor):
@@ -142,14 +172,10 @@ def load_messages_from_db(page_size: int = MESSAGE_PAGE_SIZE) -> None:
                 quoted_table_name = (
                     f'"{table_name}"'  # Quote the table name because we begin with numerics and contain spaces
                 )
-                table_columns = [i[1] for i in db_cursor.execute(f"PRAGMA table_info({quoted_table_name})")]
-                if "ack_type" not in table_columns:
-                    update_table_query = f"ALTER TABLE {quoted_table_name} ADD COLUMN ack_type TEXT"
-                    db_cursor.execute(update_table_query)
-                    db_connection.commit()
+                _ensure_message_columns(db_cursor, quoted_table_name)
 
                 query = f"""
-                    SELECT rowid, user_id, message_text, timestamp, ack_type
+                    SELECT rowid, user_id, message_text, timestamp, ack_type, packet_id, reply_id
                     FROM {quoted_table_name}
                     ORDER BY rowid DESC LIMIT ?
                 """
@@ -173,7 +199,9 @@ def load_messages_from_db(page_size: int = MESSAGE_PAGE_SIZE) -> None:
                         ui_state.channel_list.append(channel)
 
                     # Replace the channel's messages with the freshly loaded page to avoid duplicates
-                    ui_state.all_messages[channel] = _format_db_messages(db_messages, node_names)
+                    formatted_messages, packet_ids = _format_db_messages(db_messages, node_names)
+                    ui_state.all_messages[channel] = formatted_messages
+                    ui_state.message_packet_ids[channel] = packet_ids
                     if db_messages:
                         ui_state.oldest_message_rowid[channel] = db_messages[0][0]
                     ui_state.has_older_messages[channel] = has_older
@@ -196,7 +224,7 @@ def load_older_messages(channel, page_size: int = MESSAGE_PAGE_SIZE) -> int:
             db_connection.execute("PRAGMA busy_timeout=10000")
             db_cursor = db_connection.cursor()
             query = f"""
-                SELECT rowid, user_id, message_text, timestamp, ack_type
+                SELECT rowid, user_id, message_text, timestamp, ack_type, packet_id, reply_id
                 FROM {get_table_name(channel)}
                 WHERE rowid < ? ORDER BY rowid DESC LIMIT ?
             """
@@ -208,12 +236,16 @@ def load_older_messages(channel, page_size: int = MESSAGE_PAGE_SIZE) -> int:
                 ui_state.has_older_messages[channel] = False
                 return 0
 
-            older = _format_db_messages(db_messages, _load_node_names(db_cursor))
+            older, older_packet_ids = _format_db_messages(db_messages, _load_node_names(db_cursor))
             current = ui_state.all_messages.setdefault(channel, [])
+            current_packet_ids = ui_state.message_packet_ids.setdefault(channel, [])
+            while len(current_packet_ids) < len(current):
+                current_packet_ids.append(None)
             # Keep the existing page's leading separator even when the older page
             # falls in the same hour. Removing it makes a timestamp that the user
             # is looking at jump out of view as soon as another page is loaded.
             ui_state.all_messages[channel] = older + current
+            ui_state.message_packet_ids[channel] = older_packet_ids + current_packet_ids
             ui_state.oldest_message_rowid[channel] = db_messages[0][0]
             ui_state.has_older_messages[channel] = has_older
             return len(db_messages)

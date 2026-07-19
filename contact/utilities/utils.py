@@ -1,4 +1,5 @@
 import datetime
+import re
 import time
 from typing import Optional, Union
 from google.protobuf.message import DecodeError
@@ -156,9 +157,36 @@ def get_time_ago(timestamp):
     return "now"
 
 
-def add_new_message(channel_id, prefix, message):
+REPLY_EXCERPT_LENGTH = 5
+
+
+def build_reply_prefix(prefix: str, message: str) -> str:
+    """Create Contact's local display marker for a native Meshtastic reply."""
+    sender_text = re.sub(r"^\[[^]]+\]\s*", "", prefix).strip()
+    sender_text = re.sub(r"^(?:>>|<<)\s*(?:\[[^]]+\]\s*)?", "", sender_text)
+    sender_match = re.search(r"(.+?)\s*:\s*$", sender_text)
+    sender = sender_match.group(1).strip() if sender_match else "me"
+    excerpt = " ".join(message.replace("\x00", "").split())[:REPLY_EXCERPT_LENGTH]
+    return f"<Re: {sender}: {excerpt}> "
+
+
+def get_reply_context(reply_id):
+    """Find the locally displayed message referred to by a Meshtastic reply ID."""
+    for channel, packet_ids in ui_state.message_packet_ids.items():
+        for index, packet_id in enumerate(packet_ids):
+            if packet_id == reply_id and index < len(ui_state.all_messages.get(channel, [])):
+                prefix, message = ui_state.all_messages[channel][index]
+                return build_reply_prefix(prefix, message)
+    return ""
+
+
+def add_new_message(channel_id, prefix, message, packet_id=None):
     if channel_id not in ui_state.all_messages:
         ui_state.all_messages[channel_id] = []
+
+    packet_ids = ui_state.message_packet_ids.setdefault(channel_id, [])
+    while len(packet_ids) < len(ui_state.all_messages[channel_id]):
+        packet_ids.append(None)
 
     # Timestamp handling
     current_timestamp = time.time()
@@ -180,10 +208,12 @@ def add_new_message(channel_id, prefix, message):
     # Add a new timestamp if it's a new hour
     if last_hour != current_hour:
         ui_state.all_messages[channel_id].append((f"-- {current_hour} --", ""))
+        packet_ids.append(None)
 
     # Add the message
     ts_str = time.strftime("[%H:%M:%S] ")
     ui_state.all_messages[channel_id].append((f"{ts_str}{prefix}", message))
+    packet_ids.append(packet_id)
 
 
 def parse_protobuf(packet: dict) -> Union[str, dict]:
