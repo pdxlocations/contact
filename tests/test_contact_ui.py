@@ -1,4 +1,5 @@
 import unittest
+from types import SimpleNamespace
 from unittest import mock
 
 import contact.ui.default_config as config
@@ -109,6 +110,15 @@ class ContactUiTests(unittest.TestCase):
         )
 
         self.assertEqual(reply, "<Re: B1G1: This > ")
+
+    def test_build_reply_prefix_uses_me_for_an_outgoing_message(self) -> None:
+        contact_ui.interface_state.myNodeNum = 123
+        contact_ui.interface_state.interface = SimpleNamespace(
+            nodes={"!0000007b": {"num": 123, "user": {"shortName": "LRY"}}}
+        )
+        reply = contact_ui.build_reply_prefix("[06:27:25] >> Sent[☼]: ", "Thanks Lairy")
+
+        self.assertEqual(reply, "<Re: LRY: Thank> ")
 
     def test_handle_ctrl_r_prefills_reply_for_message_at_cursor(self) -> None:
         ui_state.current_window = 1

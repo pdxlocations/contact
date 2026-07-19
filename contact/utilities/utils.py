@@ -160,12 +160,26 @@ def get_time_ago(timestamp):
 REPLY_EXCERPT_LENGTH = 5
 
 
+def _local_short_name() -> str:
+    """Return this node's short name without depending on the message database."""
+    nodes = getattr(interface_state.interface, "nodes", {}) or {}
+    for node in nodes.values():
+        if node.get("num") == interface_state.myNodeNum:
+            short_name = node.get("user", {}).get("shortName")
+            if short_name:
+                return str(short_name)
+    return ""
+
+
 def build_reply_prefix(prefix: str, message: str) -> str:
     """Create Contact's local display marker for a native Meshtastic reply."""
     sender_text = re.sub(r"^\[[^]]+\]\s*", "", prefix).strip()
-    sender_text = re.sub(r"^(?:>>|<<)\s*(?:\[[^]]+\]\s*)?", "", sender_text)
-    sender_match = re.search(r"(.+?)\s*:\s*$", sender_text)
-    sender = sender_match.group(1).strip() if sender_match else "me"
+    if sender_text.startswith(config.sent_message_prefix.strip()):
+        sender = _local_short_name()
+    else:
+        sender_text = re.sub(r"^(?:>>|<<)\s*(?:\[[^]]+\]\s*)?", "", sender_text)
+        sender_match = re.search(r"(.+?)\s*:\s*$", sender_text)
+        sender = sender_match.group(1).strip() if sender_match else "me"
     excerpt = " ".join(message.replace("\x00", "").split())[:REPLY_EXCERPT_LENGTH]
     return f"<Re: {sender}: {excerpt}> "
 
