@@ -40,8 +40,15 @@ class ChatUIState:
     redraw_packetlog: bool = False
     redraw_full_ui: bool = False
     scroll_messages_to_bottom: bool = False
+    preserve_message_selection: bool = False
     oldest_message_rowid: Dict[Union[str, int], int] = field(default_factory=dict)
     has_older_messages: Dict[Union[str, int], bool] = field(default_factory=dict)
+    message_line_ranges: Dict[Union[str, int], List[tuple]] = field(default_factory=dict)
+    highlighted_message_range: tuple = field(default_factory=tuple)
+    message_packet_ids: Dict[Union[str, int], List[Any]] = field(default_factory=dict)
+    reply_id: Any = None
+    reply_context: str = ""
+    reply_id_unavailable: bool = False
 
 
 @dataclass

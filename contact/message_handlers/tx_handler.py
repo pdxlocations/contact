@@ -56,7 +56,7 @@ def onAckNak(packet: Dict[str, Any]) -> None:
             message,
         )
 
-        update_ack_nak(acknak["channel"], acknak["timestamp"], message, ack_type)
+        update_ack_nak(acknak["channel"], acknak["timestamp"], acknak["dbMessage"], ack_type)
 
         channel_number = ui_state.channel_list.index(acknak["channel"])
         if ui_state.channel_list[channel_number] == ui_state.channel_list[ui_state.selected_channel]:
@@ -164,7 +164,13 @@ def on_response_traceroute(packet: Dict[str, Any]) -> None:
 
         save_message_to_db(channel_id, packet["from"], msg_str)
 
-def send_message(message: str, destination: int = BROADCAST_NUM, channel: int = 0) -> None:
+def send_message(
+    message: str,
+    destination: int = BROADCAST_NUM,
+    channel: int = 0,
+    reply_id: int | None = None,
+    reply_context: str = "",
+) -> None:
     """
     Sends a chat message using the selected channel.
     """
@@ -177,23 +183,32 @@ def send_message(message: str, destination: int = BROADCAST_NUM, channel: int = 
     elif isinstance(channel_id, str):
         send_on_channel = channel
 
-    sent_message_data = interface_state.interface.sendText(
-        text=message,
-        destinationId=destination,
-        wantAck=True,
-        wantResponse=False,
-        onResponse=onAckNak,
-        channelIndex=send_on_channel,
+    send_kwargs = {
+        "text": message,
+        "destinationId": destination,
+        "wantAck": True,
+        "wantResponse": False,
+        "onResponse": onAckNak,
+        "channelIndex": send_on_channel,
+    }
+    if reply_id is not None:
+        send_kwargs["replyId"] = reply_id
+    sent_message_data = interface_state.interface.sendText(**send_kwargs)
+
+    add_new_message(
+        channel_id,
+        config.sent_message_prefix + config.ack_unknown_str + ": ",
+        f"{reply_context}{message}",
+        packet_id=sent_message_data.id,
     )
 
-    add_new_message(channel_id, config.sent_message_prefix + config.ack_unknown_str + ": ", message)
-
-    timestamp = save_message_to_db(channel_id, myid, message)
+    timestamp = save_message_to_db(channel_id, myid, message, packet_id=sent_message_data.id, reply_id=reply_id)
 
     ack_naks[sent_message_data.id] = {
         "channel": channel_id,
         "messageIndex": len(ui_state.all_messages[channel_id]) - 1,
         "timestamp": timestamp,
+        "dbMessage": message,
     }
 
 

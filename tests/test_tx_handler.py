@@ -42,7 +42,7 @@ class TxHandlerTests(unittest.TestCase):
             onResponse=tx_handler.onAckNak,
             channelIndex=0,
         )
-        save_message_to_db.assert_called_once_with("Primary", 111, "hello")
+        save_message_to_db.assert_called_once_with("Primary", 111, "hello", packet_id="req-1", reply_id=None)
         self.assertEqual(tx_handler.ack_naks["req-1"]["channel"], "Primary")
         self.assertEqual(tx_handler.ack_naks["req-1"]["messageIndex"], 1)
         self.assertEqual(tx_handler.ack_naks["req-1"]["timestamp"], 999)
@@ -70,12 +70,27 @@ class TxHandlerTests(unittest.TestCase):
         )
         self.assertEqual(tx_handler.ack_naks["req-2"]["channel"], 222)
 
+    def test_send_message_uses_native_reply_id_but_only_displays_reply_context_locally(self) -> None:
+        interface = mock.Mock()
+        interface.sendText.return_value = SimpleNamespace(id="req-3")
+        interface_state.interface = interface
+        interface_state.myNodeNum = 111
+        ui_state.channel_list = ["Primary"]
+        ui_state.all_messages = {"Primary": []}
+
+        with mock.patch.object(tx_handler, "save_message_to_db", return_value=123):
+            tx_handler.send_message("hello", channel=0, reply_id=77, reply_context="<Re: NODE: hello> ")
+
+        self.assertEqual(interface.sendText.call_args.kwargs["text"], "hello")
+        self.assertEqual(interface.sendText.call_args.kwargs["replyId"], 77)
+        self.assertEqual(ui_state.all_messages["Primary"][-1][1], "<Re: NODE: hello> hello")
+
     def test_on_ack_nak_updates_message_for_explicit_ack(self) -> None:
         interface_state.myNodeNum = 111
         ui_state.channel_list = ["Primary"]
         ui_state.selected_channel = 0
         ui_state.all_messages = {"Primary": [("pending", "hello")]}
-        tx_handler.ack_naks["req"] = {"channel": "Primary", "messageIndex": 0, "timestamp": 55}
+        tx_handler.ack_naks["req"] = {"channel": "Primary", "messageIndex": 0, "timestamp": 55, "dbMessage": "hello"}
 
         packet = {"from": 222, "decoded": {"requestId": "req", "routing": {"errorReason": "NONE"}}}
 
@@ -94,7 +109,7 @@ class TxHandlerTests(unittest.TestCase):
         ui_state.channel_list = ["Primary"]
         ui_state.selected_channel = 0
         ui_state.all_messages = {"Primary": [("pending", "hello")]}
-        tx_handler.ack_naks["req"] = {"channel": "Primary", "messageIndex": 0, "timestamp": 55}
+        tx_handler.ack_naks["req"] = {"channel": "Primary", "messageIndex": 0, "timestamp": 55, "dbMessage": "hello"}
 
         packet = {"from": 111, "decoded": {"requestId": "req", "routing": {"errorReason": "NONE"}}}
 
