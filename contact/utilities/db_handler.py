@@ -172,11 +172,8 @@ def load_messages_from_db(page_size: int = MESSAGE_PAGE_SIZE) -> None:
                     if channel not in ui_state.channel_list and not is_chat_archived(channel):
                         ui_state.channel_list.append(channel)
 
-                    # Ensure the channel exists in ui_state.all_messages
-                    if channel not in ui_state.all_messages:
-                        ui_state.all_messages[channel] = []
-
-                    ui_state.all_messages[channel].extend(_format_db_messages(db_messages, node_names))
+                    # Replace the channel's messages with the freshly loaded page to avoid duplicates
+                    ui_state.all_messages[channel] = _format_db_messages(db_messages, node_names)
                     if db_messages:
                         ui_state.oldest_message_rowid[channel] = db_messages[0][0]
                     ui_state.has_older_messages[channel] = has_older
