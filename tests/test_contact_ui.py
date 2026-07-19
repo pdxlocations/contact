@@ -70,10 +70,23 @@ class ContactUiTests(unittest.TestCase):
         self.assertFalse(ui_state.redraw_channels)
         self.assertFalse(ui_state.redraw_messages)
 
+    def test_process_pending_ui_updates_preserves_selection_when_scrolling_to_new_messages(self) -> None:
+        stdscr = mock.Mock()
+        ui_state.redraw_messages = True
+        ui_state.scroll_messages_to_bottom = True
+        ui_state.preserve_message_selection = True
+
+        with mock.patch.object(contact_ui, "draw_messages_window") as draw_messages_window:
+            contact_ui.process_pending_ui_updates(stdscr)
+
+        draw_messages_window.assert_called_once_with(True, preserve_selection=True)
+        self.assertFalse(ui_state.preserve_message_selection)
+
     def test_draw_messages_resizes_pad_once(self) -> None:
         ui_state.channel_list = ["Primary"]
         ui_state.all_messages = {"Primary": [("[10:00] RX: ", "one"), ("[10:01] RX: ", "two")]}
         contact_ui.messages_pad = mock.Mock()
+        contact_ui.messages_pad.getmaxyx.return_value = (2, 40)
         contact_ui.messages_win = mock.Mock()
         contact_ui.messages_win.getmaxyx.return_value = (10, 40)
         contact_ui.packetlog_win = mock.Mock()
@@ -88,6 +101,139 @@ class ContactUiTests(unittest.TestCase):
                             contact_ui.draw_messages_window()
 
         contact_ui.messages_pad.resize.assert_called_once_with(2, 40)
+
+    def test_build_reply_prefix_includes_sender_and_five_character_excerpt(self) -> None:
+        reply = contact_ui.build_reply_prefix(
+            "[06:27:25] >> [6] B1G1: ",
+            "This is a message long enough to be shortened for the reply marker.",
+        )
+
+        self.assertEqual(reply, "<Re: B1G1: This > ")
+
+    def test_handle_ctrl_r_prefills_reply_for_message_at_cursor(self) -> None:
+        ui_state.current_window = 1
+        ui_state.channel_list = ["Primary"]
+        ui_state.all_messages = {"Primary": [("[06:27:25] >> [6] B1G1: ", "Good morning all.")]}
+        ui_state.message_packet_ids = {"Primary": [1234]}
+        ui_state.selected_message = 0
+        contact_ui.messages_win = mock.Mock()
+        contact_ui.messages_win.getmaxyx.return_value = (10, 80)
+
+        self.assertEqual(contact_ui.handle_ctrl_r("Same to you!"), "Same to you!")
+        self.assertEqual(ui_state.reply_id, 1234)
+        self.assertEqual(ui_state.reply_context, "<Re: B1G1: Good > ")
+
+    def test_handle_ctrl_r_clears_an_existing_reply(self) -> None:
+        ui_state.current_window = 1
+        ui_state.reply_id = 1234
+        ui_state.reply_context = "<Re: B1G1: Good > "
+        ui_state.reply_id_unavailable = False
+
+        self.assertEqual(contact_ui.handle_ctrl_r("Same to you!"), "")
+        self.assertIsNone(ui_state.reply_id)
+        self.assertEqual(ui_state.reply_context, "")
+        self.assertFalse(ui_state.reply_id_unavailable)
+
+    def test_handle_ctrl_r_shows_context_when_message_id_is_unavailable(self) -> None:
+        ui_state.current_window = 1
+        ui_state.channel_list = ["Primary"]
+        ui_state.all_messages = {"Primary": [("[06:27:25] >> [6] B1G1: ", "Good morning all.")]}
+        ui_state.selected_message = 0
+        contact_ui.messages_win = mock.Mock()
+        contact_ui.messages_win.getmaxyx.return_value = (10, 80)
+
+        self.assertEqual(contact_ui.handle_ctrl_r(""), "")
+        self.assertEqual(ui_state.reply_context, "<Re: B1G1: Good > ")
+        self.assertTrue(ui_state.reply_id_unavailable)
+
+    def test_refresh_message_highlight_marks_selected_message(self) -> None:
+        ui_state.current_window = 1
+        ui_state.channel_list = ["Primary"]
+        ui_state.message_line_ranges = {"Primary": [(0, 2, 10), (2, 3, 20)]}
+        ui_state.selected_message = 2
+        contact_ui.messages_pad = mock.Mock()
+        contact_ui.messages_win = mock.Mock()
+        contact_ui.messages_win.getmaxyx.return_value = (10, 40)
+
+        contact_ui.refresh_message_highlight()
+
+        contact_ui.messages_pad.chgat.assert_called_once_with(2, 1, 38, 20 | contact_ui.curses.A_REVERSE)
+
+    def test_refresh_message_highlight_clears_when_messages_pane_is_not_active(self) -> None:
+        ui_state.current_window = 0
+        ui_state.highlighted_message_range = (2, 3, 20)
+        contact_ui.messages_pad = mock.Mock()
+        contact_ui.messages_win = mock.Mock()
+        contact_ui.messages_win.getmaxyx.return_value = (10, 40)
+
+        contact_ui.refresh_message_highlight()
+
+        contact_ui.messages_pad.chgat.assert_called_once_with(2, 1, 38, 20)
+        self.assertEqual(ui_state.highlighted_message_range, ())
+
+    def test_handle_end_moves_messages_viewport_to_bottom(self) -> None:
+        ui_state.current_window = 1
+        ui_state.start_index = [0, 0, 0]
+        contact_ui.messages_pad = mock.Mock()
+        contact_ui.messages_pad.getmaxyx.return_value = (100, 80)
+        contact_ui.messages_win = mock.Mock()
+        contact_ui.messages_win.getmaxyx.return_value = (12, 80)
+        contact_ui.packetlog_win = mock.Mock()
+        contact_ui.packetlog_win.getmaxyx.return_value = (1, 80)
+
+        with mock.patch.object(contact_ui, "refresh_message_highlight"):
+            with mock.patch.object(contact_ui, "refresh_pad"):
+                with mock.patch.object(contact_ui, "draw_window_arrows"):
+                    contact_ui.handle_end()
+
+        self.assertEqual(ui_state.selected_message, 99)
+        self.assertGreater(ui_state.start_index[1], 0)
+
+    def test_message_selection_can_reach_last_rendered_line(self) -> None:
+        ui_state.start_index = [0, 0, 0]
+        contact_ui.messages_pad = mock.Mock()
+        contact_ui.messages_pad.getmaxyx.return_value = (100, 80)
+        contact_ui.messages_win = mock.Mock()
+        contact_ui.messages_win.getmaxyx.return_value = (12, 80)
+        contact_ui.packetlog_win = mock.Mock()
+        contact_ui.packetlog_win.getmaxyx.return_value = (1, 80)
+
+        contact_ui.set_message_selection(99)
+
+        self.assertEqual(ui_state.selected_message, 99)
+        self.assertEqual(ui_state.start_index[1], 90)
+
+    def test_switching_to_messages_redraws_at_bottom(self) -> None:
+        ui_state.current_window = 0
+        ui_state.single_pane_mode = False
+        with mock.patch.object(contact_ui, "refresh_main_window"):
+            with mock.patch.object(contact_ui, "draw_window_arrows"):
+                with mock.patch.object(contact_ui, "draw_messages_window") as draw_messages_window:
+                    with mock.patch.object(contact_ui, "refresh_message_highlight"):
+                        contact_ui.handle_leftright(contact_ui.curses.KEY_RIGHT)
+
+        draw_messages_window.assert_called_once_with(True)
+
+    def test_move_message_selection_skips_all_lines_of_wrapped_message(self) -> None:
+        ui_state.channel_list = ["Primary"]
+        ui_state.message_line_ranges = {"Primary": [(0, 3, 10), (3, 4, 20), (4, 6, 30)]}
+        ui_state.selected_message = 1
+        ui_state.start_index = [0, 0, 0]
+        contact_ui.messages_pad = mock.Mock()
+        contact_ui.messages_pad.getmaxyx.return_value = (6, 80)
+        contact_ui.messages_win = mock.Mock()
+        contact_ui.messages_win.getmaxyx.return_value = (12, 80)
+        contact_ui.packetlog_win = mock.Mock()
+        contact_ui.packetlog_win.getmaxyx.return_value = (1, 80)
+
+        contact_ui.move_message_selection(1)
+        self.assertEqual(ui_state.selected_message, 3)
+
+        contact_ui.move_message_selection(1)
+        self.assertEqual(ui_state.selected_message, 5)
+
+        contact_ui.move_message_selection(-1)
+        self.assertEqual(ui_state.selected_message, 3)
 
     def test_refresh_node_selection_reserves_scroll_arrow_column(self) -> None:
         ui_state.node_list = [101, 202]

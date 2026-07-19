@@ -45,6 +45,38 @@ class DbHandlerTests(unittest.TestCase):
 
         self.assertEqual(row, ("123", "hello", "Ack"))
 
+    def test_message_ids_are_migrated_and_reloaded_with_history(self) -> None:
+        db_handler.ensure_table_exists(
+            '"123_Primary_messages"',
+            "user_id TEXT, message_text TEXT, timestamp INTEGER, ack_type TEXT",
+        )
+        with sqlite3.connect(config.db_file_path) as conn:
+            conn.execute(
+                'INSERT INTO "123_Primary_messages" VALUES (?, ?, ?, ?)',
+                ("456", "original message", 1700000000, None),
+            )
+
+        db_handler.save_message_to_db("Primary", "456", "reply", packet_id=902, reply_id=901)
+        with sqlite3.connect(config.db_file_path) as conn:
+            columns = {row[1] for row in conn.execute('PRAGMA table_info("123_Primary_messages")')}
+            stored_ids = conn.execute(
+                'SELECT packet_id, reply_id FROM "123_Primary_messages" WHERE message_text = ?', ("reply",)
+            ).fetchone()
+            conn.execute(
+                'UPDATE "123_Primary_messages" SET packet_id = ? WHERE message_text = ?', (901, "original message")
+            )
+            conn.commit()
+
+        db_handler.load_messages_from_db()
+
+        self.assertTrue({"packet_id", "reply_id"}.issubset(columns))
+        self.assertEqual(stored_ids, (902, 901))
+        self.assertEqual([packet_id for packet_id in ui_state.message_packet_ids["Primary"] if packet_id], [901, 902])
+        self.assertEqual(
+            ui_state.all_messages["Primary"][-1][1],
+            f"<Re: {decimal_to_hex(456)}: origi> reply",
+        )
+
     def test_update_node_info_in_db_fills_defaults_and_preserves_existing_values(self) -> None:
         db_handler.update_node_info_in_db(999, short_name="ABCD")
 

@@ -40,7 +40,7 @@ def bot_respond(packet: Dict[str, Any], message: str, send_channel: int) -> bool
         return False
     snr = packet.get('rxSnr', -128)
     rssi = packet.get('rxRssi', -128)
-    replyIDset = packet.get('replyId', False)
+    replyIDset = (packet.get('decoded') or {}).get('replyId', False)
     hop_start = packet.get('hopStart', 0)
     hop_limit = packet.get('hopLimit', 0)
     transport_type = packet.get('transportMechanism', None)

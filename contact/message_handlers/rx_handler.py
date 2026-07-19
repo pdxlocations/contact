@@ -46,6 +46,7 @@ def schedule_notification_sound(delay: float = _SOUND_DEBOUNCE_SECONDS) -> None:
 from contact.utilities.utils import (
     refresh_node_list,
     add_new_message,
+    get_reply_context,
 )
 from contact.ui.contact_ui import (
     add_notification,
@@ -183,14 +184,32 @@ def on_receive(packet: Dict[str, Any], interface: Any) -> None:
                 message_from_id = packet["from"]
                 message_from_string = get_name_from_database(message_from_id, type="short") + ":"
 
-                add_new_message(channel_id, f"{config.message_prefix} [{hops}] {message_from_string} ", message_string)
+                # replyId is a field of Meshtastic's decrypted Data payload.
+                reply_id = packet["decoded"].get("replyId")
+                reply_context = get_reply_context(reply_id) if reply_id is not None else ""
+                add_new_message(
+                    channel_id,
+                    f"{config.message_prefix} [{hops}] {message_from_string} ",
+                    f"{reply_context}{message_string}",
+                    packet_id=packet.get("id"),
+                )
 
                 if refresh_channels:
                     request_ui_redraw(channels=True)
                 if refresh_messages:
-                    request_ui_redraw(messages=True, scroll_messages_to_bottom=True)
+                    request_ui_redraw(
+                        messages=True,
+                        scroll_messages_to_bottom=True,
+                        preserve_message_selection=(ui_state.current_window == 1),
+                    )
 
-                save_message_to_db(channel_id, message_from_id, message_string)
+                save_message_to_db(
+                    channel_id,
+                    message_from_id,
+                    message_string,
+                    packet_id=packet.get("id"),
+                    reply_id=reply_id,
+                )
 
         except KeyError as e:
             logging.error(f"Error processing packet: {e}")

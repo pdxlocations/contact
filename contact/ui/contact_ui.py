@@ -5,7 +5,14 @@ import traceback
 from numbers import Real
 from typing import Union
 
-from contact.utilities.utils import get_channels, get_readable_duration, get_time_ago, refresh_node_list, add_new_message
+from contact.utilities.utils import (
+    get_channels,
+    get_readable_duration,
+    get_time_ago,
+    refresh_node_list,
+    add_new_message,
+    build_reply_prefix,
+)
 from contact.settings import settings_menu
 from contact.message_handlers.tx_handler import send_message, send_traceroute
 from contact.utilities.utils import parse_protobuf
@@ -41,6 +48,7 @@ def request_ui_redraw(
     packetlog: bool = False,
     full: bool = False,
     scroll_messages_to_bottom: bool = False,
+    preserve_message_selection: bool = False,
 ) -> None:
     ui_state.redraw_channels = ui_state.redraw_channels or channels
     ui_state.redraw_messages = ui_state.redraw_messages or messages
@@ -48,6 +56,7 @@ def request_ui_redraw(
     ui_state.redraw_packetlog = ui_state.redraw_packetlog or packetlog
     ui_state.redraw_full_ui = ui_state.redraw_full_ui or full
     ui_state.scroll_messages_to_bottom = ui_state.scroll_messages_to_bottom or scroll_messages_to_bottom
+    ui_state.preserve_message_selection = ui_state.preserve_message_selection or preserve_message_selection
 
 
 def process_pending_ui_updates(stdscr: curses.window) -> None:
@@ -58,6 +67,7 @@ def process_pending_ui_updates(stdscr: curses.window) -> None:
         ui_state.redraw_nodes = False
         ui_state.redraw_packetlog = False
         ui_state.scroll_messages_to_bottom = False
+        ui_state.preserve_message_selection = False
         handle_resize(stdscr, False)
         return
 
@@ -71,9 +81,14 @@ def process_pending_ui_updates(stdscr: curses.window) -> None:
 
     if ui_state.redraw_messages:
         scroll_to_bottom = ui_state.scroll_messages_to_bottom
+        preserve_selection = ui_state.preserve_message_selection
         ui_state.redraw_messages = False
         ui_state.scroll_messages_to_bottom = False
-        draw_messages_window(scroll_to_bottom)
+        ui_state.preserve_message_selection = False
+        if preserve_selection:
+            draw_messages_window(scroll_to_bottom, preserve_selection=True)
+        else:
+            draw_messages_window(scroll_to_bottom)
 
     if ui_state.redraw_packetlog:
         ui_state.redraw_packetlog = False
@@ -370,7 +385,8 @@ def main_ui(stdscr: curses.window) -> None:
     while True:
         with app_state.lock:
             process_pending_ui_updates(stdscr)
-        draw_text_field(entry_win, f"Message: {(input_text or '')[-(stdscr.getmaxyx()[1] - 10):]}", get_color("input"))
+        entry_display = f"{ui_state.reply_context}{input_text or ''}"
+        draw_text_field(entry_win, f"Message: {entry_display[-(stdscr.getmaxyx()[1] - 10):]}", get_color("input"))
 
         # Get user input from entry window
         try:
@@ -425,6 +441,12 @@ def main_ui(stdscr: curses.window) -> None:
 
         elif char == chr(16):  # Ctrl + P for Packet Log
             handle_ctrl_p()
+
+        elif char == chr(18):  # Ctrl + R for Reply
+            cancelling_reply = bool(ui_state.reply_context)
+            input_text = handle_ctrl_r(input_text)
+            if cancelling_reply:
+                entry_win.erase()
 
         elif char == curses.KEY_RESIZE:
             input_text = ""
@@ -488,7 +510,8 @@ def handle_home() -> None:
     if ui_state.current_window == 0:
         select_channel(0)
     elif ui_state.current_window == 1:
-        ui_state.selected_message = 0
+        set_message_selection(0)
+        refresh_message_highlight()
         refresh_pad(1)
     elif ui_state.current_window == 2:
         select_node(0)
@@ -501,8 +524,8 @@ def handle_end() -> None:
     if ui_state.current_window == 0:
         select_channel(len(ui_state.channel_list) - 1)
     elif ui_state.current_window == 1:
-        msg_line_count = messages_pad.getmaxyx()[0]
-        ui_state.selected_message = max(msg_line_count - get_msg_window_lines(messages_win, packetlog_win), 0)
+        set_message_selection(messages_pad.getmaxyx()[0] - 1)
+        refresh_message_highlight()
         refresh_pad(1)
     elif ui_state.current_window == 2:
         select_node(len(ui_state.node_list) - 1)
@@ -514,9 +537,8 @@ def handle_pageup() -> None:
     if ui_state.current_window == 0:
         select_channel(ui_state.selected_channel - (channel_win.getmaxyx()[0] - 2))
     elif ui_state.current_window == 1:
-        ui_state.selected_message = max(
-            ui_state.selected_message - get_msg_window_lines(messages_win, packetlog_win), 0
-        )
+        set_message_selection(ui_state.selected_message - get_msg_window_lines(messages_win, packetlog_win))
+        refresh_message_highlight()
         refresh_pad(1)
     elif ui_state.current_window == 2:
         select_node(ui_state.selected_node - (nodes_win.getmaxyx()[0] - 2))
@@ -528,11 +550,8 @@ def handle_pagedown() -> None:
     if ui_state.current_window == 0:
         select_channel(ui_state.selected_channel + (channel_win.getmaxyx()[0] - 2))
     elif ui_state.current_window == 1:
-        msg_line_count = messages_pad.getmaxyx()[0]
-        ui_state.selected_message = min(
-            ui_state.selected_message + get_msg_window_lines(messages_win, packetlog_win),
-            msg_line_count - get_msg_window_lines(messages_win, packetlog_win),
-        )
+        set_message_selection(ui_state.selected_message + get_msg_window_lines(messages_win, packetlog_win))
+        refresh_message_highlight()
         refresh_pad(1)
     elif ui_state.current_window == 2:
         select_node(ui_state.selected_node + (nodes_win.getmaxyx()[0] - 2))
@@ -555,6 +574,9 @@ def handle_leftright(char: int) -> None:
 
     refresh_main_window(ui_state.current_window, selected=True)
     draw_window_arrows(ui_state.current_window)
+    if ui_state.current_window == 1:
+        draw_messages_window(True)
+    refresh_message_highlight()
 
 
 def handle_function_keys(char: int) -> None:
@@ -585,6 +607,9 @@ def handle_function_keys(char: int) -> None:
 
     refresh_main_window(ui_state.current_window, selected=True)
     draw_window_arrows(ui_state.current_window)
+    if ui_state.current_window == 1:
+        draw_messages_window(True)
+    refresh_message_highlight()
 
 
 def handle_enter(input_text: str) -> str:
@@ -612,6 +637,15 @@ def handle_enter(input_text: str) -> str:
         return input_text
 
     elif len(input_text) > 0:
+        if ui_state.reply_context and ui_state.reply_id is None:
+            contact.ui.dialog.dialog(
+                t("ui.dialog.reply_unavailable_title", default="Reply unavailable"),
+                t(
+                    "ui.dialog.reply_unavailable_body",
+                    default="This message has no packet ID, so Contact cannot send a native Meshtastic reply.",
+                ),
+            )
+            return input_text
         # TODO: This is a hack to prevent sending messages too quickly. Let's get errors from the node.
         now = time.monotonic()
         if now - ui_state.last_sent_time < 2.5:
@@ -621,7 +655,15 @@ def handle_enter(input_text: str) -> str:
             )
             return input_text
         # Enter key pressed, send user input as message
-        send_message(input_text, channel=ui_state.selected_channel)
+        send_message(
+            input_text,
+            channel=ui_state.selected_channel,
+            reply_id=ui_state.reply_id,
+            reply_context=ui_state.reply_context,
+        )
+        ui_state.reply_id = None
+        ui_state.reply_context = ""
+        ui_state.reply_id_unavailable = False
         draw_messages_window(True)
         ui_state.last_sent_time = now
         entry_win.erase()
@@ -920,6 +962,49 @@ def handle_ctrl_p() -> None:
         draw_messages_window(True)
 
 
+def get_message_at_display_line(channel, display_line: int):
+    """Return the message containing a rendered line in a channel, if any."""
+    line = 0
+    for prefix, message in ui_state.all_messages.get(channel, []):
+        wrapped_lines = wrap_text(
+            normalize_message_text(f"{prefix}{message}"),
+            messages_win.getmaxyx()[1] - 2,
+        )
+        if line <= display_line < line + len(wrapped_lines):
+            return None if prefix.startswith("--") else (prefix, message)
+        line += len(wrapped_lines)
+    return None
+
+
+def handle_ctrl_r(input_text: str) -> str:
+    """Toggle a reply to the message at the current Messages-pane position."""
+    if ui_state.reply_context:
+        ui_state.reply_id = None
+        ui_state.reply_context = ""
+        ui_state.reply_id_unavailable = False
+        return ""
+
+    if ui_state.current_window != 1 or not ui_state.channel_list:
+        return input_text
+
+    channel = ui_state.channel_list[ui_state.selected_channel]
+    selected = get_message_at_display_line(channel, ui_state.selected_message)
+    if selected is None:
+        return input_text
+
+    message_index = next(
+        index
+        for index, entry in enumerate(ui_state.all_messages[channel])
+        if entry == selected
+    )
+    packet_ids = ui_state.message_packet_ids.get(channel, [])
+    prefix, message = selected
+    ui_state.reply_context = build_reply_prefix(prefix, message)
+    ui_state.reply_id = packet_ids[message_index] if message_index < len(packet_ids) else None
+    ui_state.reply_id_unavailable = ui_state.reply_id is None
+    return input_text
+
+
 # --- Ctrl+K handler for Help ---
 def handle_ctrl_k(stdscr: curses.window) -> None:
     """Handle Ctrl + K to show a help window with shortcut keys."""
@@ -933,6 +1018,7 @@ def handle_ctrl_k(stdscr: curses.window) -> None:
         t("ui.help.settings", default="` or F12 = Settings"),
         t("ui.help.quit", default="ESC = Quit"),
         t("ui.help.packet_log", default="Ctrl+P = Toggle Packet Log"),
+        t("ui.help.reply", default="Ctrl+R = Reply to message at cursor"),
         t("ui.help.traceroute", default="Ctrl+T or F4 = Traceroute"),
         t("ui.help.node_info", default="F5 = Full node info"),
         t("ui.help.archive_chat", default="Ctrl+D = Archive chat / remove node"),
@@ -1152,7 +1238,7 @@ def draw_channel_list() -> None:
     channel_win.refresh()
 
 
-def draw_messages_window(scroll_to_bottom: bool = False) -> None:
+def draw_messages_window(scroll_to_bottom: bool = False, preserve_selection: bool = False) -> None:
     """Update the messages window based on the selected channel and scroll position."""
 
     if ui_state.current_window != 1 and ui_state.single_pane_mode:
@@ -1163,10 +1249,12 @@ def draw_messages_window(scroll_to_bottom: bool = False) -> None:
     channel = ui_state.channel_list[ui_state.selected_channel]
 
     msg_line_count = 0
+    message_ranges = []
     if channel in ui_state.all_messages:
         messages = ui_state.all_messages[channel]
         rendered_lines = []
         for prefix, message in messages:
+            start_line = len(rendered_lines)
             full_message = normalize_message_text(f"{prefix}{message}")
             wrapped_lines = wrap_text(full_message, messages_win.getmaxyx()[1] - 2)
             for line in wrapped_lines:
@@ -1179,20 +1267,29 @@ def draw_messages_window(scroll_to_bottom: bool = False) -> None:
 
                 rendered_lines.append((line, color))
 
+            if not prefix.startswith("--"):
+                message_ranges.append((start_line, len(rendered_lines), color))
+
         msg_line_count = len(rendered_lines)
         messages_pad.resize(max(1, msg_line_count), messages_win.getmaxyx()[1])
         for row, (line, color) in enumerate(rendered_lines):
             messages_pad.addstr(row, 1, line, color)
+        ui_state.message_line_ranges[channel] = message_ranges
 
     paint_frame(messages_win, selected=(ui_state.current_window == 1))
 
     visible_lines = get_msg_window_lines(messages_win, packetlog_win)
 
     if scroll_to_bottom:
-        ui_state.selected_message = max(msg_line_count - visible_lines, 0)
-        ui_state.start_index[1] = max(msg_line_count - visible_lines, 0)
+        if preserve_selection:
+            set_message_selection(ui_state.selected_message)
+            ui_state.start_index[1] = max(0, msg_line_count - visible_lines)
+        else:
+            set_message_selection(msg_line_count - 1)
     else:
-        ui_state.selected_message = max(min(ui_state.selected_message, msg_line_count - visible_lines), 0)
+        set_message_selection(ui_state.selected_message)
+
+    refresh_message_highlight()
 
     messages_win.refresh()
     refresh_pad(1)
@@ -1201,6 +1298,39 @@ def draw_messages_window(scroll_to_bottom: bool = False) -> None:
     messages_win.refresh()
     if ui_state.current_window == 4:
         menu_state.need_redraw = True
+
+
+def refresh_message_highlight() -> None:
+    """Apply a reverse-video highlight to the message at the current scroll position."""
+    previous_range = ui_state.highlighted_message_range
+    width = max(0, messages_win.getmaxyx()[1] - 2)
+
+    if not ui_state.channel_list or ui_state.current_window != 1:
+        if previous_range:
+            start, end, color = previous_range
+            for row in range(start, end):
+                messages_pad.chgat(row, 1, width, color)
+        ui_state.highlighted_message_range = ()
+        return
+
+    channel = ui_state.channel_list[ui_state.selected_channel]
+    ranges = ui_state.message_line_ranges.get(channel, [])
+    selected_range = next(
+        (line_range for line_range in ranges if line_range[0] <= ui_state.selected_message < line_range[1]),
+        None,
+    )
+
+    if previous_range and previous_range != selected_range:
+        start, end, color = previous_range
+        for row in range(start, end):
+            messages_pad.chgat(row, 1, width, color)
+
+    if selected_range:
+        start, end, color = selected_range
+        for row in range(start, end):
+            messages_pad.chgat(row, 1, width, color | curses.A_REVERSE)
+
+    ui_state.highlighted_message_range = selected_range or ()
 
 
 def draw_node_list() -> None:
@@ -1293,29 +1423,65 @@ def scroll_messages(direction: int) -> None:
             refresh_pad(1)
             return
 
-    ui_state.selected_message += direction
+    move_message_selection(direction)
 
-    msg_line_count = messages_pad.getmaxyx()[0]
-    ui_state.selected_message = max(
-        0, min(ui_state.selected_message, msg_line_count - get_msg_window_lines(messages_win, packetlog_win))
-    )
-
-    max_index = msg_line_count - 1
-    visible_height = get_msg_window_lines(messages_win, packetlog_win)
-
-    if ui_state.selected_message < ui_state.start_index[ui_state.current_window]:  # Moving above the visible area
-        ui_state.start_index[ui_state.current_window] = ui_state.selected_message
-    elif ui_state.selected_message >= ui_state.start_index[ui_state.current_window]:  # Moving below the visible area
-        ui_state.start_index[ui_state.current_window] = ui_state.selected_message
-
-    # Ensure start_index is within bounds
-    ui_state.start_index[ui_state.current_window] = max(
-        0, min(ui_state.start_index[ui_state.current_window], max_index - visible_height + 1)
-    )
-
+    refresh_message_highlight()
     messages_win.refresh()
     refresh_pad(1)
     draw_window_arrows(ui_state.current_window)
+
+
+def set_message_selection(line: int) -> None:
+    """Select a rendered message line and keep it visible without limiting selection to the viewport."""
+    msg_line_count = messages_pad.getmaxyx()[0]
+    visible_lines = get_msg_window_lines(messages_win, packetlog_win)
+    ui_state.selected_message = max(0, min(line, max(msg_line_count - 1, 0)))
+
+    max_start = max(msg_line_count - visible_lines, 0)
+    start = ui_state.start_index[1]
+    if ui_state.selected_message < start:
+        start = ui_state.selected_message
+    elif ui_state.selected_message >= start + visible_lines:
+        start = ui_state.selected_message - visible_lines + 1
+    ui_state.start_index[1] = max(0, min(start, max_start))
+
+
+def move_message_selection(direction: int) -> None:
+    """Move between messages, keeping wrapped messages as one selectable item."""
+    if not ui_state.channel_list:
+        return
+
+    channel = ui_state.channel_list[ui_state.selected_channel]
+    ranges = ui_state.message_line_ranges.get(channel, [])
+    if not ranges:
+        set_message_selection(ui_state.selected_message + direction)
+        return
+
+    current_index = next(
+        (index for index, line_range in enumerate(ranges) if line_range[0] <= ui_state.selected_message < line_range[1]),
+        None,
+    )
+    if current_index is None:
+        current_index = 0 if direction > 0 else len(ranges) - 1
+    else:
+        current_index = max(0, min(current_index + direction, len(ranges) - 1))
+
+    start, end, _color = ranges[current_index]
+    set_message_selection(end - 1 if current_index == len(ranges) - 1 else start)
+
+
+def select_last_message() -> None:
+    """Select and reveal the newest message in the active channel."""
+    if not ui_state.channel_list:
+        return
+
+    channel = ui_state.channel_list[ui_state.selected_channel]
+    ranges = ui_state.message_line_ranges.get(channel, [])
+    if ranges:
+        _start, end, _color = ranges[-1]
+        set_message_selection(end - 1)
+    else:
+        set_message_selection(0)
 
 
 def select_node(idx: int) -> None:
