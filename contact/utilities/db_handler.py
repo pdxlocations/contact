@@ -11,6 +11,9 @@ import contact.ui.default_config as config
 from contact.utilities.singleton import ui_state, interface_state
 
 
+MESSAGE_PAGE_SIZE = 250
+
+
 def get_table_name(channel: str) -> str:
     # Construct the table name
     table_name = f"{str(interface_state.myNodeNum)}_{channel}_messages"
@@ -75,7 +78,54 @@ def update_ack_nak(channel: str, timestamp: int, message: str, ack: str) -> None
         logging.error(f"Unexpected error in update_ack_nak: {e}")
 
 
-def load_messages_from_db() -> None:
+def _format_db_messages(db_messages, node_names):
+    """Format database rows, adding one timestamp separator per hour."""
+    hourly_messages = {}
+    for _rowid, user_id, message, timestamp, ack_type in db_messages:
+        if user_id is None or message is None or timestamp is None:
+            logging.warning(f"Skipping row with NULL required field(s): {(user_id, message, timestamp, ack_type)}")
+            continue
+
+        hour = datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:00")
+        ack_str = config.ack_unknown_str
+        if ack_type == "Implicit":
+            ack_str = config.ack_implicit_str
+        elif ack_type == "Ack":
+            ack_str = config.ack_str
+        elif ack_type == "Nak":
+            ack_str = config.nak_str
+
+        ts_str = datetime.fromtimestamp(timestamp).strftime("[%H:%M:%S]")
+        sanitized_message = message.replace("\x00", "")
+        if user_id == str(interface_state.myNodeNum):
+            formatted_message = (f"{ts_str} {config.sent_message_prefix}{ack_str}: ", sanitized_message)
+        else:
+            try:
+                fallback_name = decimal_to_hex(int(user_id))
+            except (TypeError, ValueError):
+                fallback_name = str(user_id)
+            formatted_message = (
+                f"{ts_str} {config.message_prefix} {node_names.get(str(user_id), fallback_name)}: ",
+                sanitized_message,
+            )
+        hourly_messages.setdefault(hour, []).append(formatted_message)
+
+    formatted = []
+    for hour, messages in sorted(hourly_messages.items()):
+        formatted.append((f"-- {hour} --", ""))
+        formatted.extend(messages)
+    return formatted
+
+
+def _load_node_names(db_cursor):
+    table_name = f'"{interface_state.myNodeNum}_nodedb"'
+    try:
+        return {str(row[0]): row[1] for row in db_cursor.execute(f"SELECT user_id, short_name FROM {table_name}")}
+    except sqlite3.Error:
+        return {}
+
+
+def load_messages_from_db(page_size: int = MESSAGE_PAGE_SIZE) -> None:
     """Load messages from the database for all channels and update ui_state.all_messages and ui_state.channel_list."""
     try:
         with sqlite3.connect(config.db_file_path, timeout=10.0) as db_connection:
@@ -85,6 +135,7 @@ def load_messages_from_db() -> None:
             query = "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE ?"
             db_cursor.execute(query, (f"{str(interface_state.myNodeNum)}_%_messages",))
             tables = [row[0] for row in db_cursor.fetchall()]
+            node_names = _load_node_names(db_cursor)
 
             # Iterate through each table and fetch its messages
             for table_name in tables:
@@ -97,15 +148,22 @@ def load_messages_from_db() -> None:
                     db_cursor.execute(update_table_query)
                     db_connection.commit()
 
-                query = f"SELECT user_id, message_text, timestamp, ack_type FROM {quoted_table_name}"
+                query = f"""
+                    SELECT rowid, user_id, message_text, timestamp, ack_type
+                    FROM {quoted_table_name}
+                    ORDER BY rowid DESC LIMIT ?
+                """
 
                 try:
                     # Fetch all messages from the table
-                    db_cursor.execute(query)
-                    db_messages = [(row[0], row[1], row[2], row[3]) for row in db_cursor.fetchall()]  # Save as tuples
+                    db_cursor.execute(query, (page_size + 1,))
+                    rows = db_cursor.fetchall()
+                    has_older = len(rows) > page_size
+                    db_messages = list(reversed(rows[:page_size]))
 
                     # Extract the channel name from the table name
-                    channel = table_name.split("_")[1]
+                    prefix = f"{interface_state.myNodeNum}_"
+                    channel = table_name[len(prefix) : -len("_messages")]
 
                     # Convert the channel to an integer if it's numeric, otherwise keep it as a string (nodenum vs channel name)
                     channel = int(channel) if channel.isdigit() else channel
@@ -118,55 +176,53 @@ def load_messages_from_db() -> None:
                     if channel not in ui_state.all_messages:
                         ui_state.all_messages[channel] = []
 
-                    # Add messages to ui_state.all_messages grouped by hourly timestamp
-                    hourly_messages = {}
-                    for row in db_messages:
-                        user_id, message, timestamp, ack_type = row
-
-                        # Only ack_type is allowed to be None
-                        if user_id is None or message is None or timestamp is None:
-                            logging.warning(f"Skipping row with NULL required field(s): {row}")
-                            continue
-
-                        hour = datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:00")
-                        if hour not in hourly_messages:
-                            hourly_messages[hour] = []
-
-                        ack_str = config.ack_unknown_str
-                        if ack_type == "Implicit":
-                            ack_str = config.ack_implicit_str
-                        elif ack_type == "Ack":
-                            ack_str = config.ack_str
-                        elif ack_type == "Nak":
-                            ack_str = config.nak_str
-
-                        ts_str = datetime.fromtimestamp(timestamp).strftime("[%H:%M:%S]")
-
-                        if user_id == str(interface_state.myNodeNum):
-                            sanitized_message = message.replace("\x00", "")
-                            formatted_message = (
-                                f"{ts_str} {config.sent_message_prefix}{ack_str}: ",
-                                sanitized_message,
-                            )
-                        else:
-                            sanitized_message = message.replace("\x00", "")
-                            formatted_message = (
-                                f"{ts_str} {config.message_prefix} {get_name_from_database(int(user_id), 'short')}: ",
-                                sanitized_message,
-                            )
-
-                        hourly_messages[hour].append(formatted_message)
-
-                    # Flatten the hourly messages into ui_state.all_messages[channel]
-                    for hour, messages in sorted(hourly_messages.items()):
-                        ui_state.all_messages[channel].append((f"-- {hour} --", ""))
-                        ui_state.all_messages[channel].extend(messages)
+                    ui_state.all_messages[channel].extend(_format_db_messages(db_messages, node_names))
+                    if db_messages:
+                        ui_state.oldest_message_rowid[channel] = db_messages[0][0]
+                    ui_state.has_older_messages[channel] = has_older
 
                 except sqlite3.Error as e:
                     logging.error(f"SQLite error while loading messages from table '{table_name}': {e}")
 
     except sqlite3.Error as e:
         logging.error(f"SQLite error in load_messages_from_db: {e}")
+
+
+def load_older_messages(channel, page_size: int = MESSAGE_PAGE_SIZE) -> int:
+    """Prepend one older page for a channel and return the number of messages loaded."""
+    before_rowid = ui_state.oldest_message_rowid.get(channel)
+    if before_rowid is None or not ui_state.has_older_messages.get(channel, False):
+        return 0
+
+    try:
+        with sqlite3.connect(config.db_file_path, timeout=10.0) as db_connection:
+            db_connection.execute("PRAGMA busy_timeout=10000")
+            db_cursor = db_connection.cursor()
+            query = f"""
+                SELECT rowid, user_id, message_text, timestamp, ack_type
+                FROM {get_table_name(channel)}
+                WHERE rowid < ? ORDER BY rowid DESC LIMIT ?
+            """
+            db_cursor.execute(query, (before_rowid, page_size + 1))
+            rows = db_cursor.fetchall()
+            has_older = len(rows) > page_size
+            db_messages = list(reversed(rows[:page_size]))
+            if not db_messages:
+                ui_state.has_older_messages[channel] = False
+                return 0
+
+            older = _format_db_messages(db_messages, _load_node_names(db_cursor))
+            current = ui_state.all_messages.setdefault(channel, [])
+            last_older_header = next((prefix for prefix, _ in reversed(older) if prefix.startswith("--")), None)
+            if current and current[0][0] == last_older_header:
+                current.pop(0)
+            ui_state.all_messages[channel] = older + current
+            ui_state.oldest_message_rowid[channel] = db_messages[0][0]
+            ui_state.has_older_messages[channel] = has_older
+            return len(db_messages)
+    except sqlite3.Error as e:
+        logging.error(f"SQLite error loading older messages for channel '{channel}': {e}")
+        return 0
 
 
 def init_nodedb() -> None:

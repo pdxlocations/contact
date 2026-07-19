@@ -70,6 +70,25 @@ class ContactUiTests(unittest.TestCase):
         self.assertFalse(ui_state.redraw_channels)
         self.assertFalse(ui_state.redraw_messages)
 
+    def test_draw_messages_resizes_pad_once(self) -> None:
+        ui_state.channel_list = ["Primary"]
+        ui_state.all_messages = {"Primary": [("[10:00] RX: ", "one"), ("[10:01] RX: ", "two")]}
+        contact_ui.messages_pad = mock.Mock()
+        contact_ui.messages_win = mock.Mock()
+        contact_ui.messages_win.getmaxyx.return_value = (10, 40)
+        contact_ui.packetlog_win = mock.Mock()
+        contact_ui.packetlog_win.getmaxyx.return_value = (1, 40)
+        contact_ui.messages_win.getbegyx.return_value = (0, 0)
+
+        with mock.patch.object(contact_ui, "paint_frame"):
+            with mock.patch.object(contact_ui, "get_color", return_value=0):
+                with mock.patch.object(contact_ui, "refresh_pad"):
+                    with mock.patch.object(contact_ui, "draw_packetlog_win"):
+                        with mock.patch.object(contact_ui, "draw_window_arrows"):
+                            contact_ui.draw_messages_window()
+
+        contact_ui.messages_pad.resize.assert_called_once_with(2, 40)
+
     def test_refresh_node_selection_reserves_scroll_arrow_column(self) -> None:
         ui_state.node_list = [101, 202]
         ui_state.selected_node = 1
