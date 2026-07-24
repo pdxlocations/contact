@@ -78,7 +78,7 @@ def _requires_reconnect(menu_state, modified_settings) -> bool:
     return True
 
 
-def save_changes(interface, modified_settings, menu_state):
+def save_changes(interface, modified_settings, menu_state, node=None):
     """
     Save changes to the device based on modified settings.
     :param interface: Meshtastic interface instance
@@ -90,7 +90,7 @@ def save_changes(interface, modified_settings, menu_state):
             logging.info("No changes to save. modified_settings is empty.")
             return False
 
-        node = interface.getNode("^local")
+        node = node or interface.getNode("^local")
         admin_key_backup = None
         if "admin_key" in modified_settings:
             # Get reference to security config
@@ -134,7 +134,7 @@ def save_changes(interface, modified_settings, menu_state):
                 lon = float(modified_settings.get("longitude", 0.0))
                 alt = int(modified_settings.get("altitude", 0))
 
-                interface.localNode.setFixedPosition(lat, lon, alt)
+                node.setFixedPosition(lat, lon, alt)
                 logging.info(f"Updated {config_category} with Latitude: {lat} and Longitude {lon} and Altitude {alt}")
                 return False
 
