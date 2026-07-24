@@ -468,9 +468,6 @@ def main_ui(stdscr: curses.window) -> None:
         elif char == chr(6):  # Ctrl + F to toggle favorite
             handle_ctrl_f(stdscr)
 
-        elif char == chr(2):  # Ctrl + B to toggle bot responder
-            handle_ctrl_b(stdscr)
-
         elif char == chr(7):  # Ctrl + G to toggle ignored
             handle_ctlr_g(stdscr)
 
@@ -1023,39 +1020,12 @@ def handle_ctrl_k(stdscr: curses.window) -> None:
         t("ui.help.node_info", default="F5 = Full node info"),
         t("ui.help.archive_chat", default="Ctrl+D = Archive chat / remove node"),
         t("ui.help.favorite", default="Ctrl+F = Favorite"),
-        t("ui.help.bot_responder", default="Ctrl+B = Toggle Bot Responder"),
         t("ui.help.ignore", default="Ctrl+G = Ignore"),
         t("ui.help.search", default="Ctrl+/ = Search"),
         t("ui.help.help", default="Ctrl+K = Help"),
     ]
 
     contact.ui.dialog.dialog(t("ui.dialog.help_title", default="Help - Shortcut Keys"), "\n".join(cmds))
-
-    curses.curs_set(1)
-    handle_resize(stdscr, False)
-
-
-def handle_ctrl_b(stdscr: curses.window) -> None:
-    """Handle Ctrl + B key events to toggle automatic bot responses."""
-    ui_state.bot_mode_enabled = not ui_state.bot_mode_enabled
-    status = t("ui.bot.status.enabled", default="Enabled") if ui_state.bot_mode_enabled else t(
-        "ui.bot.status.disabled", default="Disabled"
-    )
-
-    curses.curs_set(0)
-    contact.ui.dialog.dialog(
-        t("ui.bot.dialog.title", default="Bot Responder"),
-        t("ui.bot.dialog.body", default="Bot responder is now {status}.", status=status),
-    )
-
-    if ui_state.channel_list:
-        channel_id = ui_state.channel_list[ui_state.selected_channel]
-        add_new_message(
-            channel_id,
-            f"{config.message_prefix} Info: ",
-            t("ui.bot.status.message", default="Bot responder is now {status}.", status=status.lower()),
-        )
-        draw_messages_window(True)
 
     curses.curs_set(1)
     handle_resize(stdscr, False)

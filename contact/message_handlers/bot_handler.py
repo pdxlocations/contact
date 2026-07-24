@@ -5,7 +5,7 @@ import time
 from typing import Any, Dict
 
 import contact.ui.default_config as config
-from contact.utilities.singleton import app_state, interface_state, ui_state
+from contact.utilities.singleton import app_state, interface_state
 from contact.message_handlers.tx_handler import send_message
 
 BOT_RESPONSE_DELAY_SECONDS = 2.3
@@ -24,9 +24,15 @@ def is_bot_message(message: str) -> bool:
     """Return True when the incoming message should trigger an automatic response."""
     return message.strip().casefold() in _get_bot_catch_words()
 
+
+def is_bot_enabled() -> bool:
+    """Return whether automatic responses are enabled in app settings."""
+    value = getattr(config, "ping_bot_enabled", False)
+    return value if isinstance(value, bool) else str(value).strip().casefold() == "true"
+
 def bot_respond(packet: Dict[str, Any], message: str, send_channel: int) -> bool:
     """Send a basic response when bot mode is enabled."""
-    if not ui_state.bot_mode_enabled:
+    if not is_bot_enabled():
         return False
 
     if not is_bot_message(message):
@@ -70,7 +76,7 @@ def bot_respond(packet: Dict[str, Any], message: str, send_channel: int) -> bool
             time.sleep(BOT_RESPONSE_DELAY_SECONDS)
 
             with app_state.lock:
-                if not ui_state.bot_mode_enabled:
+                if not is_bot_enabled():
                     return
 
                 # Use the triggering packet's ID so Meshtastic clients render this

@@ -115,6 +115,9 @@ def edit_color_pair(key: str, display_label: str, current_value: List[str]) -> L
 
 def edit_value(key: str, display_label: str, current_value: str) -> str:
 
+    if key in ("notification_sound", "single_pane_mode", "enabled"):
+        return get_list_input(display_label, current_value, ["True", "False"])
+
     w = get_effective_width()
     height = 10
     input_width = w - 16  # Allow space for "New Value: "
@@ -169,14 +172,6 @@ def edit_value(key: str, display_label: str, current_value: str) -> str:
     elif key == "node_sort":
         sort_options = ["lastHeard", "name", "hops"]
         return get_list_input(display_label, current_value, sort_options)
-
-    elif key == "notification_sound":
-        sound_options = ["True", "False"]
-        return get_list_input(display_label, current_value, sound_options)
-
-    elif key == "single_pane_mode":
-        sound_options = ["True", "False"]
-        return get_list_input(display_label, current_value, sound_options)
 
     # Standard Input Mode (Scrollable)
     edit_win.addstr(7, 2, t("ui.label.new_value", default="New Value: "), get_color("settings_default"))

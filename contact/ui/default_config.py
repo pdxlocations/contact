@@ -258,6 +258,7 @@ def initialize_config() -> Dict[str, object]:
         "node_sort": "lastHeard",
         "theme": "dark",
         "ping_bot": {
+            "enabled": "False",
             "catch_words": "ping; test",
             "response_word": "Pong!",
         },
@@ -296,7 +297,7 @@ def assign_config_variables(loaded_config: Dict[str, object]) -> None:
     global notification_symbol, ack_implicit_str, ack_str, nak_str, ack_unknown_str
     global node_list_16ths, channel_list_16ths, single_pane_mode
     global theme, COLOR_CONFIG, language
-    global node_sort, notification_sound, ping_bot_catch_words, ping_bot_response_word
+    global node_sort, notification_sound, ping_bot_enabled, ping_bot_catch_words, ping_bot_response_word
 
     channel_list_16ths = loaded_config["channel_list_16ths"]
     node_list_16ths = loaded_config["node_list_16ths"]
@@ -316,6 +317,7 @@ def assign_config_variables(loaded_config: Dict[str, object]) -> None:
     node_sort = loaded_config["node_sort"]
     theme = loaded_config["theme"]
     ping_bot = loaded_config.get("ping_bot", {})
+    ping_bot_enabled = ping_bot.get("enabled", "False")
     ping_bot_catch_words = ping_bot.get("catch_words", "ping; test")
     ping_bot_response_word = ping_bot.get("response_word", "Pong!")
     if theme == "dark":

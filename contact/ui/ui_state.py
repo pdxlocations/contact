@@ -27,8 +27,6 @@ class ChatUIState:
     current_window: int = 0
     last_sent_time: float = 0.0
     last_traceroute_time: float = 0.0
-    bot_mode_enabled: bool = False
-
     selected_index: int = 0
     start_index: List[int] = field(default_factory=lambda: [0, 0, 0])
     show_save_option: bool = False
