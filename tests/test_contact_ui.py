@@ -195,6 +195,15 @@ class ContactUiTests(unittest.TestCase):
         self.assertEqual(ui_state.reply_context, "")
         self.assertFalse(ui_state.reply_id_unavailable)
 
+    def test_draw_text_field_clears_stale_reply_context(self) -> None:
+        win = mock.Mock()
+        win.getmaxyx.return_value = (3, 30)
+
+        contact_ui.draw_text_field(win, "Message: ", 1)
+
+        self.assertIn(mock.call(1, 1, " " * 28, 1), win.addstr.call_args_list)
+        self.assertIn(mock.call(1, 1, "Message: ", 1), win.addstr.call_args_list)
+
     def test_handle_ctrl_r_shows_context_when_message_id_is_unavailable(self) -> None:
         ui_state.current_window = 1
         ui_state.channel_list = ["Primary"]
