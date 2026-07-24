@@ -40,7 +40,8 @@ def bot_respond(packet: Dict[str, Any], message: str, send_channel: int) -> bool
         return False
     snr = packet.get('rxSnr', -128)
     rssi = packet.get('rxRssi', -128)
-    replyIDset = (packet.get('decoded') or {}).get('replyId', False)
+    incoming_reply_id = (packet.get('decoded') or {}).get('replyId')
+    packet_id = packet.get("id")
     hop_start = packet.get('hopStart', 0)
     hop_limit = packet.get('hopLimit', 0)
     transport_type = packet.get('transportMechanism', None)
@@ -53,8 +54,8 @@ def bot_respond(packet: Dict[str, Any], message: str, send_channel: int) -> bool
         details.append(f"RSSI: {rssi}")
     if hops != 0:
         details.append(f"Hops: {hops}")
-    if replyIDset:
-        details.append(f"Relay: {replyIDset}")
+    if incoming_reply_id:
+        details.append(f"Relay: {incoming_reply_id}")
     transport_text = str(transport_type).upper() if transport_type is not None else ""
     for transport_name in ("UDP", "MQTT"):
         if transport_name in transport_text:
@@ -72,7 +73,9 @@ def bot_respond(packet: Dict[str, Any], message: str, send_channel: int) -> bool
                 if not ui_state.bot_mode_enabled:
                     return
 
-                send_message(response_data_string,channel=send_channel)
+                # Use the triggering packet's ID so Meshtastic clients render this
+                # automatic response as a native reply when that ID is available.
+                send_message(response_data_string, channel=send_channel, reply_id=packet_id)
 
             # Import locally to avoid circular import at module import time.
             from contact.ui.contact_ui import request_ui_redraw
