@@ -938,13 +938,70 @@ def handle_backtick(stdscr: curses.window) -> None:
     curses.curs_set(0)
     previous_window = ui_state.current_window
     ui_state.current_window = 4
-    settings_menu(stdscr, interface_state.interface)
+    interface = interface_state.interface
+    if previous_window != 2:
+        settings_menu(stdscr, interface)
+        ui_state.current_window = previous_window
+        ui_state.single_pane_mode = config.single_pane_mode.lower() == "true"
+        curses.curs_set(1)
+        get_channels()
+        refresh_node_list()
+        handle_resize(stdscr, False)
+        return
+
+    options = ["Local settings"]
+    remote_node_num = None
+    if ui_state.node_list:
+        remote_node_num = ui_state.node_list[ui_state.selected_node]
+        options.append(f"Remote admin: {get_name_from_database(remote_node_num)}")
+    choice = get_list_input("Open settings for", None, options)
+    if choice == "Local settings":
+        settings_menu(stdscr, interface)
+    elif remote_node_num is not None:
+        wait_win = None
+        try:
+            wait_win = show_remote_admin_wait(stdscr, get_name_from_database(remote_node_num))
+            settings_menu(stdscr, interface, node=interface.getNode(remote_node_num), remote=True)
+        except SystemExit as exc:
+            logging.warning("Remote admin was rejected for %s: %s", remote_node_num, exc)
+            if wait_win is not None:
+                wait_win.erase()
+                wait_win.refresh()
+            contact.ui.dialog.dialog(
+                "Remote admin rejected",
+                "The selected node did not authorize this admin request.",
+            )
+        except Exception as exc:
+            logging.exception("Remote admin failed for %s", remote_node_num)
+            if wait_win is not None:
+                wait_win.erase()
+                wait_win.refresh()
+            contact.ui.dialog.dialog("Remote admin failed", str(exc))
     ui_state.current_window = previous_window
     ui_state.single_pane_mode = config.single_pane_mode.lower() == "true"
     curses.curs_set(1)
     get_channels()
     refresh_node_list()
     handle_resize(stdscr, False)
+
+
+def show_remote_admin_wait(stdscr: curses.window, node_name: str) -> curses.window | None:
+    """Show progress while Meshtastic retrieves remote-admin settings."""
+    message = f"Attempting remote admin of {node_name}, waiting for response..."
+    try:
+        height, width = stdscr.getmaxyx()
+        box_width = min(width - 4, max(len(message) + 4, 36))
+        box_height = 5
+        wait_win = curses.newwin(box_height, box_width, max(0, (height - box_height) // 2), max(0, (width - box_width) // 2))
+        wait_win.bkgd(get_color("background"))
+        wait_win.attrset(get_color("window_frame"))
+        wait_win.border()
+        wait_win.addstr(0, 2, " Remote Admin ", get_color("settings_default"))
+        wait_win.addstr(2, 2, message[: box_width - 4], get_color("settings_default"))
+        wait_win.refresh()
+        return wait_win
+    except curses.error:
+        return None
 
 
 def handle_ctrl_p() -> None:

@@ -279,10 +279,21 @@ def redraw_main_ui_after_reconnect(stdscr: object) -> None:
         logging.debug("Skipping main UI redraw after reconnect", exc_info=True)
 
 
-def settings_menu(stdscr: object, interface: object) -> None:
+def settings_menu(stdscr: object, interface: object, node: object = None, remote: bool = False) -> None:
     curses.update_lines_cols()
+    node = node or interface.localNode
 
-    menu = generate_menu_from_protobuf(interface)
+    if remote:
+        # Remote nodes do not populate config automatically; request every
+        # section before building the menu. Authorization failures surface as
+        # Meshtastic admin errors and are handled by the caller.
+        for config_type in list(node.localConfig.DESCRIPTOR.fields):
+            node.requestConfig(config_type)
+        for config_type in list(node.moduleConfig.DESCRIPTOR.fields):
+            node.requestConfig(config_type)
+        node.requestChannels()
+
+    menu = generate_menu_from_protobuf(interface, node=node, include_app_settings=not remote)
     menu_state.current_menu = menu["Main Menu"]
     menu_state.menu_path = ["Main Menu"]
 
@@ -387,12 +398,12 @@ def settings_menu(stdscr: object, interface: object) -> None:
                 help_win.refresh()
 
             if menu_state.show_save_option and menu_state.selected_index == len(options):
-                reconnect_required = save_changes(interface, modified_settings, menu_state)
+                reconnect_required = save_changes(interface, modified_settings, menu_state, node=node)
                 modified_settings.clear()
                 logging.info("Changes Saved")
                 if reconnect_required:
                     interface = reconnect_interface_with_splash(stdscr, interface)
-                    menu = generate_menu_from_protobuf(interface)
+                    menu = generate_menu_from_protobuf(interface, node=node, include_app_settings=not remote)
 
                 if len(menu_state.menu_path) > 1:
                     menu_state.menu_path.pop()
@@ -492,7 +503,7 @@ def settings_menu(stdscr: object, interface: object) -> None:
                 continue
 
             elif selected_option == "Config URL":
-                current_value = interface.localNode.getURL()
+                current_value = node.getURL()
                 new_value = get_text_input(
                     t(
                         "ui.prompt.config_url_current",
@@ -510,7 +521,7 @@ def settings_menu(stdscr: object, interface: object) -> None:
                         ["Yes", "No"],
                     )
                     if overwrite == "Yes":
-                        interface.localNode.setURL(new_value)
+                        node.setURL(new_value)
                         logging.info(f"New Config URL sent to node")
                 menu_state.start_index.pop()
                 continue
@@ -521,7 +532,7 @@ def settings_menu(stdscr: object, interface: object) -> None:
                 )
                 if confirmation == "Yes":
                     interface = reconnect_after_admin_action(
-                        stdscr, interface, interface.localNode.reboot, "Node Reboot Requested by menu"
+                        stdscr, interface, node.reboot, "Node Reboot Requested by menu"
                     )
                     menu = rebuild_menu_at_current_path(interface, menu_state)
                 menu_state.start_index.pop()
@@ -535,7 +546,7 @@ def settings_menu(stdscr: object, interface: object) -> None:
                 )
                 if confirmation == "Yes":
                     interface = reconnect_after_admin_action(
-                        stdscr, interface, interface.localNode.resetNodeDb, "Node DB Reset Requested by menu"
+                        stdscr, interface, node.resetNodeDb, "Node DB Reset Requested by menu"
                     )
                     menu = rebuild_menu_at_current_path(interface, menu_state)
                 menu_state.start_index.pop()
@@ -546,7 +557,7 @@ def settings_menu(stdscr: object, interface: object) -> None:
                     t("ui.confirm.shutdown", default="Are you sure you want to Shutdown?"), None, ["Yes", "No"]
                 )
                 if confirmation == "Yes":
-                    interface.localNode.shutdown()
+                    node.shutdown()
                     logging.info(f"Node Shutdown Requested by menu")
                 menu_state.start_index.pop()
                 continue
@@ -561,7 +572,7 @@ def settings_menu(stdscr: object, interface: object) -> None:
                     interface = reconnect_after_admin_action(
                         stdscr,
                         interface,
-                        lambda: request_factory_reset(interface.localNode, full=True),
+                        lambda: request_factory_reset(node, full=True),
                         "Factory Reset Requested by menu",
                     )
                     menu = rebuild_menu_at_current_path(interface, menu_state)
@@ -578,7 +589,7 @@ def settings_menu(stdscr: object, interface: object) -> None:
                     interface = reconnect_after_admin_action(
                         stdscr,
                         interface,
-                        lambda: request_factory_reset(interface.localNode, full=False),
+                        lambda: request_factory_reset(node, full=False),
                         "Factory Reset Config Requested by menu",
                     )
                     menu = rebuild_menu_at_current_path(interface, menu_state)
@@ -613,8 +624,8 @@ def settings_menu(stdscr: object, interface: object) -> None:
                     is_ringtone = selected_option == "ringtone"
                     getter_name = "get_ringtone" if is_ringtone else "get_canned_message"
                     setter_name = "set_ringtone" if is_ringtone else "set_canned_message"
-                    getter = getattr(interface.localNode, getter_name, None)
-                    setter = getattr(interface.localNode, setter_name, None)
+                    getter = getattr(node, getter_name, None)
+                    setter = getattr(node, setter_name, None)
                     fetched_value = getter() if callable(getter) else None
                     current_value = fetched_value if fetched_value is not None else current_value
                     new_value = get_text_input(
