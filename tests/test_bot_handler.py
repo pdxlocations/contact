@@ -5,7 +5,7 @@ import types
 from unittest import mock
 
 import contact.ui.default_config as config
-from contact.utilities.singleton import interface_state, ui_state
+from contact.utilities.singleton import interface_state
 from tests.test_support import reset_singletons
 
 
@@ -36,23 +36,27 @@ class BotHandlerTests(unittest.TestCase):
             self.assertTrue(self.bot_handler.is_bot_message("ping"))
 
     def test_bot_response_replies_to_triggering_packet(self) -> None:
-        ui_state.bot_mode_enabled = True
         interface_state.myNodeNum = 111
         packet = {"id": 900, "from": 222, "decoded": {}}
 
-        with mock.patch.object(self.bot_handler.threading, "Thread") as thread:
-            self.assertTrue(self.bot_handler.bot_respond(packet, "ping", 0))
-            send_response = thread.call_args.kwargs["target"]
-            with mock.patch.object(self.bot_handler.time, "sleep"):
-                with mock.patch.dict(
-                    sys.modules,
-                    {"contact.ui.contact_ui": types.SimpleNamespace(request_ui_redraw=mock.Mock())},
-                ):
-                    send_response()
+        with mock.patch.object(config, "ping_bot_enabled", "True"):
+            with mock.patch.object(self.bot_handler.threading, "Thread") as thread:
+                self.assertTrue(self.bot_handler.bot_respond(packet, "ping", 0))
+                send_response = thread.call_args.kwargs["target"]
+                with mock.patch.object(self.bot_handler.time, "sleep"):
+                    with mock.patch.dict(
+                        sys.modules,
+                        {"contact.ui.contact_ui": types.SimpleNamespace(request_ui_redraw=mock.Mock())},
+                    ):
+                        send_response()
 
         self.bot_handler.send_message.assert_called_once_with(
             "Pong!", channel=0, reply_id=900
         )
+
+    def test_bot_response_requires_enabled_app_setting(self) -> None:
+        with mock.patch.object(config, "ping_bot_enabled", "False"):
+            self.assertFalse(self.bot_handler.bot_respond({"from": 222}, "ping", 0))
 
 
 if __name__ == "__main__":
