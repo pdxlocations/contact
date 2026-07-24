@@ -179,7 +179,7 @@ def build_reply_prefix(prefix: str, message: str) -> str:
     else:
         sender_text = re.sub(r"^(?:>>|<<)\s*(?:\[[^]]+\]\s*)?", "", sender_text)
         sender_match = re.search(r"(.+?)\s*:\s*$", sender_text)
-        sender = sender_match.group(1).strip() if sender_match else "me"
+        sender = sender_match.group(1).strip() if sender_match else ""
     message_without_reply_marker = re.sub(r"^<Re:\s*[^>]*>\s*", "", message.replace("\x00", ""))
     excerpt = " ".join(message_without_reply_marker.split())[:REPLY_EXCERPT_LENGTH]
     return f"<Re: {sender}: {excerpt}> "
