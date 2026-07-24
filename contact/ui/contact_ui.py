@@ -1675,21 +1675,25 @@ def remove_notification(channel_number: int) -> None:
 
 def draw_text_field(win: curses.window, text: str, color: int) -> None:
     win.border()
+    height, width = win.getmaxyx()
 
     # Put a small hint in the border of the message entry field.
     # We key off the "Message:" prompt to avoid affecting other bordered fields.
     if isinstance(text, str) and text.startswith("Message:"):
         hint = " Ctrl+K Help "
-        h, w = win.getmaxyx()
-        x = max(2, w - len(hint) - 2)
+        x = max(2, width - len(hint) - 2)
         try:
             win.addstr(0, x, hint, get_color("commands"))
         except curses.error:
             pass
 
-    # Draw the actual field text
+    # Clear the row before redrawing.  Reply context can be longer than the
+    # next value (or empty after Ctrl+R cancels it), so simply overwriting the
+    # new text leaves trailing characters from the old context on screen.
     try:
-        win.addstr(1, 1, text, color)
+        if height > 2 and width > 2:
+            win.addstr(1, 1, " " * (width - 2), color)
+        win.addstr(1, 1, text[: max(0, width - 2)], color)
     except curses.error:
         pass
 
