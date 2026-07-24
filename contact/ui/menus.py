@@ -118,7 +118,19 @@ def generate_menu_from_protobuf(interface: object) -> Dict[str, Any]:
     # Add Module Settings
     module = module_config_pb2.ModuleConfig()
     current_module_config = interface.localNode.moduleConfig if interface else None
-    menu_structure["Main Menu"]["Module Settings"] = extract_fields(module, current_module_config)
+    module_settings = extract_fields(module, current_module_config)
+    if interface and interface.localNode:
+        # These values use dedicated admin requests rather than ModuleConfig
+        # fields, so expose them alongside their related module settings.
+        module_settings.setdefault("external_notification", {})["ringtone"] = (
+            None,
+            getattr(interface.localNode, "ringtone", "") or "",
+        )
+        module_settings.setdefault("canned_message", {})["messages"] = (
+            None,
+            getattr(interface.localNode, "cannedPluginMessage", "") or "",
+        )
+    menu_structure["Main Menu"]["Module Settings"] = module_settings
 
     # Add App Settings
     menu_structure["Main Menu"]["App Settings"] = {"Open": "app_settings"}

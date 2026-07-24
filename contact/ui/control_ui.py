@@ -609,6 +609,24 @@ def settings_menu(stdscr: object, interface: object) -> None:
                 # Fetch human-readable name from field_mapping
                 human_readable_name = field_mapping.get(full_key, selected_option)
 
+                if field is None and selected_option in ("ringtone", "messages"):
+                    is_ringtone = selected_option == "ringtone"
+                    getter_name = "get_ringtone" if is_ringtone else "get_canned_message"
+                    setter_name = "set_ringtone" if is_ringtone else "set_canned_message"
+                    getter = getattr(interface.localNode, getter_name, None)
+                    setter = getattr(interface.localNode, setter_name, None)
+                    fetched_value = getter() if callable(getter) else None
+                    current_value = fetched_value if fetched_value is not None else current_value
+                    new_value = get_text_input(
+                        f"{human_readable_name} is currently: {current_value}", selected_option, None
+                    )
+                    if new_value is not None and new_value != current_value and callable(setter):
+                        setter(new_value)
+                        menu_state.current_menu[selected_option] = (field, new_value)
+                    menu_state.start_index.pop()
+                    menu_state.need_redraw = True
+                    continue
+
                 if selected_option in ["longName", "shortName", "isLicensed"]:
                     if selected_option in ["longName", "shortName"]:
                         new_value = get_text_input(
