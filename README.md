@@ -60,7 +60,6 @@ For smaller displays you may wish to enable `single_pane_mode`:
 - `CTRL` + `t` or `F4` = With the Node List highlighted, send a traceroute to the selected node
 - `F5` = Display a node's info
 - `CTRL` + `f` = With the Node List highlighted, favorite the selected node
-- `CTRL` + `b` = Enable/Disable Autoresponder Bot (ping / pong)
 - `CTRL` + `g` = With the Node List highlighted, ignore the selected node 
 - `CTRL` + `d` = With the Channel List hightlighted, archive a chat to reduce UI clutter. Messages will be saved in the db and repopulate if you send or receive a DM from this user.
 - `CTRL` + `d` = With the Note List highlghted, remove a node from your nodedb.

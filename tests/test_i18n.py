@@ -57,15 +57,10 @@ class I18nTests(unittest.TestCase):
             self.assertEqual(i18n.t("missing", default="fallback"), "fallback")
             self.assertEqual(parse_ini_file.call_count, 2)
 
-    def test_bot_ui_translation_keys_exist_in_all_locales(self) -> None:
+    def test_ping_bot_settings_translation_keys_exist_in_all_locales(self) -> None:
         required_keys = {
-            "ui.help.bot_responder",
-            "ui.bot.status.enabled",
-            "ui.bot.status.disabled",
-            "ui.bot.dialog.title",
-            "ui.bot.dialog.body",
-            "ui.bot.status.message",
             "app_settings.ping_bot",
+            "app_settings.ping_bot.enabled",
             "app_settings.ping_bot.catch_words",
             "app_settings.ping_bot.response_word",
         }
