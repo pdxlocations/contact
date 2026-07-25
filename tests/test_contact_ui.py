@@ -39,6 +39,49 @@ class ContactUiTests(unittest.TestCase):
         self.assertEqual(curs_set.call_args_list[-1].args, (1,))
         self.assertEqual(ui_state.current_window, 1)
 
+    def test_handle_backtick_shows_error_when_remote_admin_is_rejected(self) -> None:
+        stdscr = mock.Mock()
+        ui_state.current_window = 2
+        ui_state.node_list = [123]
+        ui_state.selected_node = 0
+        contact_ui.interface_state.interface = mock.Mock()
+        contact_ui.interface_state.interface.getNode.return_value = mock.Mock()
+
+        with mock.patch.object(contact_ui.curses, "curs_set"):
+            with mock.patch.object(contact_ui, "get_channels"):
+                with mock.patch.object(contact_ui, "refresh_node_list"):
+                    with mock.patch.object(contact_ui, "handle_resize"):
+                        with mock.patch.object(contact_ui, "get_list_input", return_value="Remote admin: node"):
+                            with mock.patch.object(contact_ui, "get_name_from_database", return_value="node"):
+                                with mock.patch.object(contact_ui, "settings_menu", side_effect=SystemExit(1)):
+                                    with mock.patch("contact.ui.dialog.dialog") as dialog:
+                                        contact_ui.handle_backtick(stdscr)
+
+        dialog.assert_called_once_with(
+            "Remote admin rejected",
+            "The selected node did not authorize this admin request.",
+        )
+
+    def test_show_remote_admin_wait_draws_status(self) -> None:
+        stdscr = mock.Mock()
+        stdscr.getmaxyx.return_value = (24, 100)
+        wait_win = mock.Mock()
+
+        with mock.patch.object(contact_ui.curses, "newwin", return_value=wait_win):
+            result = contact_ui.show_remote_admin_wait(stdscr, "Remote")
+
+        self.assertIs(result, wait_win)
+        self.assertIn("Attempting remote admin of Remote", wait_win.addstr.call_args_list[-1].args[2])
+        wait_win.refresh.assert_called_once()
+
+    def test_update_remote_admin_wait_replaces_status_line(self) -> None:
+        wait_win = mock.Mock()
+        wait_win.getmaxyx.return_value = (5, 40)
+
+        contact_ui.update_remote_admin_wait(wait_win, "Requesting lora config…")
+
+        self.assertIn("Requesting lora config", wait_win.addstr.call_args_list[-1].args[2])
+
     def test_process_pending_ui_updates_draws_requested_windows(self) -> None:
         stdscr = mock.Mock()
         ui_state.redraw_channels = True

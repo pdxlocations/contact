@@ -57,14 +57,17 @@ def extract_fields(
     return menu
 
 
-def generate_menu_from_protobuf(interface: object) -> Dict[str, Any]:
+def generate_menu_from_protobuf(interface: object, node: Any = None, include_app_settings: bool = True) -> Dict[str, Any]:
     """
     Builds the full settings menu structure from the protobuf definitions.
     """
     menu_structure = {"Main Menu": {}}
 
     # Add User Settings
-    current_node_info = interface.getMyNodeInfo() if interface else None
+    node = node or (interface.localNode if interface else None)
+    current_node_info = interface.getMyNodeInfo() if interface and node is interface.localNode else None
+    if current_node_info is None and interface and node is not None:
+        current_node_info = getattr(interface, "nodesByNum", {}).get(getattr(node, "nodeNum", None))
 
     if current_node_info:
         current_user_config = current_node_info.get("user", None)
@@ -79,28 +82,28 @@ def generate_menu_from_protobuf(interface: object) -> Dict[str, Any]:
             menu_structure["Main Menu"]["User Settings"] = "No user settings available"
     else:
         logging.info("Node Info not available")
-        menu_structure["Main Menu"]["User Settings"] = "Node Info not available"
+        menu_structure["Main Menu"]["User Settings"] = {}
 
     # Add Channels
     channel = channel_pb2.ChannelSettings()
     menu_structure["Main Menu"]["Channels"] = {}
-    if interface:
+    if node:
         for i in range(8):
-            current_channel = interface.localNode.getChannelByChannelIndex(i)
+            current_channel = node.getChannelByChannelIndex(i)
             if current_channel:
                 channel_config = extract_fields(channel, current_channel.settings)
                 menu_structure["Main Menu"]["Channels"][f"Channel {i + 1}"] = channel_config
 
     # Add Radio Settings
     radio = config_pb2.Config()
-    current_radio_config = interface.localNode.localConfig if interface else None
+    current_radio_config = node.localConfig if node else None
     menu_structure["Main Menu"]["Radio Settings"] = extract_fields(radio, current_radio_config)
 
     # Add Lat/Lon/Alt
     position_data = {
-        "latitude": (None, current_node_info["position"].get("latitude", 0.0)),
-        "longitude": (None, current_node_info["position"].get("longitude", 0.0)),
-        "altitude": (None, current_node_info["position"].get("altitude", 0)),
+        "latitude": (None, (current_node_info or {}).get("position", {}).get("latitude", 0.0)),
+        "longitude": (None, (current_node_info or {}).get("position", {}).get("longitude", 0.0)),
+        "altitude": (None, (current_node_info or {}).get("position", {}).get("altitude", 0)),
     }
 
     existing_position_menu = menu_structure["Main Menu"]["Radio Settings"].get("position", {})
@@ -117,23 +120,24 @@ def generate_menu_from_protobuf(interface: object) -> Dict[str, Any]:
 
     # Add Module Settings
     module = module_config_pb2.ModuleConfig()
-    current_module_config = interface.localNode.moduleConfig if interface else None
+    current_module_config = node.moduleConfig if node else None
     module_settings = extract_fields(module, current_module_config)
-    if interface and interface.localNode:
+    if node:
         # These values use dedicated admin requests rather than ModuleConfig
         # fields, so expose them alongside their related module settings.
         module_settings.setdefault("external_notification", {})["ringtone"] = (
             None,
-            getattr(interface.localNode, "ringtone", "") or "",
+            getattr(node, "ringtone", "") or "",
         )
         module_settings.setdefault("canned_message", {})["messages"] = (
             None,
-            getattr(interface.localNode, "cannedPluginMessage", "") or "",
+            getattr(node, "cannedPluginMessage", "") or "",
         )
     menu_structure["Main Menu"]["Module Settings"] = module_settings
 
     # Add App Settings
-    menu_structure["Main Menu"]["App Settings"] = {"Open": "app_settings"}
+    if include_app_settings:
+        menu_structure["Main Menu"]["App Settings"] = {"Open": "app_settings"}
 
     # Additional settings options
     menu_structure["Main Menu"].update(
