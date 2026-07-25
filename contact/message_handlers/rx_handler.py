@@ -66,29 +66,15 @@ from contact.message_handlers.bot_handler import bot_respond
 
 def play_sound():
     try:
-        system = platform.system()
-        sound_path = None
-        executable = None
+        selected_sound = str(getattr(config, "notification_sound", "None"))
+        if selected_sound.casefold() in {"none", "false", ""}:
+            return
+        sound_path = os.path.join(config.parent_dir, "sounds", selected_sound)
+        if not os.path.isfile(sound_path):
+            logging.warning("Configured notification sound is unavailable: %s", sound_path)
+            return
 
-        if system == "Darwin":  # macOS
-            sound_path = "/System/Library/Sounds/Ping.aiff"
-            executable = "afplay"
-
-        elif system == "Linux":
-            ogg_path = "/usr/share/sounds/freedesktop/stereo/complete.oga"
-            wav_path = "/usr/share/sounds/alsa/Front_Center.wav"  # common fallback
-
-            if shutil.which("paplay") and os.path.exists(ogg_path):
-                executable = "paplay"
-                sound_path = ogg_path
-            elif shutil.which("ffplay") and os.path.exists(ogg_path):
-                executable = "ffplay"
-                sound_path = ogg_path
-            elif shutil.which("aplay") and os.path.exists(wav_path):
-                executable = "aplay"
-                sound_path = wav_path
-            else:
-                logging.warning("No suitable sound player or sound file found on Linux")
+        executable = "afplay" if platform.system() == "Darwin" else shutil.which("ffplay") or shutil.which("mpg123")
 
         if executable and sound_path:
             cmd = [executable, sound_path]
@@ -97,6 +83,7 @@ def play_sound():
 
             subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             return
+        logging.warning("No suitable sound player found for notification sound")
 
     except subprocess.CalledProcessError as e:
         logging.error(f"Sound playback failed: {e}")
@@ -144,7 +131,7 @@ def on_receive(packet: Dict[str, Any], interface: Any) -> None:
                 hops = hop_start - hop_limit
 
 
-                if config.notification_sound == "True":
+                if str(config.notification_sound).casefold() not in {"none", "false", ""}:
                     schedule_notification_sound()
 
                 message_bytes = packet["decoded"]["payload"]

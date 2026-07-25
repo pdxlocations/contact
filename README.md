@@ -45,6 +45,14 @@ All messages will saved in a SQLite DB and restored upon relaunch of the app.  Y
 
 By navigating to Settings -> App Settings, you may customize your UI's icons, colors, and more!
 
+### Notification sounds
+
+Add audio files to Contact's `contact/sounds/` folder, then choose one in Settings → App Settings → Notification sound. `alert.mp3` is the default selection; choose `None` to disable notification audio. Supported file types are MP3, WAV, OGG, AIFF, and FLAC.
+
+### Remote administration
+
+With the Nodes pane selected, press `` ` `` or `F12` and choose **Remote admin** for the highlighted node. Contact requests the node's settings through Meshtastic Remote Admin and displays an error if the node does not authorize your public key. Remote App Settings are intentionally unavailable because they apply only to the local Contact client.
+
 For smaller displays you may wish to enable `single_pane_mode`:
 
 <img width="486" height="194" alt="Screenshot 2025-08-22 at 11 15 54 PM" src="https://github.com/user-attachments/assets/447c5d30-0850-4a4f-b0d4-976e4c5e329d" />
