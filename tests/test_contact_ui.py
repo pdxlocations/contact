@@ -74,6 +74,14 @@ class ContactUiTests(unittest.TestCase):
         self.assertIn("Attempting remote admin of Remote", wait_win.addstr.call_args_list[-1].args[2])
         wait_win.refresh.assert_called_once()
 
+    def test_update_remote_admin_wait_replaces_status_line(self) -> None:
+        wait_win = mock.Mock()
+        wait_win.getmaxyx.return_value = (5, 40)
+
+        contact_ui.update_remote_admin_wait(wait_win, "Requesting lora config…")
+
+        self.assertIn("Requesting lora config", wait_win.addstr.call_args_list[-1].args[2])
+
     def test_process_pending_ui_updates_draws_requested_windows(self) -> None:
         stdscr = mock.Mock()
         ui_state.redraw_channels = True

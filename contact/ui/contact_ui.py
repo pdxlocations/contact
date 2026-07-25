@@ -961,7 +961,13 @@ def handle_backtick(stdscr: curses.window) -> None:
         wait_win = None
         try:
             wait_win = show_remote_admin_wait(stdscr, get_name_from_database(remote_node_num))
-            settings_menu(stdscr, interface, node=interface.getNode(remote_node_num), remote=True)
+            settings_menu(
+                stdscr,
+                interface,
+                node=interface.getNode(remote_node_num),
+                remote=True,
+                status_callback=lambda message: update_remote_admin_wait(wait_win, message),
+            )
         except SystemExit as exc:
             logging.warning("Remote admin was rejected for %s: %s", remote_node_num, exc)
             if wait_win is not None:
@@ -1002,6 +1008,19 @@ def show_remote_admin_wait(stdscr: curses.window, node_name: str) -> curses.wind
         return wait_win
     except curses.error:
         return None
+
+
+def update_remote_admin_wait(wait_win: curses.window | None, message: str) -> None:
+    """Append the current remote-admin request to the waiting overlay."""
+    if wait_win is None:
+        return
+    try:
+        _, width = wait_win.getmaxyx()
+        wait_win.addstr(3, 2, " " * (width - 4), get_color("settings_default"))
+        wait_win.addstr(3, 2, message[: width - 4], get_color("settings_default"))
+        wait_win.refresh()
+    except curses.error:
+        pass
 
 
 def handle_ctrl_p() -> None:
