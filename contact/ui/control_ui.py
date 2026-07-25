@@ -326,7 +326,10 @@ def settings_menu(
             _request_remote_with_timeout(node.requestConfig, config_type)
         if status_callback:
             status_callback("Requesting channels…")
-        _request_remote_with_timeout(node.requestChannels)
+        node.requestChannels()
+        if status_callback:
+            status_callback("Waiting for channel list…")
+        _request_remote_with_timeout(node.waitForConfig, "channels")
 
     menu = generate_menu_from_protobuf(interface, node=node, include_app_settings=not remote)
     menu_state.current_menu = menu["Main Menu"]
