@@ -74,16 +74,26 @@ def play_sound():
             logging.warning("Configured notification sound is unavailable: %s", sound_path)
             return
 
-        executable = "afplay" if platform.system() == "Darwin" else shutil.which("ffplay") or shutil.which("mpg123")
+        executable = "afplay" if platform.system() == "Darwin" else next(
+            (shutil.which(player) for player in ("ffplay", "mpg123", "mpv", "cvlc", "paplay") if shutil.which(player)),
+            None,
+        )
 
         if executable and sound_path:
+            player = os.path.basename(executable)
             cmd = [executable, sound_path]
-            if executable == "ffplay":
+            if player == "ffplay":
                 cmd = [executable, "-nodisp", "-autoexit", sound_path]
+            elif player == "mpv":
+                cmd = [executable, "--no-video", sound_path]
+            elif player == "cvlc":
+                cmd = [executable, "--play-and-exit", sound_path]
 
             subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             return
-        logging.warning("No suitable sound player found for notification sound")
+        logging.warning(
+            "No suitable sound player found for notification sound; install ffmpeg (ffplay), mpg123, mpv, or VLC."
+        )
 
     except subprocess.CalledProcessError as e:
         logging.error(f"Sound playback failed: {e}")
