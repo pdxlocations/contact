@@ -235,7 +235,7 @@ def initialize_config() -> Dict[str, object]:
         "message_prefix": ">>",
         "sent_message_prefix": ">> Sent",
         "notification_symbol": "*",
-        "notification_sound": "True",
+        "notification_sound": "alert.mp3",
         "ack_implicit_str": "[◌]",
         "ack_str": "[✓]",
         "nak_str": "[x]",
@@ -263,6 +263,15 @@ def initialize_config() -> Dict[str, object]:
 
     # Check and add missing variables
     updated = update_dict(default_config_variables, loaded_config)
+
+    # Migrate the legacy boolean notification preference to the file-based
+    # sound selection introduced in 1.5.12.
+    if loaded_config.get("notification_sound") == "True":
+        loaded_config["notification_sound"] = "alert.mp3"
+        updated = True
+    elif loaded_config.get("notification_sound") == "False":
+        loaded_config["notification_sound"] = "None"
+        updated = True
 
     # Update the JSON file if any variables were missing
     if updated:
