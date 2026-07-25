@@ -977,6 +977,8 @@ def handle_backtick(stdscr: curses.window) -> None:
             settings_menu(
                 stdscr,
                 interface,
+                # Settings requests configs explicitly; avoid getNode's
+                # implicit channel request racing that setup.
                 node=interface.getNode(remote_node_num, False),
                 remote=True,
                 status_callback=remote_status,
