@@ -66,6 +66,8 @@ def generate_menu_from_protobuf(interface: object, node: Any = None, include_app
     # Add User Settings
     node = node or (interface.localNode if interface else None)
     current_node_info = interface.getMyNodeInfo() if interface and node is interface.localNode else None
+    if current_node_info is None and interface and node is not None:
+        current_node_info = getattr(interface, "nodesByNum", {}).get(getattr(node, "nodeNum", None))
 
     if current_node_info:
         current_user_config = current_node_info.get("user", None)
@@ -80,7 +82,7 @@ def generate_menu_from_protobuf(interface: object, node: Any = None, include_app
             menu_structure["Main Menu"]["User Settings"] = "No user settings available"
     else:
         logging.info("Node Info not available")
-        menu_structure["Main Menu"]["User Settings"] = "Node Info not available"
+        menu_structure["Main Menu"]["User Settings"] = {}
 
     # Add Channels
     channel = channel_pb2.ChannelSettings()

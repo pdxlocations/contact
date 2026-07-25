@@ -17,6 +17,14 @@
             "cwd": "${workspaceFolder}",
             "module": "contact.__main__",
             "args": ["--host","192.168.86.69"]
+        },
+        {
+            "name": "Python Debugger: tcp-remote",
+            "type": "debugpy",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "module": "contact.__main__",
+            "args": ["--host","100.89.187.29"]
         }
     ]
 }

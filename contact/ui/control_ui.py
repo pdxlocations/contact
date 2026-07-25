@@ -4,6 +4,7 @@ import ipaddress
 import logging
 import os
 import sys
+import threading
 from typing import List
 from meshtastic.protobuf import admin_pb2
 
@@ -34,6 +35,8 @@ from contact.utilities.singleton import interface_state, menu_state
 MAX_MENU_WIDTH = 80  # desired max; will shrink on small terminals
 save_option = "Save Changes"
 max_help_lines = 0
+REMOTE_ADMIN_REQUEST_TIMEOUT_SECONDS = 15
+admin_target_label = ""
 help_win = None
 sensitive_settings = ["Reboot", "Reset Node DB", "Shutdown", "Factory Reset", "factory_reset_config"]
 
@@ -86,7 +89,8 @@ def get_translated_header(menu_path: List[str]) -> str:
             continue
         full_key = ".".join(transformed_path[:idx])
         translated_parts.append(field_mapping.get(full_key, part))
-    return " > ".join(translated_parts)
+    breadcrumb = " > ".join(translated_parts)
+    return f"{admin_target_label} | {breadcrumb}" if admin_target_label else breadcrumb
 
 
 def display_menu() -> tuple[object, object]:
@@ -279,19 +283,50 @@ def redraw_main_ui_after_reconnect(stdscr: object) -> None:
         logging.debug("Skipping main UI redraw after reconnect", exc_info=True)
 
 
-def settings_menu(stdscr: object, interface: object, node: object = None, remote: bool = False) -> None:
+def _request_remote_with_timeout(request, *args) -> None:
+    """Run a Meshtastic remote request without allowing its ACK wait to hang the UI."""
+    failure = []
+
+    def run_request() -> None:
+        try:
+            request(*args)
+        except BaseException as exc:
+            failure.append(exc)
+
+    worker = threading.Thread(target=run_request, name="remote-admin-request", daemon=True)
+    worker.start()
+    worker.join(REMOTE_ADMIN_REQUEST_TIMEOUT_SECONDS)
+    if worker.is_alive():
+        raise TimeoutError("Timed out waiting for the remote node to answer the admin request.")
+    if failure:
+        raise failure[0]
+
+
+def settings_menu(
+    stdscr: object, interface: object, node: object = None, remote: bool = False, status_callback=None
+) -> None:
     curses.update_lines_cols()
+    global admin_target_label
     node = node or interface.localNode
+    node_num = getattr(node, "nodeNum", 0)
+    node_info = interface.getMyNodeInfo() if not remote else getattr(interface, "nodesByNum", {}).get(node_num, {})
+    node_name = node_info.get("user", {}).get("longName") if isinstance(node_info, dict) else None
+    admin_target_label = node_name or f"!{node_num:08x}"
 
     if remote:
-        # Remote nodes do not populate config automatically; request every
-        # section before building the menu. Authorization failures surface as
-        # Meshtastic admin errors and are handled by the caller.
+        # Remote nodes do not populate radio config automatically. Request
+        # the standard sections before building the menu. Module requests are
+        # intentionally deferred: firmware may omit modules and never answer
+        # those requests, which would otherwise block the entire UI.
         for config_type in list(node.localConfig.DESCRIPTOR.fields):
-            node.requestConfig(config_type)
-        for config_type in list(node.moduleConfig.DESCRIPTOR.fields):
-            node.requestConfig(config_type)
-        node.requestChannels()
+            if config_type.name in {"version", "sessionkey"}:
+                continue
+            if status_callback:
+                status_callback(f"Requesting {config_type.name} config…")
+            _request_remote_with_timeout(node.requestConfig, config_type)
+        if status_callback:
+            status_callback("Requesting channels…")
+        _request_remote_with_timeout(node.requestChannels)
 
     menu = generate_menu_from_protobuf(interface, node=node, include_app_settings=not remote)
     menu_state.current_menu = menu["Main Menu"]
@@ -401,6 +436,8 @@ def settings_menu(stdscr: object, interface: object, node: object = None, remote
                 reconnect_required = save_changes(interface, modified_settings, menu_state, node=node)
                 modified_settings.clear()
                 logging.info("Changes Saved")
+                if remote:
+                    break
                 if reconnect_required:
                     interface = reconnect_interface_with_splash(stdscr, interface)
                     menu = generate_menu_from_protobuf(interface, node=node, include_app_settings=not remote)
