@@ -15,6 +15,7 @@ from contact.utilities.utils import (
     build_reply_prefix,
 )
 from contact.settings import settings_menu
+from contact.ui.control_ui import RemoteAdminCancelled
 from contact.message_handlers.tx_handler import send_message, send_traceroute
 from contact.utilities.utils import parse_protobuf
 from contact.ui.colors import get_color
@@ -1020,6 +1021,15 @@ def handle_backtick(stdscr: curses.window) -> None:
                 wait_win = show_remote_admin_wait(stdscr, get_name_from_database(remote_node_num))
             update_remote_admin_wait(wait_win, message)
 
+        def remote_cancel_requested() -> bool:
+            if wait_win is None:
+                return False
+            try:
+                wait_win.timeout(0)
+                return wait_win.getch() == 27
+            finally:
+                wait_win.timeout(-1)
+
         try:
             settings_menu(
                 stdscr,
@@ -1029,7 +1039,11 @@ def handle_backtick(stdscr: curses.window) -> None:
                 node=interface.getNode(remote_node_num, False),
                 remote=True,
                 status_callback=remote_status,
+                cancel_callback=remote_cancel_requested,
             )
+        except RemoteAdminCancelled:
+            logging.info("Remote admin request cancelled for %s", remote_node_num)
+            remote_status(None)
         except SystemExit as exc:
             logging.warning("Remote admin was rejected for %s: %s", remote_node_num, exc)
             if wait_win is not None:
