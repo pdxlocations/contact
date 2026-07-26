@@ -112,3 +112,12 @@ class SaveToRadioTests(unittest.TestCase):
 
         self.assertTrue(reconnect_required)
         node.setOwner.assert_called_once()
+
+    def test_save_changes_sends_user_unmessageable_setting(self) -> None:
+        interface, node = self.build_interface()
+        menu_state = SimpleNamespace(menu_path=["Main Menu", "User Settings"])
+
+        reconnect_required = save_changes(interface, {"isUnmessagable": True}, menu_state)
+
+        self.assertTrue(reconnect_required)
+        self.assertEqual(node.setOwner.call_args.args[3], True)
