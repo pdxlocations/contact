@@ -20,6 +20,7 @@ from contact.utilities.utils import parse_protobuf
 from contact.ui.colors import get_color
 from contact.utilities.db_handler import get_name_from_database, update_node_info_in_db, is_chat_archived, load_older_messages
 from contact.utilities.input_handlers import get_list_input
+from contact.utilities.interfaces import interface_is_connected
 from contact.utilities.i18n import t
 from contact.utilities.emoji_utils import normalize_message_text
 import contact.ui.default_config as config
@@ -385,11 +386,7 @@ def main_ui(stdscr: curses.window) -> None:
 
     while True:
         interface = interface_state.interface
-        if (
-            hasattr(interface, "stream")
-            and interface.stream is None
-            and not ui_state.reconnect_attempted
-        ):
+        if not interface_is_connected(interface) and not ui_state.reconnect_attempted:
             ui_state.reconnect_attempted = True
             status_win = show_connection_status(stdscr, "Disconnected", "Trying to reconnect…")
             try:
