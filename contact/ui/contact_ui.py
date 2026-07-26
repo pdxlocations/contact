@@ -383,6 +383,41 @@ def main_ui(stdscr: curses.window) -> None:
     handle_resize(stdscr, True)
 
     while True:
+        interface = interface_state.interface
+        if (
+            hasattr(interface, "stream")
+            and interface.stream is None
+            and not ui_state.reconnect_attempted
+        ):
+            ui_state.reconnect_attempted = True
+            status_win = show_connection_status(stdscr, "Disconnected", "Trying to reconnect…")
+            try:
+                from contact.ui.control_ui import reconnect_interface_with_splash
+
+                reconnect_interface_with_splash(stdscr, interface)
+                if status_win is not None:
+                    status_win.erase()
+                    status_win.refresh()
+                ui_state.reconnect_attempted = False
+                handle_resize(stdscr, False)
+            except Exception:
+                if status_win is not None:
+                    status_win.erase()
+                    status_win.refresh()
+                handle_resize(stdscr, False)
+                logging.exception("Automatic reconnect after transport disconnect failed")
+                retry = get_list_input(
+                    "Contact could not reconnect after 20 seconds.",
+                    "Retry",
+                    ["Retry", "Cancel"],
+                    mandatory=True,
+                )
+                if retry == "Retry":
+                    ui_state.reconnect_attempted = False
+                    handle_resize(stdscr, False)
+                    continue
+                handle_resize(stdscr, False)
+
         with app_state.lock:
             process_pending_ui_updates(stdscr)
         entry_display = f"{ui_state.reply_context}{input_text or ''}"
@@ -652,12 +687,27 @@ def handle_enter(input_text: str) -> str:
             )
             return input_text
         # Enter key pressed, send user input as message
-        send_message(
-            input_text,
-            channel=ui_state.selected_channel,
-            reply_id=ui_state.reply_id,
-            reply_context=ui_state.reply_context,
-        )
+        try:
+            send_message(
+                input_text,
+                channel=ui_state.selected_channel,
+                reply_id=ui_state.reply_id,
+                reply_context=ui_state.reply_context,
+            )
+        except Exception as exc:
+            logging.warning("Message send failed; reconnecting interface: %s", exc)
+            try:
+                from contact.ui.control_ui import reconnect_interface_with_splash
+
+                reconnect_interface_with_splash(root_win, interface_state.interface)
+                contact.ui.dialog.dialog("Reconnected", "Connection restored. Your message was not sent; press Enter to retry.")
+            except Exception as reconnect_exc:
+                logging.exception("Automatic reconnect failed")
+                contact.ui.dialog.dialog(
+                    "Reconnect failed",
+                    "Contact could not reconnect after 20 seconds. Check the radio connection and retry your message.",
+                )
+            return input_text
         ui_state.reply_id = None
         ui_state.reply_context = ""
         ui_state.reply_id_unavailable = False
@@ -1008,6 +1058,23 @@ def show_remote_admin_wait(stdscr: curses.window, node_name: str) -> curses.wind
         wait_win.addstr(2, 2, message[: box_width - 4], get_color("settings_default"))
         wait_win.refresh()
         return wait_win
+    except curses.error:
+        return None
+
+
+def show_connection_status(stdscr: curses.window, title: str, message: str) -> curses.window | None:
+    """Display a non-blocking connection-status dialog over the current UI."""
+    try:
+        height, width = stdscr.getmaxyx()
+        box_width = min(width - 4, max(len(message) + 4, len(title) + 6, 32))
+        win = curses.newwin(5, box_width, max(0, (height - 5) // 2), max(0, (width - box_width) // 2))
+        win.bkgd(get_color("background"))
+        win.attrset(get_color("window_frame"))
+        win.border()
+        win.addstr(0, 2, f" {title} ", get_color("settings_default"))
+        win.addstr(2, 2, message[: box_width - 4], get_color("settings_default"))
+        win.refresh()
+        return win
     except curses.error:
         return None
 

@@ -44,15 +44,21 @@ def initialize_interface(args):
         logging.critical(f"Fatal error initializing interface: {ex}")
 
 
-def reconnect_interface(args, attempts: int = 15, delay_seconds: float = 1.0):
+def reconnect_interface(args, attempts: int = 20, delay_seconds: float = 1.0):
     last_error = None
 
     for attempt in range(attempts):
         try:
             interface = initialize_interface(args)
-            if interface is not None:
+            if interface is not None and getattr(interface, "localNode", None) is not None and getattr(
+                interface.localNode, "localConfig", None
+            ) is not None and (not hasattr(interface, "stream") or interface.stream is not None):
                 return interface
-            last_error = RuntimeError("initialize_interface returned None")
+            last_error = RuntimeError("interface did not complete connection setup")
+            try:
+                interface.close()
+            except Exception:
+                pass
         except Exception as ex:
             last_error = ex
 
