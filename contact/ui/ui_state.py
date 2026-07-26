@@ -39,6 +39,7 @@ class ChatUIState:
     redraw_full_ui: bool = False
     scroll_messages_to_bottom: bool = False
     preserve_message_selection: bool = False
+    reconnect_attempted: bool = False
     oldest_message_rowid: Dict[Union[str, int], int] = field(default_factory=dict)
     has_older_messages: Dict[Union[str, int], bool] = field(default_factory=dict)
     message_line_ranges: Dict[Union[str, int], List[tuple]] = field(default_factory=dict)

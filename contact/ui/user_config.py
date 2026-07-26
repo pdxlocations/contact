@@ -115,8 +115,22 @@ def edit_color_pair(key: str, display_label: str, current_value: List[str]) -> L
 
 def edit_value(key: str, display_label: str, current_value: str) -> str:
 
-    if key in ("notification_sound", "single_pane_mode", "enabled"):
+    if key in ("single_pane_mode", "enabled"):
         return get_list_input(display_label, current_value, ["True", "False"])
+
+    if key == "notification_sound":
+        sounds_dir = os.path.join(config.parent_dir, "sounds")
+        try:
+            sound_options = sorted(
+                filename for filename in os.listdir(sounds_dir)
+                if filename.lower().endswith((".mp3", ".wav", ".ogg", ".aiff", ".flac"))
+            )
+        except OSError:
+            sound_options = []
+        sound_options = ["None"] + sound_options
+        if current_value not in sound_options:
+            sound_options.append(current_value)
+        return get_list_input(display_label, current_value, sound_options)
 
     w = get_effective_width()
     height = 10
