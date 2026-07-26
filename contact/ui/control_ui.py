@@ -512,7 +512,7 @@ def settings_menu(
                     filename += ".yaml"
 
                 try:
-                    config_text = config_export(interface)
+                    config_text = config_export(interface, node=node)
                     yaml_file_path = os.path.join(config_folder, filename)
 
                     if os.path.exists(yaml_file_path):
@@ -577,7 +577,7 @@ def settings_menu(
                         ["Yes", "No"],
                     )
                     if overwrite == "Yes":
-                        config_import(interface, file_path)
+                        config_import(interface, file_path, node=node)
                 menu_state.start_index.pop()
                 continue
 
