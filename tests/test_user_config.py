@@ -1,4 +1,5 @@
 import unittest
+from tempfile import NamedTemporaryFile
 from unittest import mock
 
 import contact.ui.default_config  # Initialize config before the color helpers.
@@ -12,6 +13,17 @@ class UserConfigTests(unittest.TestCase):
 
         self.assertEqual(result, "True")
         picker.assert_called_once_with("Enabled", "False", ["True", "False"])
+
+    def test_load_log_tail_returns_only_requested_recent_lines(self) -> None:
+        with NamedTemporaryFile("w") as log_file:
+            log_file.write("".join(f"line {index}\n" for index in range(600)))
+            log_file.flush()
+
+            lines = user_config.load_log_tail(log_file.name, max_lines=500)
+
+        self.assertEqual(len(lines), 500)
+        self.assertEqual(lines[0], "line 100")
+        self.assertEqual(lines[-1], "line 599")
 
 
 if __name__ == "__main__":

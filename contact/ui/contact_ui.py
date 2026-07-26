@@ -1,5 +1,6 @@
 import curses
 import logging
+import os
 from typing import Optional
 import time
 import traceback
@@ -16,6 +17,7 @@ from contact.utilities.utils import (
 )
 from contact.settings import settings_menu
 from contact.ui.control_ui import RemoteAdminCancelled, verify_remote_admin
+from contact.ui.user_config import load_log_tail
 from contact.message_handlers.tx_handler import send_message, send_traceroute
 from contact.utilities.utils import parse_protobuf
 from contact.ui.colors import get_color
@@ -41,6 +43,115 @@ MIN_COL = 1  # "effectively zero" without breaking curses
 RESIZE_DEBOUNCE_MS = 250
 root_win = None
 nodes_pad = None
+
+
+def refresh_log_viewer() -> None:
+    """Refresh the in-app log overlay only when the log file changes."""
+    try:
+        stat = os.stat(config.log_file_path)
+        signature = (stat.st_mtime_ns, stat.st_size)
+    except OSError:
+        signature = None
+
+    if not ui_state.log_viewer_loaded or signature != ui_state.log_viewer_signature:
+        ui_state.log_viewer_lines = load_log_tail(config.log_file_path)
+        ui_state.log_viewer_signature = signature
+        ui_state.log_viewer_loaded = True
+
+
+def flush_log_handlers() -> None:
+    """Ensure a just-written status event is visible to the log tailer."""
+    for handler in logging.getLogger().handlers:
+        try:
+            handler.flush()
+        except Exception:
+            pass
+
+
+def draw_log_viewer(stdscr: curses.window) -> int:
+    """Draw the log overlay and return the number of visible log rows."""
+    refresh_log_viewer()
+    height, width = stdscr.getmaxyx()
+    content_height = max(1, height - 4)
+    max_start = max(0, len(ui_state.log_viewer_lines) - content_height)
+    if ui_state.log_viewer_follow:
+        ui_state.log_viewer_start_line = max_start
+    else:
+        ui_state.log_viewer_start_line = min(ui_state.log_viewer_start_line, max_start)
+
+    try:
+        stdscr.erase()
+        stdscr.bkgd(get_color("background"))
+        stdscr.attrset(get_color("window_frame"))
+        stdscr.border()
+        state = "Following" if ui_state.log_viewer_follow else "Paused"
+        title = " View Log — {} ".format(state)
+        stdscr.addstr(0, 2, title[: max(0, width - 4)], get_color("settings_breadcrumbs", bold=True))
+        for row, line in enumerate(
+            ui_state.log_viewer_lines[ui_state.log_viewer_start_line : ui_state.log_viewer_start_line + content_height],
+            start=1,
+        ):
+            stdscr.addstr(row, 1, line[: max(0, width - 2)], get_color("settings_default"))
+        hint = " Esc Close  Up/Down Scroll  PgUp/PgDn Page  F Follow "
+        stdscr.addstr(height - 2, 1, hint[: max(0, width - 2)], get_color("commands"))
+        stdscr.refresh()
+    except curses.error:
+        pass
+    return content_height
+
+
+def handle_log_viewer_key(key: int, content_height: int) -> bool:
+    """Handle a log-overlay key. Returns True when the overlay closes."""
+    if ui_state.reconnect_prompt_open:
+        if key in (ord("r"), ord("R")):
+            ui_state.reconnect_prompt_open = False
+            ui_state.reconnect_attempted = False
+        elif key in (ord("c"), ord("C"), 27):
+            ui_state.reconnect_prompt_open = False
+        return False
+
+    if key == 27:
+        ui_state.log_viewer_open = False
+        return True
+    if key in (ord("f"), ord("F")):
+        ui_state.log_viewer_follow = not ui_state.log_viewer_follow
+        return False
+
+    max_start = max(0, len(ui_state.log_viewer_lines) - content_height)
+    if key == curses.KEY_UP:
+        ui_state.log_viewer_follow = False
+        ui_state.log_viewer_start_line = max(0, ui_state.log_viewer_start_line - 1)
+    elif key == curses.KEY_DOWN:
+        ui_state.log_viewer_start_line = min(max_start, ui_state.log_viewer_start_line + 1)
+        ui_state.log_viewer_follow = ui_state.log_viewer_start_line >= max_start
+    elif key == curses.KEY_PPAGE:
+        ui_state.log_viewer_follow = False
+        ui_state.log_viewer_start_line = max(0, ui_state.log_viewer_start_line - content_height)
+    elif key == curses.KEY_NPAGE:
+        ui_state.log_viewer_start_line = min(max_start, ui_state.log_viewer_start_line + content_height)
+        ui_state.log_viewer_follow = ui_state.log_viewer_start_line >= max_start
+    return False
+
+
+def draw_log_reconnect_prompt(stdscr: curses.window) -> None:
+    """Draw a non-blocking reconnect choice over the live log overlay."""
+    if not ui_state.reconnect_prompt_open:
+        return
+    try:
+        height, width = stdscr.getmaxyx()
+        message = "Could not reconnect after 20 seconds."
+        hint = "R Retry   C Cancel"
+        box_width = min(width - 4, max(len(message) + 4, len(hint) + 4, 42))
+        win = curses.newwin(6, box_width, max(0, (height - 6) // 2), max(0, (width - box_width) // 2))
+        win.bkgd(get_color("background"))
+        win.attrset(get_color("window_frame"))
+        win.border()
+        win.addstr(0, 2, " Disconnected ", get_color("settings_default"))
+        win.addstr(2, 2, message[: box_width - 4], get_color("settings_default"))
+        win.addstr(4, 2, hint[: box_width - 4], get_color("commands"))
+        win.refresh()
+    except curses.error:
+        pass
 
 
 def request_ui_redraw(
@@ -389,7 +500,15 @@ def main_ui(stdscr: curses.window) -> None:
         interface = interface_state.interface
         if not interface_is_connected(interface) and not ui_state.reconnect_attempted:
             ui_state.reconnect_attempted = True
-            status_win = show_connection_status(stdscr, "Disconnected", "Trying to reconnect…")
+            logging.warning("Meshtastic connection disconnected; attempting automatic reconnect")
+            flush_log_handlers()
+            if ui_state.log_viewer_open:
+                # Reconnect is synchronous. Repaint once before entering it so
+                # the disconnect event remains visible during the attempt.
+                draw_log_viewer(stdscr)
+            status_win = None
+            if not ui_state.log_viewer_open:
+                status_win = show_connection_status(stdscr, "Disconnected", "Trying to reconnect…")
             try:
                 from contact.ui.control_ui import reconnect_interface_with_splash
 
@@ -398,13 +517,18 @@ def main_ui(stdscr: curses.window) -> None:
                     status_win.erase()
                     status_win.refresh()
                 ui_state.reconnect_attempted = False
-                handle_resize(stdscr, False)
+                if not ui_state.log_viewer_open:
+                    handle_resize(stdscr, False)
             except Exception:
                 if status_win is not None:
                     status_win.erase()
                     status_win.refresh()
-                handle_resize(stdscr, False)
+                if not ui_state.log_viewer_open:
+                    handle_resize(stdscr, False)
                 logging.exception("Automatic reconnect after transport disconnect failed")
+                if ui_state.log_viewer_open:
+                    ui_state.reconnect_prompt_open = True
+                    continue
                 retry = get_list_input(
                     "Contact could not reconnect after 20 seconds.",
                     "Retry",
@@ -416,6 +540,18 @@ def main_ui(stdscr: curses.window) -> None:
                     handle_resize(stdscr, False)
                     continue
                 handle_resize(stdscr, False)
+
+        if ui_state.log_viewer_open:
+            content_height = draw_log_viewer(stdscr)
+            draw_log_reconnect_prompt(stdscr)
+            stdscr.timeout(200)
+            try:
+                key = stdscr.getch()
+            except curses.error:
+                continue
+            if key != -1 and handle_log_viewer_key(key, content_height):
+                handle_resize(stdscr, False)
+            continue
 
         with app_state.lock:
             process_pending_ui_updates(stdscr)
