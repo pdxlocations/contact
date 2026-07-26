@@ -41,6 +41,10 @@ help_win = None
 sensitive_settings = ["Reboot", "Reset Node DB", "Shutdown", "Factory Reset", "factory_reset_config"]
 
 
+class RemoteAdminCancelled(Exception):
+    """Raised when the user dismisses an in-progress remote-admin request."""
+
+
 # Compute the effective menu width for the current terminal
 def get_menu_width() -> int:
     # Leave at least 2 columns for borders; clamp to >= 20 for usability
@@ -280,7 +284,7 @@ def redraw_main_ui_after_reconnect(stdscr: object) -> None:
         logging.debug("Skipping main UI redraw after reconnect", exc_info=True)
 
 
-def _request_remote_with_timeout(request, *args) -> None:
+def _request_remote_with_timeout(request, *args, cancel_callback=None) -> None:
     """Run a Meshtastic remote request without allowing its ACK wait to hang the UI."""
     failure = []
 
@@ -292,24 +296,32 @@ def _request_remote_with_timeout(request, *args) -> None:
 
     worker = threading.Thread(target=run_request, name="remote-admin-request", daemon=True)
     worker.start()
-    worker.join(REMOTE_ADMIN_REQUEST_TIMEOUT_SECONDS)
+    deadline = time.monotonic() + REMOTE_ADMIN_REQUEST_TIMEOUT_SECONDS
+    while worker.is_alive() and time.monotonic() < deadline:
+        worker.join(0.1)
+        if cancel_callback and cancel_callback():
+            raise RemoteAdminCancelled()
     if worker.is_alive():
         raise TimeoutError("Timed out waiting for the remote node to answer the admin request.")
     if failure:
         raise failure[0]
 
 
-def _request_remote_channels_with_timeout(node: object) -> None:
+def _request_remote_channels_with_timeout(node: object, cancel_callback=None) -> None:
     """Retrieve a remote node's channel list without leaving the UI waiting forever."""
     node.requestChannels()
     deadline = time.monotonic() + REMOTE_ADMIN_REQUEST_TIMEOUT_SECONDS
     while getattr(node, "channels", None) is None:
+        if cancel_callback and cancel_callback():
+            raise RemoteAdminCancelled()
         if time.monotonic() >= deadline:
             raise TimeoutError("Timed out waiting for the remote node's channel list.")
         time.sleep(0.1)
 
 
-def _request_remote_section(node: object, menu_path: List[str], selected_option: str, status_callback=None) -> bool:
+def _request_remote_section(
+    node: object, menu_path: List[str], selected_option: str, status_callback=None, cancel_callback=None
+) -> bool:
     """Fetch exactly the remote-admin section the user is opening.
 
     Meshtastic returns radio and module settings one protobuf section at a
@@ -319,7 +331,7 @@ def _request_remote_section(node: object, menu_path: List[str], selected_option:
     if menu_path == ["Main Menu"] and selected_option == "Channels":
         if status_callback:
             status_callback("Requesting channel list…")
-        _request_remote_channels_with_timeout(node)
+        _request_remote_channels_with_timeout(node, cancel_callback=cancel_callback)
         return True
 
     if len(menu_path) != 2:
@@ -338,12 +350,17 @@ def _request_remote_section(node: object, menu_path: List[str], selected_option:
         return False
     if status_callback:
         status_callback(f"Requesting {selected_option} config…")
-    _request_remote_with_timeout(node.requestConfig, field)
+    _request_remote_with_timeout(node.requestConfig, field, cancel_callback=cancel_callback)
     return True
 
 
 def settings_menu(
-    stdscr: object, interface: object, node: object = None, remote: bool = False, status_callback=None
+    stdscr: object,
+    interface: object,
+    node: object = None,
+    remote: bool = False,
+    status_callback=None,
+    cancel_callback=None,
 ) -> None:
     curses.update_lines_cols()
     global admin_target_label
@@ -812,7 +829,7 @@ def settings_menu(
                 if remote:
                     try:
                         requested_remote_section = _request_remote_section(
-                            node, menu_state.menu_path, selected_option, status_callback
+                            node, menu_state.menu_path, selected_option, status_callback, cancel_callback
                         )
                     finally:
                         if status_callback:
