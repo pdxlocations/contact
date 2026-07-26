@@ -53,11 +53,11 @@ class ControlUiTests(unittest.TestCase):
         reconnect.assert_called_once_with(stdscr, interface)
         self.assertIs(result, new_interface)
 
-    def test_verify_remote_admin_requests_only_device_config(self) -> None:
-        device_field = object()
+    def test_verify_remote_admin_establishes_an_authorized_session(self) -> None:
         node = SimpleNamespace(
-            localConfig=SimpleNamespace(DESCRIPTOR=SimpleNamespace(fields_by_name={"device": device_field})),
-            requestConfig=mock.Mock(),
+            nodeNum=123,
+            ensureSessionKey=mock.Mock(),
+            iface=SimpleNamespace(_getOrCreateByNum=mock.Mock(return_value={"adminSessionPassKey": b"key"})),
         )
         status_callback = mock.Mock()
 
@@ -65,7 +65,19 @@ class ControlUiTests(unittest.TestCase):
             control_ui.verify_remote_admin(node, status_callback=status_callback)
 
         status_callback.assert_called_once_with("Checking remote-admin permission…")
-        request.assert_called_once_with(node.requestConfig, device_field, cancel_callback=None)
+        request.assert_called_once_with(node.ensureSessionKey, cancel_callback=None)
+        node.iface._getOrCreateByNum.assert_called_once_with(123)
+
+    def test_verify_remote_admin_rejects_missing_session_key(self) -> None:
+        node = SimpleNamespace(
+            nodeNum=123,
+            ensureSessionKey=mock.Mock(),
+            iface=SimpleNamespace(_getOrCreateByNum=mock.Mock(return_value={})),
+        )
+
+        with mock.patch.object(control_ui, "_request_remote_with_timeout"):
+            with self.assertRaises(PermissionError):
+                control_ui.verify_remote_admin(node)
 
     def test_redraw_main_ui_after_reconnect_refreshes_channels_nodes_and_layout(self) -> None:
         stdscr = mock.Mock()

@@ -321,18 +321,22 @@ def _request_remote_channels_with_timeout(node: object, cancel_callback=None) ->
 
 
 def verify_remote_admin(node: object, status_callback=None, cancel_callback=None) -> None:
-    """Confirm a remote node accepts admin requests before opening its menu.
+    """Establish and verify an authorized remote-admin session.
 
-    A single device-config request provides an authorization check without
-    eagerly downloading every radio and module setting.  The successful
-    response also seeds the first radio section the user may open.
+    Config reads alone are not a sufficient authorization check.  The
+    Meshtastic admin-session exchange only provides a session passkey when
+    the remote node accepts this client's administrative credentials.
     """
-    device_field = node.localConfig.DESCRIPTOR.fields_by_name.get("device")
-    if device_field is None:
-        raise RuntimeError("The remote node does not expose a device configuration section.")
     if status_callback:
         status_callback("Checking remote-admin permission…")
-    _request_remote_with_timeout(node.requestConfig, device_field, cancel_callback=cancel_callback)
+    _request_remote_with_timeout(node.ensureSessionKey, cancel_callback=cancel_callback)
+
+    try:
+        remote_session = node.iface._getOrCreateByNum(node.nodeNum).get("adminSessionPassKey")
+    except (AttributeError, TypeError):
+        remote_session = None
+    if not remote_session:
+        raise PermissionError("The selected node did not authorize this admin request.")
 
 
 def _request_remote_section(

@@ -1187,7 +1187,7 @@ def handle_backtick(stdscr: curses.window) -> None:
         except RemoteAdminCancelled:
             logging.info("Remote admin request cancelled for %s", remote_node_num)
             remote_status(None)
-        except SystemExit as exc:
+        except (SystemExit, PermissionError) as exc:
             logging.warning("Remote admin was rejected for %s: %s", remote_node_num, exc)
             if wait_win is not None:
                 wait_win.erase()
