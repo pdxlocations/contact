@@ -134,47 +134,47 @@ def setPref(config, comp_name, raw_val) -> bool:
     return True
 
 
-def config_import(interface, filename):
+def config_import(interface, filename, node=None):
+    """Apply a configuration file to the selected local or remote node."""
+    node = node or interface.localNode
     with open(filename, encoding="utf8") as file:
         configuration = yaml.safe_load(file)
         closeNow = True
 
-        interface.getNode("^local", False).beginSettingsTransaction()
+        node.beginSettingsTransaction()
 
         if "owner" in configuration:
             logging.info(f"Setting device owner to {configuration['owner']}")
             waitForAckNak = True
-            interface.getNode("^local", False).setOwner(configuration["owner"])
+            node.setOwner(configuration["owner"])
             time.sleep(0.5)
 
         if "owner_short" in configuration:
             logging.info(f"Setting device owner short to {configuration['owner_short']}")
             waitForAckNak = True
-            interface.getNode("^local", False).setOwner(long_name=None, short_name=configuration["owner_short"])
+            node.setOwner(long_name=None, short_name=configuration["owner_short"])
             time.sleep(0.5)
 
         if "ownerShort" in configuration:
             logging.info(f"Setting device owner short to {configuration['ownerShort']}")
             waitForAckNak = True
-            interface.getNode("^local", False).setOwner(long_name=None, short_name=configuration["ownerShort"])
+            node.setOwner(long_name=None, short_name=configuration["ownerShort"])
             time.sleep(0.5)
 
         if "channel_url" in configuration:
             logging.info(f"Setting channel url to {configuration['channel_url']}")
-            interface.getNode("^local").setURL(configuration["channel_url"])
+            node.setURL(configuration["channel_url"])
             time.sleep(0.5)
 
         if "channelUrl" in configuration:
             logging.info(f"Setting channel url to {configuration['channelUrl']}")
-            interface.getNode("^local").setURL(configuration["channelUrl"])
+            node.setURL(configuration["channelUrl"])
             time.sleep(0.5)
 
         if "location" in configuration:
             alt = 0
             lat = 0.0
             lon = 0.0
-            localConfig = interface.localNode.localConfig
-
             if "alt" in configuration["location"]:
                 alt = int(configuration["location"]["alt"] or 0)
                 logging.info(f"Fixing altitude at {alt} meters")
@@ -185,39 +185,44 @@ def config_import(interface, filename):
                 lon = float(configuration["location"]["lon"] or 0)
                 logging.info(f"Fixing longitude at {lon} degrees")
             logging.info("Setting device position")
-            interface.localNode.setFixedPosition(lat, lon, alt)
+            node.setFixedPosition(lat, lon, alt)
             time.sleep(0.5)
 
         if "config" in configuration:
-            localConfig = interface.getNode("^local").localConfig
+            localConfig = node.localConfig
             for section in configuration["config"]:
                 traverseConfig(section, configuration["config"][section], localConfig)
-                interface.getNode("^local").writeConfig(camel_to_snake(section))
+                node.writeConfig(camel_to_snake(section))
                 time.sleep(0.5)
 
         if "module_config" in configuration:
-            moduleConfig = interface.getNode("^local").moduleConfig
+            moduleConfig = node.moduleConfig
             for section in configuration["module_config"]:
                 traverseConfig(
                     section,
                     configuration["module_config"][section],
                     moduleConfig,
                 )
-                interface.getNode("^local").writeConfig(camel_to_snake(section))
+                node.writeConfig(camel_to_snake(section))
                 time.sleep(0.5)
 
-        interface.getNode("^local", False).commitSettingsTransaction()
+        node.commitSettingsTransaction()
         logging.info("Writing modified configuration to device")
 
 
-def config_export(interface) -> str:
-    """used in --export-config"""
+def config_export(interface, node=None) -> str:
+    """Export the selected node's configuration as Meshtastic configure YAML."""
     configObj = {}
+    node = node or interface.localNode
 
-    owner = interface.getLongName()
-    owner_short = interface.getShortName()
-    channel_url = interface.localNode.getURL()
-    myinfo = interface.getMyNodeInfo()
+    if node is interface.localNode:
+        myinfo = interface.getMyNodeInfo()
+    else:
+        myinfo = getattr(interface, "nodesByNum", {}).get(getattr(node, "nodeNum", None), {})
+    user = myinfo.get("user", {}) if isinstance(myinfo, dict) else {}
+    owner = user.get("longName")
+    owner_short = user.get("shortName")
+    channel_url = node.getURL()
     pos = myinfo.get("position")
     lat = None
     lon = None
@@ -242,7 +247,7 @@ def config_export(interface) -> str:
         if alt:
             configObj["location"]["alt"] = alt
 
-    config = MessageToDict(interface.localNode.localConfig)  # checkme - Used as a dictionary here and a string below
+    config = MessageToDict(node.localConfig)  # checkme - Used as a dictionary here and a string below
     if config:
         # Convert inner keys to correct snake/camelCase
         prefs = {}
@@ -265,7 +270,7 @@ def config_export(interface) -> str:
         else:
             configObj["config"] = config
 
-    module_config = MessageToDict(interface.localNode.moduleConfig)
+    module_config = MessageToDict(node.moduleConfig)
     if module_config:
         # Convert inner keys to correct snake/camelCase
         prefs = {}
