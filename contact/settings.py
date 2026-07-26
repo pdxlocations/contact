@@ -85,6 +85,7 @@ logging.basicConfig(  # Run `tail -f client.log` in another terminal to view liv
     filename=config.log_file_path,
     level=logging.WARNING,  # DEBUG, INFO, WARNING, ERROR, CRITICAL)
     format="%(asctime)s - %(levelname)s - %(message)s",
+    force=True,
 )
 
 if __name__ == "__main__":
