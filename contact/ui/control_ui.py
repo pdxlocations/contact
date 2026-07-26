@@ -5,6 +5,7 @@ import logging
 import os
 import sys
 import threading
+import time
 from typing import List
 from meshtastic.protobuf import admin_pb2
 
@@ -298,6 +299,49 @@ def _request_remote_with_timeout(request, *args) -> None:
         raise failure[0]
 
 
+def _request_remote_channels_with_timeout(node: object) -> None:
+    """Retrieve a remote node's channel list without leaving the UI waiting forever."""
+    node.requestChannels()
+    deadline = time.monotonic() + REMOTE_ADMIN_REQUEST_TIMEOUT_SECONDS
+    while getattr(node, "channels", None) is None:
+        if time.monotonic() >= deadline:
+            raise TimeoutError("Timed out waiting for the remote node's channel list.")
+        time.sleep(0.1)
+
+
+def _request_remote_section(node: object, menu_path: List[str], selected_option: str, status_callback=None) -> bool:
+    """Fetch exactly the remote-admin section the user is opening.
+
+    Meshtastic returns radio and module settings one protobuf section at a
+    time.  Asking for all of them on menu entry is both slow and unreliable on
+    long paths, so leave the top-level menu immediately available.
+    """
+    if menu_path == ["Main Menu"] and selected_option == "Channels":
+        if status_callback:
+            status_callback("Requesting channel list…")
+        _request_remote_channels_with_timeout(node)
+        return True
+
+    if len(menu_path) != 2:
+        return False
+
+    category = menu_path[-1]
+    if category == "Radio Settings":
+        config = node.localConfig
+    elif category == "Module Settings":
+        config = node.moduleConfig
+    else:
+        return False
+
+    field = config.DESCRIPTOR.fields_by_name.get(selected_option)
+    if field is None or field.name in {"version", "sessionkey"}:
+        return False
+    if status_callback:
+        status_callback(f"Requesting {selected_option} config…")
+    _request_remote_with_timeout(node.requestConfig, field)
+    return True
+
+
 def settings_menu(
     stdscr: object, interface: object, node: object = None, remote: bool = False, status_callback=None
 ) -> None:
@@ -308,24 +352,6 @@ def settings_menu(
     node_info = interface.getMyNodeInfo() if not remote else getattr(interface, "nodesByNum", {}).get(node_num, {})
     node_name = node_info.get("user", {}).get("longName") if isinstance(node_info, dict) else None
     admin_target_label = node_name or f"!{node_num:08x}"
-
-    if remote:
-        # Remote nodes do not populate radio config automatically. Request
-        # the standard sections before building the menu. Module requests are
-        # intentionally deferred: firmware may omit modules and never answer
-        # those requests, which would otherwise block the entire UI.
-        for config_type in list(node.localConfig.DESCRIPTOR.fields):
-            if config_type.name in {"version", "sessionkey"}:
-                continue
-            if status_callback:
-                status_callback(f"Requesting {config_type.name} config…")
-            _request_remote_with_timeout(node.requestConfig, config_type)
-        if status_callback:
-            status_callback("Requesting channels…")
-        node.requestChannels()
-        if status_callback:
-            status_callback("Waiting for channel list…")
-        _request_remote_with_timeout(node.waitForConfig, "channels")
 
     menu = generate_menu_from_protobuf(interface, node=node, include_app_settings=not remote)
     menu_state.current_menu = menu["Main Menu"]
@@ -782,7 +808,28 @@ def settings_menu(
 
                 menu_state.current_menu[selected_option] = (field, new_value)
             else:
-                menu_state.current_menu = menu_state.current_menu[selected_option]
+                requested_remote_section = False
+                if remote:
+                    try:
+                        requested_remote_section = _request_remote_section(
+                            node, menu_state.menu_path, selected_option, status_callback
+                        )
+                    finally:
+                        if status_callback:
+                            status_callback(None)
+                    if requested_remote_section:
+                        # The response updates the node's protobufs. Rebuild
+                        # the menu before entering the requested section so
+                        # the newly received values are what the user sees.
+                        menu = generate_menu_from_protobuf(interface, node=node, include_app_settings=False)
+                        refreshed_menu = menu["Main Menu"]
+                        for path_step in menu_state.menu_path[1:]:
+                            refreshed_menu = refreshed_menu[path_step]
+                        menu_state.current_menu = refreshed_menu[selected_option]
+                    else:
+                        menu_state.current_menu = menu_state.current_menu[selected_option]
+                else:
+                    menu_state.current_menu = menu_state.current_menu[selected_option]
                 menu_state.menu_path.append(selected_option)
                 menu_state.menu_index.append(menu_state.selected_index)
                 menu_state.selected_index = 0

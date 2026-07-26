@@ -1,5 +1,6 @@
 import curses
 import logging
+from typing import Optional
 import time
 import traceback
 from numbers import Real
@@ -1009,8 +1010,20 @@ def handle_backtick(stdscr: curses.window) -> None:
         settings_menu(stdscr, interface)
     elif remote_node_num is not None:
         wait_win = None
+
+        def remote_status(message: Optional[str]) -> None:
+            nonlocal wait_win
+            if message is None:
+                if wait_win is not None:
+                    wait_win.erase()
+                    wait_win.refresh()
+                    wait_win = None
+                return
+            if wait_win is None:
+                wait_win = show_remote_admin_wait(stdscr, get_name_from_database(remote_node_num))
+            update_remote_admin_wait(wait_win, message)
+
         try:
-            wait_win = show_remote_admin_wait(stdscr, get_name_from_database(remote_node_num))
             settings_menu(
                 stdscr,
                 interface,
@@ -1018,7 +1031,7 @@ def handle_backtick(stdscr: curses.window) -> None:
                 # implicit channel request racing that setup.
                 node=interface.getNode(remote_node_num, False),
                 remote=True,
-                status_callback=lambda message: update_remote_admin_wait(wait_win, message),
+                status_callback=remote_status,
             )
         except SystemExit as exc:
             logging.warning("Remote admin was rejected for %s: %s", remote_node_num, exc)
