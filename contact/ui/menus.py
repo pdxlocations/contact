@@ -76,6 +76,7 @@ def generate_menu_from_protobuf(interface: object, node: Any = None, include_app
                 "longName": (None, current_user_config.get("longName", "Not Set")),
                 "shortName": (None, current_user_config.get("shortName", "Not Set")),
                 "isLicensed": (None, current_user_config.get("isLicensed", "False")),
+                "isUnmessagable": (None, current_user_config.get("isUnmessagable", "False")),
             }
         else:
             logging.info("User settings not found in Node Info")

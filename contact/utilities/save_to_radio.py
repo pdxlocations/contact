@@ -29,7 +29,7 @@ LORA_REBOOT_KEYS = {
     "sx126x_rx_boosted_gain",
 }
 SECURITY_NON_REBOOT_KEYS = {"debug_log_api_enabled", "serial_enabled"}
-USER_RECONNECT_KEYS = {"longName", "shortName", "isLicensed", "is_licensed"}
+USER_RECONNECT_KEYS = {"longName", "shortName", "isLicensed", "is_licensed", "isUnmessagable", "is_unmessagable"}
 
 
 def _collect_changed_keys(modified_settings):
@@ -143,12 +143,16 @@ def save_changes(interface, modified_settings, menu_state, node=None):
             long_name = modified_settings.get("longName")
             short_name = modified_settings.get("shortName")
             is_licensed = modified_settings.get("isLicensed")
+            is_unmessagable = modified_settings.get("isUnmessagable")
             is_licensed = is_licensed == "True" or is_licensed is True  # Normalize boolean
+            if is_unmessagable is not None:
+                is_unmessagable = is_unmessagable == "True" or is_unmessagable is True
 
-            node.setOwner(long_name, short_name, is_licensed)
+            node.setOwner(long_name, short_name, is_licensed, is_unmessagable)
 
             logging.info(
-                f"Updated {config_category} with Long Name: {long_name}, Short Name: {short_name}, Licensed Mode: {is_licensed}"
+                f"Updated {config_category} with Long Name: {long_name}, Short Name: {short_name}, "
+                f"Licensed Mode: {is_licensed}, Unmessageable: {is_unmessagable}"
             )
 
             return _requires_reconnect(menu_state, modified_settings)
