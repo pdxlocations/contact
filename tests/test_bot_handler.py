@@ -40,18 +40,19 @@ class BotHandlerTests(unittest.TestCase):
         packet = {"id": 900, "from": 222, "decoded": {}}
 
         with mock.patch.object(config, "ping_bot_enabled", "True"):
-            with mock.patch.object(self.bot_handler.threading, "Thread") as thread:
-                self.assertTrue(self.bot_handler.bot_respond(packet, "ping", 0))
-                send_response = thread.call_args.kwargs["target"]
-                with mock.patch.object(self.bot_handler.time, "sleep"):
-                    with mock.patch.dict(
-                        sys.modules,
-                        {"contact.ui.contact_ui": types.SimpleNamespace(request_ui_redraw=mock.Mock())},
-                    ):
-                        send_response()
+            with mock.patch.object(self.bot_handler, "get_reply_context", return_value="<Re: NODE: ping> "):
+                with mock.patch.object(self.bot_handler.threading, "Thread") as thread:
+                    self.assertTrue(self.bot_handler.bot_respond(packet, "ping", 0))
+                    send_response = thread.call_args.kwargs["target"]
+                    with mock.patch.object(self.bot_handler.time, "sleep"):
+                        with mock.patch.dict(
+                            sys.modules,
+                            {"contact.ui.contact_ui": types.SimpleNamespace(request_ui_redraw=mock.Mock())},
+                        ):
+                            send_response()
 
         self.bot_handler.send_message.assert_called_once_with(
-            "Pong!", channel=0, reply_id=900
+            "Pong!", channel=0, reply_id=900, reply_context="<Re: NODE: ping> "
         )
 
     def test_bot_response_requires_enabled_app_setting(self) -> None:

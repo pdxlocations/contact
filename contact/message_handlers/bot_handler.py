@@ -6,6 +6,7 @@ from typing import Any, Dict
 
 import contact.ui.default_config as config
 from contact.utilities.singleton import app_state, interface_state
+from contact.utilities.utils import get_reply_context
 from contact.message_handlers.tx_handler import send_message
 
 BOT_RESPONSE_DELAY_SECONDS = 2.3
@@ -81,7 +82,13 @@ def bot_respond(packet: Dict[str, Any], message: str, send_channel: int) -> bool
 
                 # Use the triggering packet's ID so Meshtastic clients render this
                 # automatic response as a native reply when that ID is available.
-                send_message(response_data_string, channel=send_channel, reply_id=packet_id)
+                reply_context = get_reply_context(packet_id) if packet_id is not None else ""
+                send_message(
+                    response_data_string,
+                    channel=send_channel,
+                    reply_id=packet_id,
+                    reply_context=reply_context,
+                )
 
             # Import locally to avoid circular import at module import time.
             from contact.ui.contact_ui import request_ui_redraw
