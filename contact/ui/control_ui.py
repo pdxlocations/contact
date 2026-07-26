@@ -717,7 +717,7 @@ def settings_menu(
                     menu_state.need_redraw = True
                     continue
 
-                if selected_option in ["longName", "shortName", "isLicensed"]:
+                if selected_option in ["longName", "shortName", "isLicensed", "isUnmessagable"]:
                     if selected_option in ["longName", "shortName"]:
                         new_value = get_text_input(
                             f"{human_readable_name} is currently: {current_value}", selected_option, None
@@ -725,7 +725,7 @@ def settings_menu(
                         new_value = current_value if new_value is None else new_value
                         menu_state.current_menu[selected_option] = (field, new_value)
 
-                    elif selected_option == "isLicensed":
+                    elif selected_option in ["isLicensed", "isUnmessagable"]:
                         new_value = get_list_input(
                             f"{human_readable_name} is currently: {current_value}",
                             str(current_value),

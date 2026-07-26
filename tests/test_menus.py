@@ -44,3 +44,20 @@ class MenusTests(unittest.TestCase):
 
         self.assertEqual(module_settings["external_notification"]["ringtone"], (None, "tone"))
         self.assertEqual(module_settings["canned_message"]["messages"], (None, "Hi|Bye"))
+
+    def test_user_settings_include_unmessageable_toggle(self) -> None:
+        local_node = SimpleNamespace(
+            localConfig=config_pb2.Config(),
+            moduleConfig=module_config_pb2.ModuleConfig(),
+            getChannelByChannelIndex=lambda _: None,
+        )
+        interface = SimpleNamespace(
+            localNode=local_node,
+            getMyNodeInfo=lambda: {
+                "user": {"longName": "Test User", "shortName": "TU", "isUnmessagable": True},
+                "position": {},
+            },
+        )
+
+        user_settings = generate_menu_from_protobuf(interface)["Main Menu"]["User Settings"]
+        self.assertEqual(user_settings["isUnmessagable"], (None, True))
