@@ -68,13 +68,19 @@ def initialize_interface(args):
 
 def reconnect_interface(args, attempts: int = 20, delay_seconds: float = 1.0):
     last_error = None
+    target = getattr(args, "host", None) or getattr(args, "port", None) or getattr(args, "ble", None) or "auto"
 
     for attempt in range(attempts):
+        attempt_number = attempt + 1
+        logging.info("Reconnect attempt %d/%d to %s", attempt_number, attempts, target)
         try:
             interface = initialize_interface(args)
             if interface_is_connected(interface) and getattr(interface, "localNode", None) is not None and getattr(
                 interface.localNode, "localConfig", None
             ) is not None:
+                node_num = getattr(interface.localNode, "nodeNum", None)
+                node_label = f" !{node_num:08x}" if isinstance(node_num, int) else ""
+                logging.info("Reconnected to Meshtastic node%s on attempt %d/%d", node_label, attempt_number, attempts)
                 return interface
             last_error = RuntimeError("interface did not complete connection setup")
             try:
@@ -84,7 +90,10 @@ def reconnect_interface(args, attempts: int = 20, delay_seconds: float = 1.0):
         except Exception as ex:
             last_error = ex
 
+        logging.warning("Reconnect attempt %d/%d failed: %s", attempt_number, attempts, last_error)
+
         if attempt < attempts - 1:
             time.sleep(delay_seconds)
 
+    logging.error("Unable to reconnect to Meshtastic node after %d attempts", attempts)
     raise RuntimeError("Failed to reconnect to the Meshtastic node") from last_error

@@ -40,6 +40,13 @@ class ChatUIState:
     scroll_messages_to_bottom: bool = False
     preserve_message_selection: bool = False
     reconnect_attempted: bool = False
+    reconnect_prompt_open: bool = False
+    log_viewer_open: bool = False
+    log_viewer_follow: bool = True
+    log_viewer_start_line: int = 0
+    log_viewer_lines: List[str] = field(default_factory=list)
+    log_viewer_signature: Any = None
+    log_viewer_loaded: bool = False
     oldest_message_rowid: Dict[Union[str, int], int] = field(default_factory=dict)
     has_older_messages: Dict[Union[str, int], bool] = field(default_factory=dict)
     message_line_ranges: Dict[Union[str, int], List[tuple]] = field(default_factory=dict)

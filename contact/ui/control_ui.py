@@ -279,7 +279,8 @@ def redraw_main_ui_after_reconnect(stdscr: object) -> None:
 
         get_channels()
         refresh_node_list()
-        contact_ui.handle_resize(stdscr, False)
+        if not contact_ui.ui_state.log_viewer_open:
+            contact_ui.handle_resize(stdscr, False)
     except Exception:
         logging.debug("Skipping main UI redraw after reconnect", exc_info=True)
 
@@ -695,12 +696,14 @@ def settings_menu(
                 menu_win.refresh()
                 menu_state.menu_path.append("App Settings")
                 menu_state.menu_index.append(menu_state.selected_index)
-                json_editor(stdscr, menu_state)  # Open the App Settings menu
+                open_log_viewer = json_editor(stdscr, menu_state)  # Open the App Settings menu
                 reload_translations()
                 menu_state.current_menu = menu["Main Menu"]
                 menu_state.menu_path = ["Main Menu"]
                 menu_state.start_index.pop()
                 menu_state.selected_index = 4
+                if open_log_viewer:
+                    break
                 continue
 
             field_info = menu_state.current_menu.get(selected_option)

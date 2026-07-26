@@ -9,12 +9,14 @@ from contact.ui.nav_utils import move_highlight, draw_arrows, update_help_window
 from contact.utilities.ini_utils import parse_ini_file
 from contact.utilities.input_handlers import get_list_input
 from contact.utilities.i18n import t
-from contact.utilities.singleton import menu_state
+from contact.utilities.singleton import menu_state, ui_state
 
 
 MAX_MENU_WIDTH = 80  # desired max; will shrink on small terminals
 max_help_lines = 6
 save_option = "Save Changes"
+VIEW_LOG_OPTION = "__view_log__"
+LOG_VIEWER_LINE_LIMIT = 500
 translation_file = config.get_localisation_file(config.language)
 field_mapping, help_text = parse_ini_file(translation_file)
 translation_language = config.language
@@ -84,6 +86,32 @@ def get_app_settings_header(menu_path: List[str]) -> str:
 def get_effective_width() -> int:
     # Leave space for borders; ensure a sane minimum
     return max(20, min(MAX_MENU_WIDTH, curses.COLS - 2))
+
+
+def load_log_tail(path: str, max_lines: int = LOG_VIEWER_LINE_LIMIT) -> List[str]:
+    """Read the final log lines without loading an arbitrarily large log file."""
+    if max_lines <= 0:
+        return []
+    try:
+        with open(path, "rb") as log_file:
+            log_file.seek(0, os.SEEK_END)
+            position = log_file.tell()
+            chunks = []
+            newline_count = 0
+            while position > 0 and newline_count <= max_lines:
+                read_size = min(8192, position)
+                position -= read_size
+                log_file.seek(position)
+                chunk = log_file.read(read_size)
+                chunks.append(chunk)
+                newline_count += chunk.count(b"\n")
+        data = b"".join(reversed(chunks)).decode("utf-8", errors="replace")
+        lines = data.splitlines()
+        if position > 0 and lines:
+            lines = lines[1:]
+        return lines[-max_lines:]
+    except OSError as exc:
+        return [f"Unable to read log: {exc}"]
 
 
 def edit_color_pair(key: str, display_label: str, current_value: List[str]) -> List[str]:
@@ -273,6 +301,8 @@ def display_menu() -> tuple[Any, Any, List[str]]:
     # Determine menu items based on the type of current_menu
     if isinstance(menu_state.current_menu, dict):
         options = list(menu_state.current_menu.keys())
+        if len(menu_state.menu_path) <= 2:
+            options.insert(0, VIEW_LOG_OPTION)
     elif isinstance(menu_state.current_menu, list):
         options = [f"[{i}]" for i in range(len(menu_state.current_menu))]
     else:
@@ -311,10 +341,13 @@ def display_menu() -> tuple[Any, Any, List[str]]:
             menu_state.current_menu[key]
             if isinstance(menu_state.current_menu, dict)
             else menu_state.current_menu[int(key.strip("[]"))]
-        )
+        ) if key != VIEW_LOG_OPTION else ""
         if isinstance(menu_state.current_menu, dict):
-            full_key = get_app_settings_key(menu_state.menu_path, key)
-            display_key = lookup_app_settings_label(full_key, key)
+            if key == VIEW_LOG_OPTION:
+                display_key = field_mapping.get("app_settings.view_log", "View Log")
+            else:
+                full_key = get_app_settings_key(menu_state.menu_path, key)
+                display_key = lookup_app_settings_label(full_key, key)
         else:
             display_key = key
         display_key = f"{display_key}"[: w // 2 - 2]
@@ -391,7 +424,7 @@ def update_app_settings_help(menu_win: curses.window, options: List[str]) -> Non
     )
 
 
-def json_editor(stdscr: curses.window, menu_state: Any) -> None:
+def json_editor(stdscr: curses.window, menu_state: Any) -> bool:
 
     menu_state.selected_index = 0  # Track the selected option
     made_changes = False  # Track if any changes were made
@@ -470,6 +503,14 @@ def json_editor(stdscr: curses.window, menu_state: Any) -> None:
 
             if menu_state.selected_index < len(options):  # Handle selection of a menu item
                 selected_key = options[menu_state.selected_index]
+                if selected_key == VIEW_LOG_OPTION:
+                    ui_state.log_viewer_open = True
+                    ui_state.log_viewer_follow = True
+                    ui_state.log_viewer_start_line = 0
+                    ui_state.log_viewer_lines = []
+                    ui_state.log_viewer_signature = None
+                    ui_state.log_viewer_loaded = False
+                    return True
                 menu_state.menu_path.append(str(selected_key))
                 menu_state.start_index.append(0)
                 menu_state.menu_index.append(menu_state.selected_index)
@@ -572,6 +613,8 @@ def json_editor(stdscr: curses.window, menu_state: Any) -> None:
                 menu_win.refresh()
 
                 break
+
+    return False
 
 
 def save_json(file_path: str, data: Dict[str, Any]) -> None:
