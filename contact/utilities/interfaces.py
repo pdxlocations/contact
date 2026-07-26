@@ -3,6 +3,28 @@ import time
 import meshtastic.serial_interface, meshtastic.tcp_interface, meshtastic.ble_interface
 
 
+def interface_is_connected(interface) -> bool:
+    """Return the transport-independent connection state for an interface.
+
+    TCPInterface deliberately leaves ``stream`` set to ``None`` and uses its
+    ``socket`` instead.  Checking only ``stream`` therefore treats every TCP
+    connection (including meshtasticd) as disconnected.
+    """
+    if interface is None:
+        return False
+
+    connected = getattr(interface, "isConnected", None)
+    if hasattr(connected, "is_set"):
+        return connected.is_set()
+    if isinstance(connected, bool):
+        return connected
+    if hasattr(interface, "socket"):
+        return getattr(interface, "socket", None) is not None
+    if hasattr(interface, "stream"):
+        return getattr(interface, "stream", None) is not None
+    return getattr(interface, "localNode", None) is not None
+
+
 def initialize_interface(args):
     try:
 
@@ -50,9 +72,9 @@ def reconnect_interface(args, attempts: int = 20, delay_seconds: float = 1.0):
     for attempt in range(attempts):
         try:
             interface = initialize_interface(args)
-            if interface is not None and getattr(interface, "localNode", None) is not None and getattr(
+            if interface_is_connected(interface) and getattr(interface, "localNode", None) is not None and getattr(
                 interface.localNode, "localConfig", None
-            ) is not None and (not hasattr(interface, "stream") or interface.stream is not None):
+            ) is not None:
                 return interface
             last_error = RuntimeError("interface did not complete connection setup")
             try:
