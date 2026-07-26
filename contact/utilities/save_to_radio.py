@@ -161,7 +161,8 @@ def save_changes(interface, modified_settings, menu_state, node=None):
             config_category = "Channels"
 
             try:
-                channel = menu_state.menu_path[-1]
+                channels_index = menu_state.menu_path.index("Channels")
+                channel = menu_state.menu_path[channels_index + 1]
                 channel_num = int(channel.split()[-1]) - 1
             except (IndexError, ValueError) as e:
                 channel_num = None
@@ -170,8 +171,10 @@ def save_changes(interface, modified_settings, menu_state, node=None):
             for key, value in modified_settings.items():
                 if key == "psk":  # Special case: decode Base64 for psk
                     channel.settings.psk = base64.b64decode(value)
-                elif key == "position_precision":  # Special case: module_settings
-                    channel.settings.module_settings.position_precision = value
+                elif key in {"position_precision", "is_muted"}:
+                    # These fields belong to ChannelSettings.module_settings,
+                    # not ChannelSettings itself.
+                    setattr(channel.settings.module_settings, key, value)
                 else:
                     setattr(channel.settings, key, value)  # Use setattr for other fields
 

@@ -95,6 +95,18 @@ class SaveToRadioTests(unittest.TestCase):
         self.assertTrue(reconnect_required)
         self.assertTrue(node.moduleConfig.mqtt.enabled)
 
+    def test_save_changes_writes_channel_is_muted_to_module_settings(self) -> None:
+        interface, node = self.build_interface()
+        channel = SimpleNamespace(settings=SimpleNamespace(module_settings=SimpleNamespace(is_muted=False)), role=None)
+        node.channels = [channel]
+        menu_state = SimpleNamespace(menu_path=["Main Menu", "Channels", "Channel 1", "module_settings"])
+
+        reconnect_required = save_changes(interface, {"is_muted": True}, menu_state)
+
+        self.assertFalse(reconnect_required)
+        self.assertTrue(channel.settings.module_settings.is_muted)
+        node.writeChannel.assert_called_once_with(0)
+
     def test_save_changes_returns_true_for_user_name_changes(self) -> None:
         interface, node = self.build_interface()
         menu_state = SimpleNamespace(menu_path=["Main Menu", "User Settings"])
