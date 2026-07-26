@@ -53,6 +53,20 @@ class ControlUiTests(unittest.TestCase):
         reconnect.assert_called_once_with(stdscr, interface)
         self.assertIs(result, new_interface)
 
+    def test_verify_remote_admin_requests_only_device_config(self) -> None:
+        device_field = object()
+        node = SimpleNamespace(
+            localConfig=SimpleNamespace(DESCRIPTOR=SimpleNamespace(fields_by_name={"device": device_field})),
+            requestConfig=mock.Mock(),
+        )
+        status_callback = mock.Mock()
+
+        with mock.patch.object(control_ui, "_request_remote_with_timeout") as request:
+            control_ui.verify_remote_admin(node, status_callback=status_callback)
+
+        status_callback.assert_called_once_with("Checking remote-admin permission…")
+        request.assert_called_once_with(node.requestConfig, device_field, cancel_callback=None)
+
     def test_redraw_main_ui_after_reconnect_refreshes_channels_nodes_and_layout(self) -> None:
         stdscr = mock.Mock()
 

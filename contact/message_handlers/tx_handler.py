@@ -1,6 +1,6 @@
 import time
 
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import google.protobuf.json_format
 from meshtastic import BROADCAST_NUM
@@ -168,7 +168,7 @@ def send_message(
     message: str,
     destination: int = BROADCAST_NUM,
     channel: int = 0,
-    reply_id: int | None = None,
+    reply_id: Optional[int] = None,
     reply_context: str = "",
 ) -> None:
     """

@@ -53,14 +53,16 @@ class ContactUiTests(unittest.TestCase):
                     with mock.patch.object(contact_ui, "handle_resize"):
                         with mock.patch.object(contact_ui, "get_list_input", return_value="Remote admin: node"):
                             with mock.patch.object(contact_ui, "get_name_from_database", return_value="node"):
-                                with mock.patch.object(contact_ui, "settings_menu", side_effect=SystemExit(1)):
-                                    with mock.patch("contact.ui.dialog.dialog") as dialog:
-                                        contact_ui.handle_backtick(stdscr)
+                                with mock.patch.object(contact_ui, "verify_remote_admin", side_effect=SystemExit(1)):
+                                    with mock.patch.object(contact_ui, "settings_menu") as settings_menu:
+                                        with mock.patch("contact.ui.dialog.dialog") as dialog:
+                                            contact_ui.handle_backtick(stdscr)
 
         dialog.assert_called_once_with(
             "Remote admin rejected",
             "The selected node did not authorize this admin request.",
         )
+        settings_menu.assert_not_called()
 
     def test_show_remote_admin_wait_draws_status(self) -> None:
         stdscr = mock.Mock()

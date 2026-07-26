@@ -319,6 +319,21 @@ def _request_remote_channels_with_timeout(node: object, cancel_callback=None) ->
         time.sleep(0.1)
 
 
+def verify_remote_admin(node: object, status_callback=None, cancel_callback=None) -> None:
+    """Confirm a remote node accepts admin requests before opening its menu.
+
+    A single device-config request provides an authorization check without
+    eagerly downloading every radio and module setting.  The successful
+    response also seeds the first radio section the user may open.
+    """
+    device_field = node.localConfig.DESCRIPTOR.fields_by_name.get("device")
+    if device_field is None:
+        raise RuntimeError("The remote node does not expose a device configuration section.")
+    if status_callback:
+        status_callback("Checking remote-admin permission…")
+    _request_remote_with_timeout(node.requestConfig, device_field, cancel_callback=cancel_callback)
+
+
 def _request_remote_section(
     node: object, menu_path: List[str], selected_option: str, status_callback=None, cancel_callback=None
 ) -> bool:
