@@ -1067,7 +1067,7 @@ def handle_backtick(stdscr: curses.window) -> None:
     handle_resize(stdscr, False)
 
 
-def show_remote_admin_wait(stdscr: curses.window, node_name: str) -> curses.window | None:
+def show_remote_admin_wait(stdscr: curses.window, node_name: str) -> Optional[curses.window]:
     """Show progress while Meshtastic retrieves remote-admin settings."""
     message = f"Attempting remote admin of {node_name}, waiting for response..."
     try:
@@ -1086,7 +1086,7 @@ def show_remote_admin_wait(stdscr: curses.window, node_name: str) -> curses.wind
         return None
 
 
-def show_connection_status(stdscr: curses.window, title: str, message: str) -> curses.window | None:
+def show_connection_status(stdscr: curses.window, title: str, message: str) -> Optional[curses.window]:
     """Display a non-blocking connection-status dialog over the current UI."""
     try:
         height, width = stdscr.getmaxyx()
@@ -1103,7 +1103,7 @@ def show_connection_status(stdscr: curses.window, title: str, message: str) -> c
         return None
 
 
-def update_remote_admin_wait(wait_win: curses.window | None, message: str) -> None:
+def update_remote_admin_wait(wait_win: Optional[curses.window], message: str) -> None:
     """Append the current remote-admin request to the waiting overlay."""
     if wait_win is None:
         return
