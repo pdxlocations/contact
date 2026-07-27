@@ -1134,74 +1134,83 @@ def handle_backtick(stdscr: curses.window) -> None:
         handle_resize(stdscr, False)
         return
 
-    options = ["Local settings"]
-    remote_node_num = None
+    selected_node_num = None
     if ui_state.node_list:
-        remote_node_num = ui_state.node_list[ui_state.selected_node]
-        options.append(f"Remote admin: {get_name_from_database(remote_node_num)}")
-    choice = get_list_input("Open settings for", None, options)
-    if choice == "Local settings":
-        settings_menu(stdscr, interface)
-    elif remote_node_num is not None:
-        wait_win = None
+        selected_node_num = ui_state.node_list[ui_state.selected_node]
 
-        def remote_status(message: Optional[str]) -> None:
-            nonlocal wait_win
-            if message is None:
+    # The local node is already the target for normal settings; do not offer a
+    # misleading remote-admin choice when it is selected in the node pane.
+    if selected_node_num == interface_state.myNodeNum:
+        settings_menu(stdscr, interface)
+    else:
+        options = ["Local settings"]
+        remote_node_num = None
+        if selected_node_num is not None:
+            remote_node_num = selected_node_num
+            options.append(f"Remote admin: {get_name_from_database(remote_node_num)}")
+        choice = get_list_input("Open settings for", None, options)
+        if choice == "Local settings":
+            settings_menu(stdscr, interface)
+        elif remote_node_num is not None:
+            wait_win = None
+
+            def remote_status(message: Optional[str]) -> None:
+                nonlocal wait_win
+                if message is None:
+                    if wait_win is not None:
+                        wait_win.erase()
+                        wait_win.refresh()
+                        wait_win = None
+                    return
+                if wait_win is None:
+                    wait_win = show_remote_admin_wait(stdscr, get_name_from_database(remote_node_num))
+                update_remote_admin_wait(wait_win, message)
+
+            def remote_cancel_requested() -> bool:
+                if wait_win is None:
+                    return False
+                try:
+                    wait_win.timeout(0)
+                    return wait_win.getch() == 27
+                finally:
+                    wait_win.timeout(-1)
+
+            try:
+                remote_node = interface.getNode(remote_node_num, False)
+                verify_remote_admin(
+                    remote_node,
+                    status_callback=remote_status,
+                    cancel_callback=remote_cancel_requested,
+                )
+                remote_status(None)
+                settings_menu(
+                    stdscr,
+                    interface,
+                    # Settings requests configs explicitly; avoid getNode's
+                    # implicit channel request racing that setup.
+                    node=remote_node,
+                    remote=True,
+                    status_callback=remote_status,
+                    cancel_callback=remote_cancel_requested,
+                )
+            except RemoteAdminCancelled:
+                logging.info("Remote admin request cancelled for %s", remote_node_num)
+                remote_status(None)
+            except (SystemExit, PermissionError) as exc:
+                logging.warning("Remote admin was rejected for %s: %s", remote_node_num, exc)
                 if wait_win is not None:
                     wait_win.erase()
                     wait_win.refresh()
-                    wait_win = None
-                return
-            if wait_win is None:
-                wait_win = show_remote_admin_wait(stdscr, get_name_from_database(remote_node_num))
-            update_remote_admin_wait(wait_win, message)
-
-        def remote_cancel_requested() -> bool:
-            if wait_win is None:
-                return False
-            try:
-                wait_win.timeout(0)
-                return wait_win.getch() == 27
-            finally:
-                wait_win.timeout(-1)
-
-        try:
-            remote_node = interface.getNode(remote_node_num, False)
-            verify_remote_admin(
-                remote_node,
-                status_callback=remote_status,
-                cancel_callback=remote_cancel_requested,
-            )
-            remote_status(None)
-            settings_menu(
-                stdscr,
-                interface,
-                # Settings requests configs explicitly; avoid getNode's
-                # implicit channel request racing that setup.
-                node=remote_node,
-                remote=True,
-                status_callback=remote_status,
-                cancel_callback=remote_cancel_requested,
-            )
-        except RemoteAdminCancelled:
-            logging.info("Remote admin request cancelled for %s", remote_node_num)
-            remote_status(None)
-        except (SystemExit, PermissionError) as exc:
-            logging.warning("Remote admin was rejected for %s: %s", remote_node_num, exc)
-            if wait_win is not None:
-                wait_win.erase()
-                wait_win.refresh()
-            contact.ui.dialog.dialog(
-                "Remote admin rejected",
-                "The selected node did not authorize this admin request.",
-            )
-        except Exception as exc:
-            logging.exception("Remote admin failed for %s", remote_node_num)
-            if wait_win is not None:
-                wait_win.erase()
-                wait_win.refresh()
-            contact.ui.dialog.dialog("Remote admin failed", str(exc))
+                contact.ui.dialog.dialog(
+                    "Remote admin rejected",
+                    "The selected node did not authorize this admin request.",
+                )
+            except Exception as exc:
+                logging.exception("Remote admin failed for %s", remote_node_num)
+                if wait_win is not None:
+                    wait_win.erase()
+                    wait_win.refresh()
+                contact.ui.dialog.dialog("Remote admin failed", str(exc))
     ui_state.current_window = previous_window
     ui_state.single_pane_mode = config.single_pane_mode.lower() == "true"
     curses.curs_set(1)

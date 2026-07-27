@@ -64,6 +64,25 @@ class ContactUiTests(unittest.TestCase):
         )
         settings_menu.assert_not_called()
 
+    def test_handle_backtick_opens_local_settings_for_selected_local_node(self) -> None:
+        stdscr = mock.Mock()
+        ui_state.current_window = 2
+        ui_state.node_list = [123]
+        ui_state.selected_node = 0
+        contact_ui.interface_state.myNodeNum = 123
+        contact_ui.interface_state.interface = mock.Mock()
+
+        with mock.patch.object(contact_ui.curses, "curs_set"):
+            with mock.patch.object(contact_ui, "get_list_input") as chooser:
+                with mock.patch.object(contact_ui, "settings_menu") as settings_menu:
+                    with mock.patch.object(contact_ui, "get_channels"):
+                        with mock.patch.object(contact_ui, "refresh_node_list"):
+                            with mock.patch.object(contact_ui, "handle_resize"):
+                                contact_ui.handle_backtick(stdscr)
+
+        chooser.assert_not_called()
+        settings_menu.assert_called_once_with(stdscr, contact_ui.interface_state.interface)
+
     def test_show_remote_admin_wait_draws_status(self) -> None:
         stdscr = mock.Mock()
         stdscr.getmaxyx.return_value = (24, 100)
