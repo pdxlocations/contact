@@ -55,6 +55,20 @@ class SaveToRadioTests(unittest.TestCase):
 
         self.assertTrue(reconnect_required)
 
+    def test_save_changes_replaces_remote_admin_keys_in_one_write(self) -> None:
+        interface, node = self.build_interface()
+        key_one = b"1" * 32
+        key_two = b"2" * 32
+        key_three = b"3" * 32
+        node.localConfig.security.admin_key = [key_one, key_two, key_three]
+        menu_state = SimpleNamespace(menu_path=["Main Menu", "Radio Settings", "Security"])
+
+        reconnect_required = save_changes(interface, {"admin_key": [key_one, key_two]}, menu_state, node=node)
+
+        self.assertTrue(reconnect_required)
+        self.assertEqual(node.localConfig.security.admin_key, [key_one, key_two])
+        node.writeConfig.assert_called_once_with("security")
+
     def test_save_changes_returns_true_only_for_rebooting_device_fields(self) -> None:
         interface, node = self.build_interface()
         menu_state = SimpleNamespace(menu_path=["Main Menu", "Radio Settings", "Device"])

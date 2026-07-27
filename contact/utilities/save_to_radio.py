@@ -2,7 +2,6 @@ from meshtastic.protobuf import channel_pb2
 from google.protobuf.message import Message
 import logging
 import base64
-import time
 
 DEVICE_REBOOT_KEYS = {"button_gpio", "buzzer_gpio", "role", "rebroadcast_mode"}
 POWER_REBOOT_KEYS = {
@@ -100,22 +99,14 @@ def save_changes(interface, modified_settings, menu_state, node=None):
             # Filter out empty keys
             valid_keys = [key for key in admin_keys if key and key.strip() and key != b""]
 
-            if not valid_keys:
-                logging.warning("No valid admin keys provided. Skipping admin key update.")
-            else:
-                # Clear existing keys if needed
-                if security_config.admin_key:
-                    logging.info("Clearing existing admin keys...")
-                    del security_config.admin_key[:]
-                    node.writeConfig("security")
-                    time.sleep(2)  # Give time for device to process
-
-                # Append new keys
-                for key in valid_keys:
-                    logging.info(f"Adding admin key: {key}")
-                    security_config.admin_key.append(key)
-                node.writeConfig("security")
-                logging.info("Admin keys updated successfully!")
+            # Update the repeated field in memory, then send one complete
+            # security config. Sending an empty list first can revoke the key
+            # authorizing this remote-admin session before a second write can
+            # restore the remaining keys.
+            del security_config.admin_key[:]
+            security_config.admin_key.extend(valid_keys)
+            node.writeConfig("security")
+            logging.info("Admin keys updated successfully (%d key(s)).", len(valid_keys))
 
             # Backup 'admin_key' before removing it
             admin_key_backup = modified_settings.get("admin_key", None)
