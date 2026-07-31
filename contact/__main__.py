@@ -258,7 +258,7 @@ def start() -> None:
 
     if fatal_error is not None:
         print("Fatal error:", fatal_error)
-        traceback.print_exc()
+        traceback.print_exception(type(fatal_error), fatal_error, fatal_error.__traceback__)
         sys.exit(1)
 
     if interrupted:

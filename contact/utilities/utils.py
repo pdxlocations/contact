@@ -1,6 +1,8 @@
 import datetime
+import logging
 import re
 import time
+from functools import lru_cache
 from typing import Optional, Union
 from google.protobuf.message import DecodeError
 
@@ -10,14 +12,41 @@ import contact.ui.default_config as config
 from contact.utilities.singleton import ui_state, interface_state
 import contact.utilities.telemetry_beautifier as tb
 
+NEW_MODEM_PRESET_NAMES = {
+    14: "TINY_FAST",
+    15: "TINY_SLOW",
+    16: "MEDIUM_TURBO",
+}
+
+
+@lru_cache(maxsize=None)
+def _get_modem_preset_name(modem_preset_enum: int) -> str:
+    try:
+        return config_pb2.Config.LoRaConfig.ModemPreset.Name(modem_preset_enum)
+    except ValueError:
+        compatibility_name = NEW_MODEM_PRESET_NAMES.get(modem_preset_enum)
+        if compatibility_name is not None:
+            logging.warning(
+                "Modem preset %s is newer than the installed Meshtastic protobuf schema; "
+                "using compatibility name %s",
+                modem_preset_enum,
+                compatibility_name,
+            )
+            return compatibility_name
+
+        logging.warning(
+            "Modem preset %s is not recognized by the installed Meshtastic protobuf schema",
+            modem_preset_enum,
+        )
+        return f"UNKNOWN_PRESET_{modem_preset_enum}"
+
 
 def _get_channel_name(device_channel, node):
     if device_channel.settings.name:
         return device_channel.settings.name
 
-    lora_config = node.localConfig.lora
-    modem_preset_enum = lora_config.modem_preset
-    modem_preset_string = config_pb2._CONFIG_LORACONFIG_MODEMPRESET.values_by_number[modem_preset_enum].name
+    modem_preset_enum = node.localConfig.lora.modem_preset
+    modem_preset_string = _get_modem_preset_name(modem_preset_enum)
     return convert_to_camel_case(modem_preset_string)
 
 

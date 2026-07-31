@@ -240,7 +240,7 @@ class MainRuntimeTests(unittest.TestCase):
         with mock.patch.object(entrypoint.sys, "argv", ["contact"]):
             with mock.patch.object(entrypoint.curses, "wrapper", side_effect=RuntimeError("boom")):
                 with mock.patch.object(entrypoint.curses, "endwin") as endwin:
-                    with mock.patch.object(entrypoint.traceback, "print_exc") as print_exc:
+                    with mock.patch.object(entrypoint.traceback, "print_exception") as print_exception:
                         with mock.patch("builtins.print") as print_mock:
                             with mock.patch.object(entrypoint.sys, "exit", side_effect=SystemExit(1)) as exit_mock:
                                 with self.assertRaises(SystemExit) as raised:
@@ -248,6 +248,9 @@ class MainRuntimeTests(unittest.TestCase):
 
         self.assertEqual(raised.exception.code, 1)
         endwin.assert_called_once_with()
-        print_exc.assert_called_once_with()
+        exception_type, exception, exception_traceback = print_exception.call_args_list[-1].args
+        self.assertIs(exception_type, RuntimeError)
+        self.assertEqual(str(exception), "boom")
+        self.assertIsNotNone(exception_traceback)
         print_mock.assert_any_call("Fatal error:", mock.ANY)
         exit_mock.assert_called_once_with(1)
