@@ -835,7 +835,6 @@ def settings_menu(
                         selected_option == "name"
                         and len(menu_state.menu_path) == 3
                         and menu_state.menu_path[1] == "Channels"
-                        and menu_state.menu_path[2] != "Channel 1"
                     )
                     new_value = get_text_input(
                         f"{human_readable_name} is currently: {current_value}", selected_option, input_type,
