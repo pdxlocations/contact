@@ -1,4 +1,5 @@
 import unittest
+from contextlib import ExitStack
 from types import SimpleNamespace
 from unittest import mock
 
@@ -11,6 +12,52 @@ from tests.test_support import reset_singletons, restore_config, snapshot_config
 
 
 class ContactUiTests(unittest.TestCase):
+    def test_f5_restores_background_when_switching_between_different_size_nodes(self):
+        ui_state.node_list = [101, 102]
+        ui_state.current_window = 2
+        interface = SimpleNamespace(nodesByNum={
+            101: {"user": {"shortName": "BIG", "longName": "A" * 60}, "position": {"altitude": 100}},
+            102: {"user": {"shortName": "SMALL", "longName": "B"}},
+        })
+        win = mock.Mock()
+        win.getch.side_effect = [contact_ui.curses.KEY_DOWN, contact_ui.curses.KEY_UP, 27]
+        events = mock.Mock()
+        events.attach_mock(win.noutrefresh, "dialog")
+        stdscr = mock.Mock()
+        with ExitStack() as stack:
+            stack.enter_context(mock.patch.object(contact_ui.interface_state, "interface", interface))
+            for name, value in (("LINES", 40), ("COLS", 100)):
+                stack.enter_context(mock.patch.object(contact_ui.curses, name, value, create=True))
+            for name in ("curs_set", "update_lines_cols", "doupdate"):
+                stack.enter_context(mock.patch.object(contact_ui.curses, name))
+            stack.enter_context(mock.patch.object(contact_ui.curses, "newwin", return_value=win))
+            for name in ("get_color", "refresh_node_selection", "handle_resize"):
+                stack.enter_context(mock.patch.object(contact_ui, name, return_value=0))
+            restore = stack.enter_context(mock.patch.object(contact_ui, "stage_node_details_background"))
+            events.attach_mock(restore, "restore")
+            contact_ui.handle_f5_key(stdscr)
+        self.assertEqual(events.mock_calls, [
+            mock.call.dialog(), mock.call.restore(stdscr, 2), mock.call.dialog(),
+            mock.call.restore(stdscr, 2), mock.call.dialog(),
+        ])
+        self.assertNotEqual(win.resize.call_args_list[0], win.resize.call_args_list[1])
+        self.assertEqual(win.refresh.call_count, 1)  # Only on close.
+
+    def test_background_restore_stages_panes_without_flushing(self):
+        ui_state.current_window = 4
+        ui_state.single_pane_mode = True
+        stdscr = mock.Mock()
+        with ExitStack() as stack:
+            for name in ("channel_win", "messages_win", "nodes_win", "entry_win"):
+                stack.enter_context(mock.patch.object(contact_ui, name, mock.Mock(), create=True))
+            refresh = stack.enter_context(mock.patch.object(contact_ui, "refresh_pad"))
+            update = stack.enter_context(mock.patch.object(contact_ui.curses, "doupdate"))
+            contact_ui.stage_node_details_background(stdscr, 2)
+        refresh.assert_called_once_with(2, commit=False)
+        update.assert_not_called()
+        stdscr.noutrefresh.assert_called_once()
+        self.assertEqual(ui_state.current_window, 4)
+
     def setUp(self) -> None:
         reset_singletons()
         self.saved_config = snapshot_config("single_pane_mode")
@@ -437,6 +484,8 @@ class ContactUiTests(unittest.TestCase):
         self.assertEqual(contact_ui.get_window_title(1), "Primary")
 
     def test_refresh_pad_draws_selected_channel_title_on_message_frame(self) -> None:
+        self.addCleanup(mock.patch.stopall)
+        mock.patch.object(contact_ui, "packetlog_win", mock.Mock(), create=True).start()
         ui_state.single_pane_mode = True
         ui_state.current_window = 1
         ui_state.channel_list = ["Primary"]
@@ -453,9 +502,16 @@ class ContactUiTests(unittest.TestCase):
         contact_ui.messages_win.getmaxyx.return_value = (10, 20)
 
         with mock.patch.object(contact_ui, "get_msg_window_lines", return_value=4):
-            contact_ui.refresh_pad(1)
+            with mock.patch.object(contact_ui.curses, "doupdate") as update:
+                contact_ui.refresh_pad(1)
 
         contact_ui.messages_win.addstr.assert_called_once_with(0, 2, " Primary ", contact_ui.curses.A_BOLD)
+        contact_ui.messages_win.refresh.assert_not_called()
+        contact_ui.messages_pad.refresh.assert_not_called()
+        contact_ui.messages_win.noutrefresh.assert_called_once()
+        contact_ui.messages_pad.touchwin.assert_called_once()
+        contact_ui.messages_pad.noutrefresh.assert_called_once()
+        update.assert_called_once()
 
     def test_search_ignores_no_input_from_curses(self) -> None:
         ui_state.node_list = [101]
@@ -508,6 +564,9 @@ class ContactUiTests(unittest.TestCase):
                                                 contact_ui.handle_f5_key(stdscr)
 
         self.assertEqual(dialog_win.getch.call_count, 2)
+        # Idle polling must never present an erased dialog before its text.
+        self.assertEqual(dialog_win.noutrefresh.call_count, 2)
+        self.assertEqual(dialog_win.refresh.call_count, 1)  # Closing the dialog only.
         handle_resize.assert_called_once_with(stdscr, False)
 
     def test_f5_node_details_tolerates_none_metrics(self) -> None:
