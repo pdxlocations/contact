@@ -1,12 +1,30 @@
 from types import SimpleNamespace
 import unittest
 
-from meshtastic.protobuf import config_pb2, module_config_pb2
+from meshtastic.protobuf import channel_pb2, config_pb2, module_config_pb2
 
 from contact.ui.menus import generate_menu_from_protobuf
 
 
 class MenusTests(unittest.TestCase):
+    def test_channels_include_enabled_state_and_display_names(self):
+        from contact.ui.control_ui import get_settings_option_label
+
+        channels = [
+            channel_pb2.Channel(role=channel_pb2.Channel.PRIMARY, settings=channel_pb2.ChannelSettings(name="Local")),
+            channel_pb2.Channel(role=channel_pb2.Channel.DISABLED, settings=channel_pb2.ChannelSettings(name="Local")),
+            channel_pb2.Channel(role=channel_pb2.Channel.DISABLED),
+        ]
+        node = SimpleNamespace(
+            localConfig=config_pb2.Config(), moduleConfig=module_config_pb2.ModuleConfig(),
+            getChannelByChannelIndex=lambda index: channels[index] if index < len(channels) else None,
+        )
+        menu = generate_menu_from_protobuf(None, node=node)["Main Menu"]["Channels"]
+        self.assertEqual(menu["Channel 1"]["enabled"], (None, True))
+        self.assertEqual(menu["Channel 2"]["enabled"], (None, False))
+        labels = [get_settings_option_label(key, value, ["Main Menu", "Channels"]) for key, value in menu.items()]
+        self.assertEqual(labels, ["Local", "Local", "Channel 3"])
+
     def test_main_menu_includes_factory_reset_config_after_factory_reset(self) -> None:
         local_node = SimpleNamespace(
             localConfig=config_pb2.Config(),

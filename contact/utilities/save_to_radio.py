@@ -160,7 +160,15 @@ def save_changes(interface, modified_settings, menu_state, node=None):
 
             channel = node.channels[channel_num]
             for key, value in modified_settings.items():
-                if key == "psk":  # Special case: decode Base64 for psk
+                if key == "enabled":
+                    if not value:
+                        channel.role = channel_pb2.Channel.Role.DISABLED
+                    elif channel.role == channel_pb2.Channel.Role.DISABLED:
+                        channel.role = (
+                            channel_pb2.Channel.Role.PRIMARY if channel_num == 0
+                            else channel_pb2.Channel.Role.SECONDARY
+                        )
+                elif key == "psk":  # Special case: decode Base64 for psk
                     channel.settings.psk = base64.b64decode(value)
                 elif key in {"position_precision", "is_muted"}:
                     # These fields belong to ChannelSettings.module_settings,
@@ -168,11 +176,6 @@ def save_changes(interface, modified_settings, menu_state, node=None):
                     setattr(channel.settings.module_settings, key, value)
                 else:
                     setattr(channel.settings, key, value)  # Use setattr for other fields
-
-            if channel_num == 0:
-                channel.role = channel_pb2.Channel.Role.PRIMARY
-            else:
-                channel.role = channel_pb2.Channel.Role.SECONDARY
 
             node.writeChannel(channel_num)
 

@@ -1,11 +1,28 @@
 from types import SimpleNamespace
 import unittest
 from unittest import mock
+from meshtastic.protobuf import channel_pb2
 
 from contact.utilities.save_to_radio import save_changes
 
 
 class SaveToRadioTests(unittest.TestCase):
+    def test_channel_enable_disable_and_unrelated_edits_preserve_role(self):
+        for index in (0, 1):
+            interface, node = self.build_interface()
+            node.channels = [channel_pb2.Channel(index=i) for i in range(2)]
+            channel = node.channels[index]
+            path = SimpleNamespace(menu_path=["Main Menu", "Channels", f"Channel {index + 1}"])
+            save_changes(interface, {"name": "Test"}, path)
+            self.assertEqual(channel.role, channel_pb2.Channel.DISABLED)
+            save_changes(interface, {"enabled": True}, path)
+            expected = channel_pb2.Channel.PRIMARY if index == 0 else channel_pb2.Channel.SECONDARY
+            self.assertEqual(channel.role, expected)
+            save_changes(interface, {"enabled": False}, path)
+            self.assertEqual(channel.role, channel_pb2.Channel.DISABLED)
+            self.assertEqual(channel.settings.name, "Test")
+            self.assertEqual(node.writeChannel.call_args_list, [mock.call(index)] * 3)
+
     def build_interface(self):
         node = mock.Mock()
         node.localConfig = SimpleNamespace(
