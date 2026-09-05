@@ -14,6 +14,7 @@ from contact.utilities.arg_parser import setup_parser
 from contact.utilities.i18n import t
 from contact.utilities.input_handlers import get_list_input
 from contact.utilities.interfaces import initialize_interface, reconnect_interface
+from contact.utilities.logging_utils import configure_logging
 
 
 def close_interface(interface: object) -> None:
@@ -81,12 +82,7 @@ def ensure_min_rows(stdscr: curses.window, min_rows: int = 11) -> None:
         stdscr.refresh()
 
 
-logging.basicConfig(  # Run `tail -f client.log` in another terminal to view live
-    filename=config.log_file_path,
-    level=logging.WARNING,  # DEBUG, INFO, WARNING, ERROR, CRITICAL)
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    force=True,
-)
+configure_logging(logging.WARNING)
 
 if __name__ == "__main__":
     log_file = config.log_file_path

@@ -38,6 +38,7 @@ from contact.utilities.input_handlers import get_list_input
 from contact.utilities.i18n import t
 from contact.ui.dialog import dialog
 from contact.utilities.interfaces import initialize_interface, reconnect_interface
+from contact.utilities.logging_utils import configure_logging
 from contact.utilities.utils import get_channels, get_nodeNum, get_node_list
 from contact.utilities.singleton import ui_state, interface_state, app_state
 
@@ -51,15 +52,7 @@ os.environ.setdefault("TERM", "xterm-256color")
 if os.environ.get("COLORTERM") == "gnome-terminal":
     os.environ["TERM"] = "xterm-256color"
 
-logging.basicConfig(
-    filename=config.log_file_path,
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    # Meshtastic or another dependency may have installed a stderr handler
-    # before Contact starts curses. Replace it so background warnings cannot
-    # overwrite the terminal UI.
-    force=True,
-)
+configure_logging(logging.INFO)
 
 app_state.lock = threading.Lock()
 

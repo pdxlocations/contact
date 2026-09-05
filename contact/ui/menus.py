@@ -93,6 +93,10 @@ def generate_menu_from_protobuf(interface: object, node: Any = None, include_app
             current_channel = node.getChannelByChannelIndex(i)
             if current_channel:
                 channel_config = extract_fields(channel, current_channel.settings)
+                channel_config = {
+                    "enabled": (None, current_channel.role != channel_pb2.Channel.Role.DISABLED),
+                    **channel_config,
+                }
                 menu_structure["Main Menu"]["Channels"][f"Channel {i + 1}"] = channel_config
 
     # Add Radio Settings

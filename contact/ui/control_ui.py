@@ -785,6 +785,11 @@ def settings_menu(
                     new_value = current_value if new_values is None else [base64.b64decode(key) for key in new_values]
                     menu_state.start_index.pop()
 
+                elif field is None and selected_option == "enabled" and menu_state.menu_path[1] == "Channels":
+                    new_value = get_list_input(human_readable_name, str(current_value), ["True", "False"])
+                    new_value = new_value == "True" or new_value is True
+                    menu_state.start_index.pop()
+
                 elif field.type == 8:  # Handle boolean type
                     new_value = get_list_input(human_readable_name, str(current_value), ["True", "False"])
                     if new_value == "Not Set":
@@ -826,8 +831,15 @@ def settings_menu(
 
                 else:  # Handle other field types
                     input_type = get_input_type_for_field(field)
+                    allow_empty = (
+                        selected_option == "name"
+                        and len(menu_state.menu_path) == 3
+                        and menu_state.menu_path[1] == "Channels"
+                        and menu_state.menu_path[2] != "Channel 1"
+                    )
                     new_value = get_text_input(
-                        f"{human_readable_name} is currently: {current_value}", selected_option, input_type
+                        f"{human_readable_name} is currently: {current_value}", selected_option, input_type,
+                        allow_empty=allow_empty,
                     )
                     new_value = current_value if new_value is None else new_value
                     menu_state.start_index.pop()

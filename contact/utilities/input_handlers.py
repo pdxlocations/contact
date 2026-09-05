@@ -38,7 +38,7 @@ def invalid_input(window: curses.window, message: str, redraw_func: Optional[cal
     curses.curs_set(1)
 
 
-def get_text_input(prompt: str, selected_config: str, input_type: str) -> Optional[str]:
+def get_text_input(prompt: str, selected_config: str, input_type: str, *, allow_empty: bool = False) -> Optional[str]:
     """Handles user input with wrapped text for long prompts."""
 
     def redraw_input_win():
@@ -127,6 +127,9 @@ def get_text_input(prompt: str, selected_config: str, input_type: str) -> Option
             menu_state.need_redraw = True
 
             if not user_input.strip():
+                if allow_empty:
+                    user_input = ""
+                    break
                 invalid_input(
                     input_win,
                     t("ui.error.value_empty", default="Value cannot be empty."),
