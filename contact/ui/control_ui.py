@@ -97,6 +97,17 @@ def get_translated_header(menu_path: List[str]) -> str:
     return f"{admin_target_label} | {breadcrumb}" if admin_target_label else breadcrumb
 
 
+def get_settings_option_label(option, field_info, menu_path):
+    if menu_path == ["Main Menu", "Channels"] and isinstance(field_info, dict):
+        name = field_info.get("name", (None, ""))[1]
+        if name:
+            return name
+    full_key = ".".join(transform_menu_path(menu_path) + [option])
+    if len(menu_path) == 3 and menu_path[1] == "Channels" and option == "enabled":
+        return field_mapping.get(full_key, "Enabled")
+    return field_mapping.get(full_key, option)
+
+
 def display_menu() -> tuple[object, object]:
     # if help_win:
     #     min_help_window_height = 6
@@ -140,7 +151,7 @@ def display_menu() -> tuple[object, object]:
         field_info = menu_state.current_menu[option]
         current_value = field_info[1] if isinstance(field_info, tuple) else ""
         full_key = ".".join(transformed_path + [option])
-        display_name = field_mapping.get(full_key, option)
+        display_name = get_settings_option_label(option, field_info, menu_state.menu_path)
 
         if full_key.startswith("config.network.ipv4_config.") and option in {"ip", "gateway", "subnet", "dns"}:
             if isinstance(current_value, int):
@@ -719,7 +730,7 @@ def settings_menu(
                 full_key = ".".join(transformed_path + [selected_option])
 
                 # Fetch human-readable name from field_mapping
-                human_readable_name = field_mapping.get(full_key, selected_option)
+                human_readable_name = get_settings_option_label(selected_option, field_info, menu_state.menu_path)
 
                 if field is None and selected_option in ("ringtone", "messages"):
                     is_ringtone = selected_option == "ringtone"
@@ -779,6 +790,11 @@ def settings_menu(
                     new_value = current_value if new_values is None else [base64.b64decode(key) for key in new_values]
                     menu_state.start_index.pop()
 
+                elif field is None and selected_option == "enabled" and menu_state.menu_path[1] == "Channels":
+                    new_value = get_list_input(human_readable_name, str(current_value), ["True", "False"])
+                    new_value = new_value == "True" or new_value is True
+                    menu_state.start_index.pop()
+
                 elif field.type == 8:  # Handle boolean type
                     new_value = get_list_input(human_readable_name, str(current_value), ["True", "False"])
                     if new_value == "Not Set":
@@ -820,8 +836,15 @@ def settings_menu(
 
                 else:  # Handle other field types
                     input_type = get_input_type_for_field(field)
+                    allow_empty = (
+                        selected_option == "name"
+                        and len(menu_state.menu_path) == 3
+                        and menu_state.menu_path[1] == "Channels"
+                        and menu_state.menu_path[2] != "Channel 1"
+                    )
                     new_value = get_text_input(
-                        f"{human_readable_name} is currently: {current_value}", selected_option, input_type
+                        f"{human_readable_name} is currently: {current_value}", selected_option, input_type,
+                        allow_empty=allow_empty,
                     )
                     new_value = current_value if new_value is None else new_value
                     menu_state.start_index.pop()
