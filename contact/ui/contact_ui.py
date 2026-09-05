@@ -35,6 +35,8 @@ from contact.ui.nav_utils import (
     wrap_text,
     truncate_with_ellipsis,
     pad_to_width,
+    text_width,
+    slice_to_width,
 )
 from contact.utilities.singleton import ui_state, interface_state, menu_state, app_state
 
@@ -43,6 +45,8 @@ MIN_COL = 1  # "effectively zero" without breaking curses
 RESIZE_DEBOUNCE_MS = 250
 root_win = None
 nodes_pad = None
+entry_win = None
+input_text = ""
 
 
 def refresh_log_viewer() -> None:
@@ -243,6 +247,8 @@ def compute_widths(total_w: int, focus: int):
 
 
 def paint_frame(win, selected: bool) -> None:
+    if win is not entry_win and ui_state.input_focused:
+        selected = False
     win.attrset(get_color("window_frame_selected") if selected else get_color("window_frame"))
     win.box()
     win.attrset(get_color("window_frame"))
@@ -491,6 +497,8 @@ def main_ui(stdscr: curses.window) -> None:
 
     root_win = stdscr
     input_text = ""
+    ui_state.input_cursor = 0
+    ui_state.input_focused = False
     queued_char = None
     stdscr.keypad(True)
     get_channels()
@@ -555,8 +563,7 @@ def main_ui(stdscr: curses.window) -> None:
 
         with app_state.lock:
             process_pending_ui_updates(stdscr)
-        entry_display = f"{ui_state.reply_context}{input_text or ''}"
-        draw_text_field(entry_win, f"Message: {entry_display[-(stdscr.getmaxyx()[1] - 10):]}", get_color("input"))
+        draw_message_input(input_text)
 
         # Get user input from entry window
         try:
@@ -596,6 +603,7 @@ def main_ui(stdscr: curses.window) -> None:
 
         elif char in (chr(curses.KEY_ENTER), chr(10), chr(13)):
             input_text = handle_enter(input_text)
+            ui_state.input_cursor = min(ui_state.input_cursor, len(input_text))
 
         elif char in (curses.KEY_F4, chr(20)):  # Ctrl + t and F4 for Traceroute
             handle_ctrl_t(stdscr)
@@ -603,8 +611,13 @@ def main_ui(stdscr: curses.window) -> None:
         elif char == curses.KEY_F5:
             handle_f5_key(stdscr)
 
-        elif char in (curses.KEY_BACKSPACE, chr(127)):
+        elif char in (curses.KEY_BACKSPACE, chr(127), chr(8)):
             input_text = handle_backspace(entry_win, input_text)
+
+        elif char == curses.KEY_DC:
+            focus_message_input()
+            position = ui_state.input_cursor
+            input_text = input_text[:position] + input_text[position + 1:]
 
         elif char in (curses.KEY_F12, "`"):  # ` Launch the settings interface
             handle_backtick(stdscr)
@@ -619,7 +632,6 @@ def main_ui(stdscr: curses.window) -> None:
                 entry_win.erase()
 
         elif char == curses.KEY_RESIZE:
-            input_text = ""
             queued_char = drain_resize_events(entry_win)
             handle_resize(stdscr, False)
             continue
@@ -645,15 +657,66 @@ def main_ui(stdscr: curses.window) -> None:
             break
 
         else:
-            # Append typed character to input text
-            if isinstance(char, str):
-                input_text += char
-            else:
-                input_text += chr(char)
+            if isinstance(char, str) and char.isprintable():
+                input_text = insert_input_text(input_text, char)
+
+
+def focus_message_input() -> None:
+    if ui_state.input_focused:
+        return
+    # Keep the conversation visible in single-pane mode while composing.
+    handle_function_keys(curses.KEY_F2)
+    ui_state.input_focused = True
+    refresh_message_highlight()
+    refresh_main_window(1, selected=False)
+
+
+def leave_message_input() -> None:
+    ui_state.input_focused = False
+    ui_state.current_window = 1
+    refresh_message_highlight()
+    refresh_main_window(1, selected=True)
+
+
+def insert_input_text(draft: str, text: str) -> str:
+    focus_message_input()
+    position = min(ui_state.input_cursor, len(draft))
+    ui_state.input_cursor = position + len(text)
+    return draft[:position] + text + draft[position:]
+
+
+def draw_message_input(draft: str) -> None:
+    """Redraw the whole input row and scroll it to keep the draft cursor visible."""
+    width = entry_win.getmaxyx()[1]
+    prompt = slice_to_width("Message: ", max(0, width - 3))
+    available = max(1, width - 2 - text_width(prompt))
+    ui_state.input_cursor = max(0, min(ui_state.input_cursor, len(draft)))
+    content = ui_state.reply_context + draft
+    cursor = len(ui_state.reply_context) + ui_state.input_cursor
+    start = cursor
+    used = 0
+    while start > 0 and used + text_width(content[start - 1]) < available:
+        start -= 1
+        used += text_width(content[start])
+    visible = slice_to_width(content[start:], available)
+    draw_text_field(entry_win, prompt + visible, get_color("input"))
+    paint_frame(entry_win, selected=ui_state.input_focused)
+    try:
+        hint = " Ctrl+K Help "
+        if width >= len(hint) + 4:
+            entry_win.addstr(0, width - len(hint) - 2, hint, get_color("commands"))
+        curses.curs_set(1 if ui_state.input_focused else 0)
+        entry_win.move(1, min(width - 2, 1 + text_width(prompt) + used))
+    except curses.error:
+        pass
+    entry_win.refresh()
 
 
 def handle_up() -> None:
     """Handle key up events to scroll the current window."""
+    if ui_state.input_focused:
+        leave_message_input()
+        return
     if ui_state.current_window == 0:
         scroll_channels(-1)
     elif ui_state.current_window == 1:
@@ -664,6 +727,9 @@ def handle_up() -> None:
 
 def handle_down() -> None:
     """Handle key down events to scroll the current window."""
+    if ui_state.input_focused:
+        leave_message_input()
+        return
     if ui_state.current_window == 0:
         scroll_channels(1)
     elif ui_state.current_window == 1:
@@ -674,6 +740,9 @@ def handle_down() -> None:
 
 def handle_home() -> None:
     """Handle home key events to select the first item in the current window."""
+    if ui_state.input_focused:
+        ui_state.input_cursor = 0
+        return
     if ui_state.current_window == 0:
         select_channel(0)
     elif ui_state.current_window == 1:
@@ -688,6 +757,9 @@ def handle_home() -> None:
 
 def handle_end() -> None:
     """Handle end key events to select the last item in the current window."""
+    if ui_state.input_focused:
+        ui_state.input_cursor = len(input_text)
+        return
     if ui_state.current_window == 0:
         select_channel(len(ui_state.channel_list) - 1)
     elif ui_state.current_window == 1:
@@ -728,6 +800,9 @@ def handle_pagedown() -> None:
 def handle_leftright(char: int) -> None:
     """Handle left/right key events to switch between windows."""
     delta = -1 if char == curses.KEY_LEFT else 1
+    if ui_state.input_focused:
+        ui_state.input_cursor = max(0, min(len(input_text), ui_state.input_cursor + delta))
+        return
     old_window = ui_state.current_window
     ui_state.current_window = (ui_state.current_window + delta) % 3
     if ui_state.single_pane_mode:
@@ -748,6 +823,8 @@ def handle_leftright(char: int) -> None:
 
 def handle_function_keys(char: int) -> None:
     """Switch windows using F1/F2/F3."""
+    if ui_state.input_focused:
+        leave_message_input()
     if char == curses.KEY_F1:
         target = 0
     elif char == curses.KEY_F2:
@@ -1107,14 +1184,12 @@ def handle_ctrl_t(stdscr: curses.window) -> None:
 
 
 def handle_backspace(entry_win: curses.window, input_text: str) -> str:
-    """Handle backspace key events to remove the last character from input text."""
-    if input_text:
-        input_text = input_text[:-1]
-        y, x = entry_win.getyx()
-        entry_win.move(y, x - 1)
-        entry_win.addch(" ")  #
-        entry_win.move(y, x - 1)
-    entry_win.refresh()
+    """Delete before the draft cursor; the next frame redraws the entire line."""
+    focus_message_input()
+    position = ui_state.input_cursor
+    if position > 0:
+        input_text = input_text[:position - 1] + input_text[position:]
+        ui_state.input_cursor -= 1
     return input_text
 
 
@@ -1596,7 +1671,7 @@ def refresh_message_highlight() -> None:
     previous_range = ui_state.highlighted_message_range
     width = max(0, messages_win.getmaxyx()[1] - 2)
 
-    if not ui_state.channel_list or ui_state.current_window != 1:
+    if not ui_state.channel_list or ui_state.current_window != 1 or ui_state.input_focused:
         if previous_range:
             start, end, color = previous_range
             for row in range(start, end):

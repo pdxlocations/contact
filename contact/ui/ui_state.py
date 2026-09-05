@@ -25,6 +25,8 @@ class ChatUIState:
     selected_message: int = 0
     selected_node: int = 0
     current_window: int = 0
+    input_focused: bool = False
+    input_cursor: int = 0
     last_sent_time: float = 0.0
     last_traceroute_time: float = 0.0
     selected_index: int = 0
