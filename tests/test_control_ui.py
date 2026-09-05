@@ -1,4 +1,5 @@
 from argparse import Namespace
+from contextlib import ExitStack
 from types import SimpleNamespace
 import unittest
 from unittest import mock
@@ -10,6 +11,36 @@ from tests.test_support import reset_singletons
 
 
 class ControlUiTests(unittest.TestCase):
+    def test_channel_list_renders_names_without_changing_slot_keys(self):
+        from meshtastic.protobuf import channel_pb2, config_pb2, module_config_pb2
+        from contact.ui.menus import generate_menu_from_protobuf
+        from contact.utilities.singleton import menu_state
+
+        channels = [channel_pb2.Channel(settings=channel_pb2.ChannelSettings(name=name))
+                    for name in ("Local", "Local", "", "   ")]
+        node = SimpleNamespace(
+            localConfig=config_pb2.Config(), moduleConfig=module_config_pb2.ModuleConfig(),
+            getChannelByChannelIndex=lambda i: channels[i] if i < len(channels) else None,
+        )
+        menu_state.menu_path = ["Main Menu", "Channels"]
+        menu_state.current_menu = generate_menu_from_protobuf(None, node=node)["Main Menu"]["Channels"]
+        win, pad = mock.Mock(), mock.Mock()
+        win.getbegyx.return_value = (2, 2)
+        win.getmaxyx.return_value = (10, 80)
+        with ExitStack() as stack:
+            for name, value in (("LINES", 24), ("COLS", 100)):
+                stack.enter_context(mock.patch.object(control_ui.curses, name, value, create=True))
+            stack.enter_context(mock.patch.object(control_ui.curses, "newwin", return_value=win))
+            stack.enter_context(mock.patch.object(control_ui.curses, "newpad", return_value=pad))
+            stack.enter_context(mock.patch.object(control_ui.curses, "curs_set"))
+            stack.enter_context(mock.patch.object(control_ui, "get_menu_width", return_value=80))
+            for name in ("get_color", "draw_help_window", "draw_arrows"):
+                stack.enter_context(mock.patch.object(control_ui, name, return_value=0))
+            control_ui.display_menu()
+        labels = [call.args[2].strip() for call in pad.addstr.call_args_list]
+        self.assertEqual(labels, ["Local", "Local", "Channel 3", "Channel 4"])
+        self.assertEqual(list(menu_state.current_menu), [f"Channel {i}" for i in range(1, 5)])
+
     def setUp(self) -> None:
         reset_singletons()
 

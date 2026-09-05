@@ -141,6 +141,12 @@ def display_menu() -> tuple[object, object]:
         current_value = field_info[1] if isinstance(field_info, tuple) else ""
         full_key = ".".join(transformed_path + [option])
         display_name = field_mapping.get(full_key, option)
+        if menu_state.menu_path == ["Main Menu", "Channels"] and isinstance(field_info, dict):
+            # Keep slot keys for navigation/saving, but label rows with the
+            # configured name. Empty names retain their slot label.
+            channel_name = field_info.get("name", (None, ""))[1]
+            if isinstance(channel_name, str) and channel_name.strip():
+                display_name = channel_name
 
         if full_key.startswith("config.network.ipv4_config.") and option in {"ip", "gateway", "subnet", "dns"}:
             if isinstance(current_value, int):
