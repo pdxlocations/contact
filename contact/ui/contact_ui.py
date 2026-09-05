@@ -246,13 +246,14 @@ def compute_widths(total_w: int, focus: int):
     return MIN_COL, MIN_COL, total_w - 2 * MIN_COL
 
 
-def paint_frame(win, selected: bool) -> None:
+def paint_frame(win, selected: bool, refresh: bool = True) -> None:
     if win is not entry_win and ui_state.input_focused:
         selected = False
     win.attrset(get_color("window_frame_selected") if selected else get_color("window_frame"))
     win.box()
     win.attrset(get_color("window_frame"))
-    win.refresh()
+    if refresh:
+        win.refresh()
 
 
 def get_channel_row_color(index: int) -> int:
@@ -275,7 +276,7 @@ def get_node_row_color(index: int, highlight: bool = False) -> int:
     return get_color(color, reverse=reverse)
 
 
-def refresh_node_selection(old_index: int = -1, highlight: bool = False) -> None:
+def refresh_node_selection(old_index: int = -1, highlight: bool = False, refresh: bool = True) -> None:
     if nodes_pad is None or not ui_state.node_list:
         return
 
@@ -294,8 +295,9 @@ def refresh_node_selection(old_index: int = -1, highlight: bool = False) -> None
             pass
 
     ui_state.start_index[2] = max(0, ui_state.selected_node - (nodes_win.getmaxyx()[0] - 3))
-    refresh_pad(2)
-    draw_window_arrows(2)
+    if refresh:
+        refresh_pad(2)
+        draw_window_arrows(2)
 
 
 def refresh_main_window(window_id: int, selected: bool) -> None:
@@ -306,7 +308,7 @@ def refresh_main_window(window_id: int, selected: bool) -> None:
             channel_pad.chgat(ui_state.selected_channel, 1, width, get_channel_row_color(ui_state.selected_channel))
         refresh_pad(0)
     elif window_id == 1:
-        paint_frame(messages_win, selected=selected)
+        paint_frame(messages_win, selected=selected, refresh=False)
         refresh_pad(1)
     elif window_id == 2:
         paint_frame(nodes_win, selected=selected)
@@ -700,7 +702,7 @@ def draw_message_input(draft: str) -> None:
         used += text_width(content[start])
     visible = slice_to_width(content[start:], available)
     draw_text_field(entry_win, prompt + visible, get_color("input"))
-    paint_frame(entry_win, selected=ui_state.input_focused)
+    paint_frame(entry_win, selected=ui_state.input_focused, refresh=False)
     try:
         hint = " Ctrl+K Help "
         if width >= len(hint) + 4:
@@ -935,6 +937,28 @@ def handle_enter(input_text: str) -> str:
     return input_text
 
 
+def stage_node_details_background(stdscr, previous_window):
+    """Restore the panes behind a moved dialog without displaying an intermediate frame."""
+    current_window = ui_state.current_window
+    try:
+        ui_state.current_window = previous_window
+        stdscr.touchwin()
+        stdscr.noutrefresh()
+        windows = (channel_win, messages_win, nodes_win)
+        for index, win in enumerate(windows):
+            if ui_state.single_pane_mode and index != previous_window:
+                continue
+            win.touchwin()
+            refresh_pad(index, commit=False)
+        if ui_state.display_log and (not ui_state.single_pane_mode or previous_window == 1):
+            packetlog_win.touchwin()
+            packetlog_win.noutrefresh()
+        entry_win.touchwin()
+        entry_win.noutrefresh()
+    finally:
+        ui_state.current_window = current_window
+
+
 def handle_f5_key(stdscr: curses.window) -> None:
     if not ui_state.node_list:
         return
@@ -1032,6 +1056,7 @@ def handle_f5_key(stdscr: curses.window) -> None:
     ui_state.current_window = 4
     scroll_offset = 0
     dialog_win = None
+    previous_layout = None
 
     curses.curs_set(0)
     refresh_node_selection(highlight=True)
@@ -1051,11 +1076,15 @@ def handle_f5_key(stdscr: curses.window) -> None:
             max_scroll = max(0, len(message_lines) - viewport_h)
             scroll_offset = max(0, min(scroll_offset, max_scroll))
 
+            layout = (dialog_height, dialog_width, y, x, ui_state.selected_node, height, width)
+            if previous_layout is not None and layout != previous_layout:
+                stage_node_details_background(stdscr, previous_window)
+            previous_layout = layout
+
             if dialog_win is None:
                 dialog_win = curses.newwin(dialog_height, dialog_width, y, x)
             else:
                 dialog_win.erase()
-                dialog_win.refresh()
                 dialog_win.resize(dialog_height, dialog_width)
                 dialog_win.mvwin(y, x)
 
@@ -1100,7 +1129,7 @@ def handle_f5_key(stdscr: curses.window) -> None:
             except curses.error:
                 pass
 
-            dialog_win.refresh()
+            dialog_win.noutrefresh()
             msg_win.noutrefresh()
             curses.doupdate()
 
@@ -1120,12 +1149,12 @@ def handle_f5_key(stdscr: curses.window) -> None:
                 old_selected_node = ui_state.selected_node
                 ui_state.selected_node = (ui_state.selected_node - 1) % len(ui_state.node_list)
                 scroll_offset = 0
-                refresh_node_selection(old_selected_node, highlight=True)
+                refresh_node_selection(old_selected_node, highlight=True, refresh=False)
             elif char == curses.KEY_DOWN:
                 old_selected_node = ui_state.selected_node
                 ui_state.selected_node = (ui_state.selected_node + 1) % len(ui_state.node_list)
                 scroll_offset = 0
-                refresh_node_selection(old_selected_node, highlight=True)
+                refresh_node_selection(old_selected_node, highlight=True, refresh=False)
             elif char == curses.KEY_PPAGE:
                 scroll_offset = max(0, scroll_offset - viewport_h)
             elif char == curses.KEY_NPAGE:
@@ -1642,7 +1671,7 @@ def draw_messages_window(scroll_to_bottom: bool = False, preserve_selection: boo
             messages_pad.addstr(row, 1, line, color)
         ui_state.message_line_ranges[channel] = message_ranges
 
-    paint_frame(messages_win, selected=(ui_state.current_window == 1))
+    paint_frame(messages_win, selected=(ui_state.current_window == 1), refresh=False)
 
     visible_lines = get_msg_window_lines(messages_win, packetlog_win)
 
@@ -1657,7 +1686,6 @@ def draw_messages_window(scroll_to_bottom: bool = False, preserve_selection: boo
 
     refresh_message_highlight()
 
-    messages_win.refresh()
     refresh_pad(1)
     draw_packetlog_win()
     draw_window_arrows(1)
@@ -1987,7 +2015,7 @@ def search(win: int) -> None:
     entry_win.erase()
 
 
-def refresh_pad(window: int) -> None:
+def refresh_pad(window: int, commit: bool = True) -> None:
 
     # If in single-pane mode and this isn't the focused window, skip refreshing its (collapsed) pad
     if ui_state.single_pane_mode and window != ui_state.current_window:
@@ -2004,7 +2032,7 @@ def refresh_pad(window: int) -> None:
 
         if ui_state.display_log:
             packetlog_win.box()
-            packetlog_win.refresh()
+            packetlog_win.noutrefresh()
 
     elif window == 2:
         pad = nodes_pad
@@ -2047,9 +2075,12 @@ def refresh_pad(window: int) -> None:
         return
 
     draw_frame_title(box, get_window_title(window))
-    box.refresh()
+    box.noutrefresh()
 
-    pad.refresh(
+    # The frame overlaps the pad's viewport. Recompose even unchanged pad
+    # rows before committing, so its text cannot flash blank between draws.
+    pad.touchwin()
+    pad.noutrefresh(
         start_index,
         0,
         top,
@@ -2057,6 +2088,8 @@ def refresh_pad(window: int) -> None:
         bottom,
         right,
     )
+    if commit:
+        curses.doupdate()
 
 
 def add_notification(channel_number: int) -> None:
