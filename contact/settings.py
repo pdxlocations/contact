@@ -36,7 +36,7 @@ def main(stdscr: curses.window) -> None:
 
             parser = setup_parser()
             args = parser.parse_args()
-            interface = initialize_interface(args)
+            interface = initialize_interface(args, status_callback=lambda status: draw_splash(stdscr, status))
 
             if interface.localNode.localConfig.lora.region == 0:
                 confirmation = get_list_input(

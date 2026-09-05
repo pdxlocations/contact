@@ -121,7 +121,7 @@ def interface_is_ready(interface: object) -> bool:
 
 def initialize_runtime_interface_with_retry(stdscr: curses.window, args: object):
     while True:
-        interface = initialize_runtime_interface(args)
+        interface = initialize_runtime_interface(args, stdscr)
         if getattr(args, "demo_screenshot", False) or interface_is_ready(interface):
             return interface
 
@@ -162,10 +162,12 @@ def initialize_globals(seed_demo: bool = False) -> None:
     load_messages_from_db()
 
 
-def initialize_runtime_interface(args: object):
+def initialize_runtime_interface(args: object, stdscr=None):
     if getattr(args, "demo_screenshot", False):
         configure_demo_database()
         return build_demo_interface()
+    if stdscr is not None:
+        return initialize_interface(args, status_callback=lambda status: draw_splash(stdscr, status))
     return initialize_interface(args)
 
 

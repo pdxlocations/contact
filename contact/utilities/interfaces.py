@@ -1,4 +1,6 @@
 import logging
+import contextlib
+import io
 import time
 import meshtastic.serial_interface, meshtastic.tcp_interface, meshtastic.ble_interface
 
@@ -25,7 +27,7 @@ def interface_is_connected(interface) -> bool:
     return getattr(interface, "localNode", None) is not None
 
 
-def initialize_interface(args):
+def initialize_interface(args, status_callback=None):
     try:
 
         if args.ble:
@@ -43,7 +45,10 @@ def initialize_interface(args):
                 logging.error(f"Error connecting to {args.host}. {ex}")
         else:
             try:
-                client = meshtastic.serial_interface.SerialInterface(args.port)
+                # The library prints its fallback notice directly to stdout,
+                # which would overwrite the curses splash screen.
+                with contextlib.redirect_stdout(io.StringIO()):
+                    client = meshtastic.serial_interface.SerialInterface(args.port)
             except FileNotFoundError as ex:
                 logging.error(f"The serial device at '{args.port}' was not found. {ex}")
             except PermissionError as ex:
@@ -56,6 +61,8 @@ def initialize_interface(args):
                 logging.error(f"The serial device couldn't be opened, it might be in use by another process. {ex}")
             if client.devPath is None:
                 try:
+                    if status_callback:
+                        status_callback("No serial device found.\nConnecting via TCP to localhost…")
                     client = meshtastic.tcp_interface.TCPInterface("localhost")
                 except Exception as ex:
                     logging.error(f"Error connecting to localhost:{ex}")
