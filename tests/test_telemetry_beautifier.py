@@ -25,3 +25,9 @@ class TelemetryBeautifierTests(unittest.TestCase):
             rendered = get_chunks("time:0\n")
 
         self.assertIn("🕔 01.01.1970 00:00", rendered)
+
+    def test_get_chunks_normalizes_keys_and_preserves_unknown_strings(self) -> None:
+        rendered = get_chunks('  uptime_seconds: 7200\nunknown: "v1.2:ok"\n')
+
+        self.assertIn("🆙 2.0h", rendered)
+        self.assertIn('unknown:"v1.2:ok"', rendered)

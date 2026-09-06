@@ -1,7 +1,7 @@
 import unittest
 from unittest import mock
 
-from meshtastic.protobuf import config_pb2
+from meshtastic.protobuf import config_pb2, mesh_pb2, telemetry_pb2
 
 import contact.ui.default_config as config
 from contact.utilities.demo_data import DEMO_LOCAL_NODE_NUM, build_demo_interface
@@ -19,6 +19,45 @@ from tests.test_support import reset_singletons, restore_config, snapshot_config
 
 
 class UtilsTests(unittest.TestCase):
+    def test_parse_protobuf_beautifies_local_stats(self) -> None:
+        telemetry = telemetry_pb2.Telemetry(time=1788677531)
+        telemetry.local_stats.uptime_seconds = 7200
+        telemetry.local_stats.channel_utilization = 2.90333319
+        telemetry.local_stats.num_packets_tx = 12
+        telemetry.local_stats.num_packets_rx_bad = 3
+        telemetry.local_stats.num_online_nodes = 4
+        telemetry.local_stats.heap_free_bytes = 1024
+
+        rendered = parse_protobuf({"decoded": {
+            "portnum": "TELEMETRY_APP", "payload": telemetry.SerializeToString(),
+        }})
+
+        self.assertIn("🆙 2.0h", rendered)
+        self.assertIn("ChUtil:2.9%", rendered)
+        self.assertIn("📤 Tx:12", rendered)
+        self.assertIn("⚠️ RxBad:3", rendered)
+        self.assertIn("📡 Online:4", rendered)
+        self.assertIn("💾 Free:1024B", rendered)
+        self.assertNotIn("local_stats", rendered)
+
+    def test_parse_protobuf_beautifies_position_details(self) -> None:
+        position = mesh_pb2.Position(
+            latitude_i=454230020, longitude_i=-1228472320,
+            location_source=mesh_pb2.Position.LOC_INTERNAL,
+            ground_speed=2, ground_track=9000, PDOP=211, sats_in_view=8,
+        )
+        rendered = parse_protobuf({"decoded": {
+            "portnum": "POSITION_APP", "payload": position.SerializeToString(),
+        }})
+
+        self.assertIn("🌍 45.423002", rendered)
+        self.assertIn("-122.847232", rendered)
+        self.assertIn("📍 LOC_INTERNAL", rendered)
+        self.assertIn("💨 2m/s", rendered)
+        self.assertIn("🧭 90.0°", rendered)
+        self.assertIn("🎯 PDOP:2.11", rendered)
+        self.assertIn("🛰️ 8", rendered)
+
     def setUp(self) -> None:
         reset_singletons()
         _get_modem_preset_name.cache_clear()

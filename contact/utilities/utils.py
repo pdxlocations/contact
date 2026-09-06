@@ -296,6 +296,9 @@ def parse_protobuf(packet: dict) -> Union[str, dict]:
                 if hasattr(pb, "environment_metrics") and pb.HasField("environment_metrics"):
                     return tb.get_chunks(str(pb.environment_metrics))
 
+                if hasattr(pb, "local_stats") and pb.HasField("local_stats"):
+                    return tb.get_chunks(str(pb.local_stats))
+
                 # For other data, without implemented beautification, fallback to just printing the object
                 return str(pb).replace("\n", " ").replace("\r", " ").strip()
 

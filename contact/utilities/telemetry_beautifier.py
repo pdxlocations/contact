@@ -13,9 +13,29 @@ sensors = {
     'channel_utilization': {'icon':'ChUtil:', 'unit':'%'},
     'air_util_tx': {'icon':'AirUtil:', 'unit':'%'},
     'uptime_seconds': {'icon':'🆙 ', 'unit':'h'},
+    'num_packets_tx': {'icon':'📤 Tx:', 'unit':''},
+    'num_packets_rx': {'icon':'📥 Rx:', 'unit':''},
+    'num_packets_rx_bad': {'icon':'⚠️ RxBad:', 'unit':''},
+    'num_online_nodes': {'icon':'📡 Online:', 'unit':''},
+    'num_total_nodes': {'icon':'📡 Total:', 'unit':''},
+    'num_rx_dupe': {'icon':'📥 Dupe:', 'unit':''},
+    'num_tx_relay': {'icon':'📤 Relay:', 'unit':''},
+    'num_tx_relay_canceled': {'icon':'📤 Canceled:', 'unit':''},
+    'num_tx_dropped': {'icon':'⚠️ Dropped:', 'unit':''},
+    'heap_total_bytes': {'icon':'💾 Total:', 'unit':'B'},
+    'heap_free_bytes': {'icon':'💾 Free:', 'unit':'B'},
+    'noise_floor': {'icon':'📶 Noise:', 'unit':'dBm'},
     'latitude_i': {'icon':'🌍 ', 'unit':''},
     'longitude_i': {'icon':'', 'unit':''},
     'altitude': {'icon':'⬆️  ', 'unit':'m'},
+    'location_source': {'icon':'📍 ', 'unit':''},
+    'altitude_source': {'icon':'⬆️ Source:', 'unit':''},
+    'ground_speed': {'icon':'💨 ', 'unit':'m/s'},
+    'ground_track': {'icon':'🧭 ', 'unit':'°'},
+    'PDOP': {'icon':'🎯 PDOP:', 'unit':''},
+    'HDOP': {'icon':'🎯 HDOP:', 'unit':''},
+    'VDOP': {'icon':'🎯 VDOP:', 'unit':''},
+    'sats_in_view': {'icon':'🛰️ ', 'unit':''},
     'time': {'icon':'🕔 ', 'unit':''}
 }
 
@@ -55,18 +75,20 @@ def get_chunks(data):
     parsed=""
 
     for item in reading:
-        key, value = item.split(":")
+        key, value = item.split(":", 1)
+        key = key.strip()
+        value = value.strip()
 
         # If value is float, round it to the 1 digit after point
         # else make it int
-        if "." in value:
-            value = round(float(value.strip()),1)
-        else:
+        try:
+            value = int(value)
+        except ValueError:
             try:
-                value = int(value.strip())
-            except Exception:
-                # Leave it string as last resort
-                value = value
+                value = round(float(value), 1)
+            except ValueError:
+                # Leave nonnumeric values intact, including strings with periods.
+                pass
 
         # Python 3.9-compatible alternative to match/case.
         if key == "uptime_seconds":
@@ -79,6 +101,10 @@ def get_chunks(data):
         elif key == "wind_direction":
             # Convert wind direction from degrees to abbreviation
             value = humanize_wind_direction(value)
+        elif key in ("PDOP", "HDOP", "VDOP"):
+            value = round(value / 100, 2)
+        elif key == "ground_track":
+            value = round(value / 100, 2)
         elif key == "time":
             value = datetime.datetime.fromtimestamp(int(value)).strftime("%d.%m.%Y %H:%m")
 
