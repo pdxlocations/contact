@@ -5,7 +5,7 @@ from collections import OrderedDict
 from typing import Any, Union, Dict
 
 from google.protobuf.message import Message
-from meshtastic.protobuf import channel_pb2, config_pb2, module_config_pb2
+from meshtastic.protobuf import admin_pb2, channel_pb2, config_pb2, module_config_pb2
 
 def encode_if_bytes(value: Any) -> str:
     """Encode byte values to base64 string."""
@@ -57,6 +57,38 @@ def extract_fields(
     return menu
 
 
+def update_ham_fields(user_menu, node):
+    """Reflect the selected license flag using the installed HAM descriptors."""
+    params = admin_pb2.HamParameters()
+    fields = params.DESCRIPTOR.fields_by_name
+    licensed = user_menu.get("isLicensed", (None, False))[1] in (True, "True")
+    if not licensed:
+        call_sign = user_menu.get("call_sign", (None, ""))[1]
+        suffix = user_menu.get("long_name", (None, ""))[1]
+        user_menu.setdefault("longName", (None, " ".join(filter(None, (call_sign, suffix)))))
+        user_menu.setdefault("shortName", (None, user_menu.get("short_name", (None, ""))[1]))
+        for name in fields:
+            user_menu.pop(name, None)
+        return
+
+    owner_name = user_menu.get("longName", (None, ""))[1]
+    call_sign, _, suffix = owner_name.partition(" ")
+    defaults = {
+        "call_sign": call_sign,
+        "short_name": user_menu.get("shortName", (None, ""))[1],
+        "long_name": suffix,
+        "tx_power": node.localConfig.lora.tx_power,
+        "frequency": node.localConfig.lora.override_frequency,
+    }
+    for field in params.DESCRIPTOR.fields:
+        if field.name in defaults:
+            setattr(params, field.name, defaults[field.name])
+    for name, setting in extract_fields(params, params).items():
+        user_menu.setdefault(name, setting)
+    user_menu.pop("longName", None)
+    user_menu.pop("shortName", None)
+
+
 def generate_menu_from_protobuf(interface: object, node: Any = None, include_app_settings: bool = True) -> Dict[str, Any]:
     """
     Builds the full settings menu structure from the protobuf definitions.
@@ -78,6 +110,7 @@ def generate_menu_from_protobuf(interface: object, node: Any = None, include_app
                 "isLicensed": (None, current_user_config.get("isLicensed", "False")),
                 "isUnmessagable": (None, current_user_config.get("isUnmessagable", "False")),
             }
+            update_ham_fields(menu_structure["Main Menu"]["User Settings"], node)
         else:
             logging.info("User settings not found in Node Info")
             menu_structure["Main Menu"]["User Settings"] = "No user settings available"
