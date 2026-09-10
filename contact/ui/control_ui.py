@@ -25,7 +25,7 @@ from contact.utilities.input_handlers import (
 )
 from contact.ui.colors import get_color
 from contact.ui.dialog import dialog
-from contact.ui.menus import generate_menu_from_protobuf
+from contact.ui.menus import generate_menu_from_protobuf, update_ham_fields
 from contact.ui.nav_utils import move_highlight, draw_arrows, update_help_window
 from contact.ui.user_config import json_editor
 from contact.utilities.arg_parser import setup_parser
@@ -360,6 +360,14 @@ def _request_remote_section(
         _request_remote_channels_with_timeout(node, cancel_callback=cancel_callback)
         return True
 
+    if menu_path == ["Main Menu"] and selected_option == "User Settings":
+        # HAM inputs derive their initial power/frequency from this node's LoRa config.
+        field = node.localConfig.DESCRIPTOR.fields_by_name["lora"]
+        if status_callback:
+            status_callback("Requesting lora config…")
+        _request_remote_with_timeout(node.requestConfig, field, cancel_callback=cancel_callback)
+        return True
+
     if len(menu_path) != 2:
         return False
 
@@ -508,6 +516,7 @@ def settings_menu(
                     break
                 if reconnect_required:
                     interface = reconnect_interface_with_splash(stdscr, interface)
+                    node = interface.localNode
                     menu = generate_menu_from_protobuf(interface, node=node, include_app_settings=not remote)
 
                 if len(menu_state.menu_path) > 1:
@@ -762,9 +771,6 @@ def settings_menu(
                         new_value = new_value == "True"
                         menu_state.current_menu[selected_option] = (field, new_value)
 
-                    for option, (field, value) in menu_state.current_menu.items():
-                        modified_settings[option] = value
-
                     menu_state.start_index.pop()
 
                 elif selected_option in ["latitude", "longitude", "altitude"]:
@@ -832,6 +838,9 @@ def settings_menu(
                 else:  # Handle other field types
                     input_type = get_input_type_for_field(field)
                     allow_empty = (
+                        menu_state.menu_path == ["Main Menu", "User Settings"]
+                        and selected_option in ("short_name", "long_name")
+                    ) or (
                         selected_option == "name"
                         and len(menu_state.menu_path) == 3
                         and menu_state.menu_path[1] == "Channels"
@@ -863,6 +872,12 @@ def settings_menu(
                     new_value = enum_value_descriptor.name if enum_value_descriptor else new_value
 
                 menu_state.current_menu[selected_option] = (field, new_value)
+                if menu_state.menu_path == ["Main Menu", "User Settings"]:
+                    update_ham_fields(menu_state.current_menu, node)
+                    # Save the full HAM command, including fields that were not edited.
+                    modified_settings.clear()
+                    modified_settings.update({name: setting[1] for name, setting in menu_state.current_menu.items()})
+                    menu_state.selected_index = list(menu_state.current_menu).index(selected_option)
             else:
                 requested_remote_section = False
                 if remote:

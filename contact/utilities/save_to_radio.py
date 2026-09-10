@@ -1,4 +1,4 @@
-from meshtastic.protobuf import channel_pb2
+from meshtastic.protobuf import admin_pb2, channel_pb2
 from google.protobuf.message import Message
 import logging
 import base64
@@ -138,6 +138,21 @@ def save_changes(interface, modified_settings, menu_state, node=None):
             is_licensed = is_licensed == "True" or is_licensed is True  # Normalize boolean
             if is_unmessagable is not None:
                 is_unmessagable = is_unmessagable == "True" or is_unmessagable is True
+
+            if is_licensed and "call_sign" in modified_settings:
+                message = admin_pb2.AdminMessage()
+                for field in message.set_ham_mode.DESCRIPTOR.fields:
+                    if field.name in modified_settings:
+                        setattr(message.set_ham_mode, field.name, modified_settings[field.name])
+                node.ensureSessionKey()
+                # Keep the separate user flag and HAM command in one settings transaction.
+                node.beginSettingsTransaction()
+                if is_unmessagable is not None:
+                    node.setOwner(None, None, True, is_unmessagable)
+                callback = None if node is interface.localNode else node.onAckNak
+                node._sendAdmin(message, onResponse=callback)
+                node.commitSettingsTransaction()
+                return True
 
             node.setOwner(long_name, short_name, is_licensed, is_unmessagable)
 
