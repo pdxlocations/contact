@@ -971,7 +971,10 @@ def handle_f5_key(stdscr: curses.window) -> None:
         message_parts.append(f"• Device: {node.get('user', {}).get('longName', 'Unknown')}")
         message_parts.append(f"• Short name: {node.get('user', {}).get('shortName', 'Unknown')}")
         message_parts.append(f"• Hardware: {node.get('user', {}).get('hwModel', 'Unknown')}")
-        message_parts.append(f"• Role: {node.get('user', {}).get('role', 'Unknown')}")
+        user = node.get('user', {})
+        # Protobuf dictionaries omit CLIENT because it is the default enum value.
+        role = user.get('role', 'CLIENT') if user else 'Unknown'
+        message_parts.append(f"• Role: {role}")
         message_parts.append(f"Public key: {node.get('user', {}).get('publicKey')}")
         message_parts.append(f"• Node ID: {node.get('num', 'Unknown')}")
 
