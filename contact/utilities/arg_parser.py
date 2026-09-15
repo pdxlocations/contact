@@ -1,4 +1,10 @@
 from argparse import ArgumentParser
+from importlib.metadata import version, PackageNotFoundError
+
+try:
+    __version__ = version("contact")
+except PackageNotFoundError:
+    __version__ = "dev"
 
 
 def setup_parser() -> ArgumentParser:
@@ -6,6 +12,7 @@ def setup_parser() -> ArgumentParser:
         add_help=True,
         epilog="If no connection arguments are specified, we attempt a serial connection and then a TCP connection to localhost.",
     )
+    parser.add_argument("--version", "-V", action="version", version=__version__)
 
     connOuter = parser.add_argument_group(
         "Connection", "Optional arguments to specify a device to connect to and how."
