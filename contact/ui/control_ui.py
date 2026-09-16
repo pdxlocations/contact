@@ -3,7 +3,6 @@ import curses
 import ipaddress
 import logging
 import os
-import sys
 import threading
 import time
 from typing import List

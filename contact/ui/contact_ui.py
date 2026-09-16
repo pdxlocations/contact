@@ -12,7 +12,6 @@ from contact.utilities.utils import (
     get_readable_duration,
     get_time_ago,
     refresh_node_list,
-    add_new_message,
     build_reply_prefix,
 )
 from contact.ui.control_ui import settings_menu
@@ -34,7 +33,6 @@ from contact.ui.nav_utils import (
     get_msg_window_lines,
     wrap_text,
     truncate_with_ellipsis,
-    pad_to_width,
     text_width,
     slice_to_width,
 )
@@ -232,18 +230,6 @@ def draw_window_arrows(window_id: int) -> None:
         draw_main_arrows(nodes_win, len(ui_state.node_list), window=2)
         nodes_win.refresh()
 
-
-def compute_widths(total_w: int, focus: int):
-    # focus: 0=channel, 1=messages, 2=nodes
-    if total_w < 3 * MIN_COL:
-        # tiny terminals: allocate something, anything
-        return max(1, total_w), 0, 0
-
-    if focus == 0:
-        return total_w - 2 * MIN_COL, MIN_COL, MIN_COL
-    if focus == 1:
-        return MIN_COL, total_w - 2 * MIN_COL, MIN_COL
-    return MIN_COL, MIN_COL, total_w - 2 * MIN_COL
 
 
 def paint_frame(win, selected: bool, refresh: bool = True) -> None:
@@ -1865,20 +1851,6 @@ def move_message_selection(direction: int) -> None:
 
     start, end, _color = ranges[current_index]
     set_message_selection(end - 1 if current_index == len(ranges) - 1 else start)
-
-
-def select_last_message() -> None:
-    """Select and reveal the newest message in the active channel."""
-    if not ui_state.channel_list:
-        return
-
-    channel = ui_state.channel_list[ui_state.selected_channel]
-    ranges = ui_state.message_line_ranges.get(channel, [])
-    if ranges:
-        _start, end, _color = ranges[-1]
-        set_message_selection(end - 1)
-    else:
-        set_message_selection(0)
 
 
 def select_node(idx: int) -> None:

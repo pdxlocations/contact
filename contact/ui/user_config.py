@@ -626,7 +626,6 @@ def save_json(file_path: str, data: Dict[str, Any]) -> None:
 
 
 def main(stdscr: curses.window) -> None:
-    from contact.ui.ui_state import MenuState
 
     if len(menu_state.menu_path) == 0:
         menu_state.menu_path = ["App Settings"]  # Initialize if not set

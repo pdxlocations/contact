@@ -3,11 +3,11 @@ import logging
 import re
 import time
 from functools import lru_cache
-from typing import Optional, Union
+from typing import Union
 from google.protobuf.message import DecodeError
 
 from meshtastic import protocols
-from meshtastic.protobuf import config_pb2, mesh_pb2, portnums_pb2
+from meshtastic.protobuf import config_pb2, portnums_pb2
 import contact.ui.default_config as config
 from contact.utilities.singleton import ui_state, interface_state
 import contact.utilities.telemetry_beautifier as tb

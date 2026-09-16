@@ -6,7 +6,6 @@ from typing import Dict, List, Tuple, Union
 
 import contact.ui.default_config as config
 from contact.utilities.db_handler import get_table_name
-from contact.utilities.singleton import interface_state
 
 
 DEMO_DB_FILENAME = "contact_demo_client.db"
