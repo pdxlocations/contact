@@ -1,23 +1,19 @@
 from argparse import ArgumentParser
-from importlib.metadata import version, PackageNotFoundError
 
-try:
-    __version__ = version("contact")
-except PackageNotFoundError:
-    __version__ = "dev"
+from contact.version import __version__
 
 
 def setup_parser() -> ArgumentParser:
     parser = ArgumentParser(
-        add_help=True,
+        description="A terminal client for Meshtastic messaging and node settings.",
         epilog="If no connection arguments are specified, we attempt a serial connection and then a TCP connection to localhost.",
     )
-    parser.add_argument("--version", "-V", action="version", version=__version__)
+    parser.add_argument("--version", "-V", action="version", version="%(prog)s " + __version__)
 
-    connOuter = parser.add_argument_group(
+    connection_group = parser.add_argument_group(
         "Connection", "Optional arguments to specify a device to connect to and how."
     )
-    conn = connOuter.add_mutually_exclusive_group()
+    conn = connection_group.add_mutually_exclusive_group()
     conn.add_argument(
         "--port",
         "--serial",

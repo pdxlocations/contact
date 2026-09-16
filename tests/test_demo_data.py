@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from unittest import mock
 
-import contact.__main__ as entrypoint
+import contact.runtime as entrypoint
 import contact.ui.default_config as config
 from contact.utilities.db_handler import get_name_from_database
 from contact.utilities.demo_data import DEMO_CHANNELS, DEMO_LOCAL_NODE_NUM, build_demo_interface, configure_demo_database

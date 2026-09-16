@@ -91,8 +91,16 @@ Optional arguments to specify a device to connect to and how.
 - `--host`, `--tcp`, `-t`: The hostname or IP address to connect to using TCP, will default to localhost if no host is passed.
 - `--ble`, `-b`: The BLE device MAC address or name to connect to.
 - `--settings`, `--set`, `--control`, `-c`: Launch directly into the settings.
+- `--help`, `-h`: Show usage and available options, then exit.
+- `--version`, `-V`: Show the application version, then exit.
 
 If no connection arguments are specified, the client will attempt a serial connection and then a TCP connection to localhost.
+
+Choose at most one connection type. Connection options also apply to control mode,
+for example `contact --control --host mesh.local`. The standalone
+`python -m contact.settings` command accepts the same options. Help and version
+exit with status 0; invalid arguments print an error to stderr and exit with
+status 2 before starting the UI.
 
 ### Example Usage
 

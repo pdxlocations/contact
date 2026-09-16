@@ -68,3 +68,4 @@ class InterfaceState:
 @dataclass
 class AppState:
     lock: Any = None
+    connection_args: Any = None

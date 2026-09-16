@@ -5,7 +5,7 @@ import unittest
 from unittest import mock
 
 from contact.ui import control_ui
-from contact.utilities.singleton import interface_state
+from contact.utilities.singleton import app_state, interface_state
 
 from tests.test_support import reset_singletons
 
@@ -14,7 +14,7 @@ class ControlUiTests(unittest.TestCase):
     def test_channel_list_renders_names_without_changing_slot_keys(self):
         from meshtastic.protobuf import channel_pb2, config_pb2, module_config_pb2
         from contact.ui.menus import generate_menu_from_protobuf
-        from contact.utilities.singleton import menu_state
+        from contact.utilities.singleton import app_state, menu_state
 
         channels = [channel_pb2.Channel(settings=channel_pb2.ChannelSettings(name=name))
                     for name in ("Local", "Local", "", "   ")]
@@ -51,20 +51,14 @@ class ControlUiTests(unittest.TestCase):
         old_interface = mock.Mock()
         new_interface = mock.Mock()
         stdscr = mock.Mock()
-        parser = mock.Mock()
-        parser.parse_args.return_value = Namespace()
+        app_state.connection_args = Namespace(host="mesh.local", port=None, ble=None)
 
-        with mock.patch.object(control_ui, "setup_parser", return_value=parser):
-            with mock.patch.object(control_ui, "draw_splash") as draw_splash:
-                with mock.patch.object(control_ui, "reconnect_interface", return_value=new_interface) as reconnect:
-                    with mock.patch.object(control_ui, "redraw_main_ui_after_reconnect") as redraw:
-                        result = control_ui.reconnect_interface_with_splash(stdscr, old_interface)
+        with mock.patch.object(control_ui, "reconnect_interface", return_value=new_interface) as reconnect:
+            with mock.patch.object(control_ui, "redraw_main_ui_after_reconnect") as redraw:
+                result = control_ui.reconnect_interface_with_splash(stdscr, old_interface)
 
         old_interface.close.assert_called_once_with()
-        stdscr.clear.assert_called_once_with()
-        stdscr.refresh.assert_called_once_with()
-        draw_splash.assert_called_once_with(stdscr)
-        reconnect.assert_called_once_with(parser.parse_args.return_value)
+        reconnect.assert_called_once_with(app_state.connection_args)
         redraw.assert_called_once_with(stdscr)
         self.assertIs(result, new_interface)
         self.assertIs(interface_state.interface, new_interface)

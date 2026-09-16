@@ -28,8 +28,7 @@ from contact.ui.dialog import dialog
 from contact.ui.menus import generate_menu_from_protobuf, update_ham_fields
 from contact.ui.nav_utils import move_highlight, draw_arrows, update_help_window
 from contact.ui.user_config import json_editor
-from contact.utilities.arg_parser import setup_parser
-from contact.utilities.singleton import interface_state, menu_state
+from contact.utilities.singleton import app_state, interface_state, menu_state
 
 # Setup Variables
 MAX_MENU_WIDTH = 80  # desired max; will shrink on small terminals
@@ -246,7 +245,7 @@ def reconnect_interface_with_splash(stdscr: object, interface: object) -> object
     except Exception:
         pass
 
-    new_interface = reconnect_interface(setup_parser().parse_args())
+    new_interface = reconnect_interface(app_state.connection_args)
     interface_state.interface = new_interface
     redraw_main_ui_after_reconnect(stdscr)
     return new_interface

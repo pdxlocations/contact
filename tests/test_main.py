@@ -3,7 +3,7 @@ from types import SimpleNamespace
 import unittest
 from unittest import mock
 
-import contact.__main__ as entrypoint
+import contact.runtime as entrypoint
 import contact.ui.default_config as config
 from contact.utilities.singleton import interface_state, ui_state
 
@@ -59,7 +59,7 @@ class MainRuntimeTests(unittest.TestCase):
         self.assertIs(result, good_interface)
         get_list_input.assert_called_once()
         bad_interface.close.assert_called_once_with()
-        draw_splash.assert_called_once_with(stdscr, version_str=entrypoint.__version__)
+        draw_splash.assert_called_once_with(stdscr)
 
     def test_initialize_runtime_interface_with_retry_returns_none_when_user_closes(self) -> None:
         args = Namespace(demo_screenshot=False)
@@ -91,7 +91,7 @@ class MainRuntimeTests(unittest.TestCase):
 
         set_region.assert_called_once_with(old_interface)
         old_interface.close.assert_called_once_with()
-        draw_splash.assert_called_once_with(stdscr, version_str=entrypoint.__version__)
+        draw_splash.assert_called_once_with(stdscr)
         reconnect.assert_called_once_with(args)
         self.assertIs(interface_state.interface, new_interface)
 
@@ -162,28 +162,15 @@ class MainRuntimeTests(unittest.TestCase):
         stdscr.clear.assert_called_once_with()
         stdscr.refresh.assert_called_once_with()
 
-    def test_start_prints_help_and_exits_zero(self) -> None:
-        parser = mock.Mock()
-
-        with mock.patch.object(entrypoint.sys, "argv", ["contact", "--help"]):
-            with mock.patch.object(entrypoint, "setup_parser", return_value=parser):
-                with mock.patch.object(entrypoint.sys, "exit", side_effect=SystemExit(0)) as exit_mock:
-                    with self.assertRaises(SystemExit) as raised:
-                        entrypoint.start()
-
-        self.assertEqual(raised.exception.code, 0)
-        parser.print_help.assert_called_once_with()
-        exit_mock.assert_called_once_with(0)
-
     def test_start_runs_curses_wrapper_and_closes_interface(self) -> None:
         interface = mock.Mock()
         interface_state.interface = interface
 
         with mock.patch.object(entrypoint.sys, "argv", ["contact"]):
             with mock.patch.object(entrypoint.curses, "wrapper") as wrapper:
-                entrypoint.start()
+                entrypoint.start(Namespace())
 
-        wrapper.assert_called_once_with(entrypoint.main)
+        wrapper.assert_called_once_with(entrypoint.main, Namespace())
         interface.close.assert_called_once_with()
 
     def test_start_does_not_crash_when_wrapper_returns_without_interface(self) -> None:
@@ -191,9 +178,9 @@ class MainRuntimeTests(unittest.TestCase):
 
         with mock.patch.object(entrypoint.sys, "argv", ["contact"]):
             with mock.patch.object(entrypoint.curses, "wrapper") as wrapper:
-                entrypoint.start()
+                entrypoint.start(Namespace())
 
-        wrapper.assert_called_once_with(entrypoint.main)
+        wrapper.assert_called_once_with(entrypoint.main, Namespace())
 
     def test_main_returns_cleanly_when_user_closes_missing_node_dialog(self) -> None:
         stdscr = mock.Mock()
@@ -202,11 +189,9 @@ class MainRuntimeTests(unittest.TestCase):
         with mock.patch.object(entrypoint, "setup_colors"):
             with mock.patch.object(entrypoint, "ensure_min_rows"):
                 with mock.patch.object(entrypoint, "draw_splash"):
-                    with mock.patch.object(entrypoint, "setup_parser") as setup_parser:
-                        with mock.patch.object(entrypoint, "initialize_runtime_interface_with_retry", return_value=None):
-                            with mock.patch.object(entrypoint, "initialize_globals") as initialize_globals:
-                                setup_parser.return_value.parse_args.return_value = args
-                                entrypoint.main(stdscr)
+                    with mock.patch.object(entrypoint, "initialize_runtime_interface_with_retry", return_value=None):
+                        with mock.patch.object(entrypoint, "initialize_globals") as initialize_globals:
+                            entrypoint.main(stdscr, args)
 
         initialize_globals.assert_not_called()
 
@@ -218,7 +203,7 @@ class MainRuntimeTests(unittest.TestCase):
             with mock.patch.object(entrypoint.curses, "wrapper", side_effect=KeyboardInterrupt):
                 with mock.patch.object(entrypoint.sys, "exit", side_effect=SystemExit(0)) as exit_mock:
                     with self.assertRaises(SystemExit) as raised:
-                        entrypoint.start()
+                        entrypoint.start(Namespace())
 
         self.assertEqual(raised.exception.code, 0)
         interface.close.assert_called_once_with()
@@ -231,7 +216,7 @@ class MainRuntimeTests(unittest.TestCase):
             with mock.patch.object(entrypoint.curses, "wrapper", side_effect=KeyboardInterrupt):
                 with mock.patch.object(entrypoint.sys, "exit", side_effect=SystemExit(0)) as exit_mock:
                     with self.assertRaises(SystemExit) as raised:
-                        entrypoint.start()
+                        entrypoint.start(Namespace())
 
         self.assertEqual(raised.exception.code, 0)
         exit_mock.assert_called_once_with(0)
@@ -244,7 +229,7 @@ class MainRuntimeTests(unittest.TestCase):
                         with mock.patch("builtins.print") as print_mock:
                             with mock.patch.object(entrypoint.sys, "exit", side_effect=SystemExit(1)) as exit_mock:
                                 with self.assertRaises(SystemExit) as raised:
-                                    entrypoint.start()
+                                    entrypoint.start(Namespace())
 
         self.assertEqual(raised.exception.code, 1)
         endwin.assert_called_once_with()

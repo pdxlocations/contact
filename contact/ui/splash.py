@@ -1,9 +1,10 @@
 import curses
 import textwrap
 from contact.ui.colors import get_color
+from contact.version import __version__
 
 
-def draw_splash(stdscr: object, status: str = "connecting...", version_str: str = "") -> None:
+def draw_splash(stdscr: object, status: str = "connecting...") -> None:
     """Draw the splash screen with a logo and connecting message."""
     curses.curs_set(0)
 
@@ -20,8 +21,8 @@ def draw_splash(stdscr: object, status: str = "connecting...", version_str: str 
     stdscr.addstr(start_y, start_x, message_1, get_color("splash_logo", bold=True))
     stdscr.addstr(start_y + 1, start_x - 1, message_2, get_color("splash_logo", bold=True))
     stdscr.addstr(start_y + 2, start_x - 2, message_3, get_color("splash_logo", bold=True))
-    if version_str:
-        ver_line = f"v{version_str}"
+    if __version__:
+        ver_line = f"v{__version__}"
         ver_x = max(1, (width - len(ver_line)) // 2)
         ver_y = start_y + 3
         if ver_y < height - 1:

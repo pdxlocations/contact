@@ -15,7 +15,7 @@ from contact.utilities.utils import (
     add_new_message,
     build_reply_prefix,
 )
-from contact.settings import settings_menu
+from contact.ui.control_ui import settings_menu
 from contact.ui.control_ui import RemoteAdminCancelled, verify_remote_admin
 from contact.ui.user_config import load_log_tail
 from contact.message_handlers.tx_handler import send_message, send_traceroute
