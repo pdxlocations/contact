@@ -35,6 +35,7 @@ def save_message_to_db(
     message_text: str,
     packet_id: Optional[int] = None,
     reply_id: Optional[int] = None,
+    timestamp: Optional[int] = None,
 ) -> Optional[int]:
     """Save messages to the database, ensuring the table exists."""
     try:
@@ -54,7 +55,8 @@ def save_message_to_db(
             db_connection.execute("PRAGMA busy_timeout=10000")
             db_cursor = db_connection.cursor()
             _ensure_message_columns(db_cursor, quoted_table_name)
-            timestamp = int(time.time())
+            if timestamp is None:
+                timestamp = int(time.time())
 
             # Insert the message
             insert_query = f"""

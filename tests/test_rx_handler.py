@@ -1,3 +1,4 @@
+from datetime import datetime
 import unittest
 from unittest import mock
 
@@ -52,7 +53,7 @@ class RxHandlerTests(unittest.TestCase):
             ],
         )
         add_notification.assert_not_called()
-        save_message_to_db.assert_called_once_with("Primary", 222, "hello", packet_id=None, reply_id=None)
+        save_message_to_db.assert_called_once_with("Primary", 222, "hello", packet_id=None, reply_id=None, timestamp=mock.ANY)
         self.assertEqual(ui_state.all_messages["Primary"][-1][1], "hello")
         self.assertIn("SAT2:", ui_state.all_messages["Primary"][-1][0])
         self.assertIn("[2]", ui_state.all_messages["Primary"][-1][0])
@@ -111,7 +112,7 @@ class RxHandlerTests(unittest.TestCase):
         request_ui_redraw.assert_called_once_with(channels=True)
         add_notification.assert_called_once_with(1)
         update_node_info_in_db.assert_called_once_with(222, chat_archived=False)
-        save_message_to_db.assert_called_once_with(222, 222, "dm", packet_id=None, reply_id=None)
+        save_message_to_db.assert_called_once_with(222, 222, "dm", packet_id=None, reply_id=None, timestamp=mock.ANY)
 
     def test_on_receive_displays_context_for_native_reply_id(self) -> None:
         interface_state.myNodeNum = 111
@@ -137,7 +138,32 @@ class RxHandlerTests(unittest.TestCase):
 
         self.assertEqual(ui_state.all_messages["Primary"][-1][1], "<Re: SAT2: hello> hi")
         self.assertEqual(ui_state.message_packet_ids["Primary"][-1], 901)
-        save_message_to_db.assert_called_once_with("Primary", 222, "hi", packet_id=901, reply_id=900)
+        save_message_to_db.assert_called_once_with("Primary", 222, "hi", packet_id=901, reply_id=900, timestamp=mock.ANY)
+
+    def test_node_receive_time_is_used_for_display_and_storage(self) -> None:
+        interface_state.myNodeNum = 111
+        ui_state.channel_list = ["Primary"]
+        ui_state.selected_channel = 0
+        for rx_time in (1700000000, 1700007200, None, 0):
+            with self.subTest(rx_time=rx_time):
+                ui_state.all_messages = {"Primary": []}
+                packet = {
+                    "from": 222, "to": 999, "rxTime": rx_time,
+                    "decoded": {"portnum": "TEXT_MESSAGE_APP", "payload": b"queued"},
+                }
+                expected = rx_time or 1800000000
+                with mock.patch.object(rx_handler, "refresh_node_list", return_value=False), \
+                     mock.patch.object(rx_handler, "request_ui_redraw"), \
+                     mock.patch.object(rx_handler, "get_name_from_database", return_value="NODE"), \
+                     mock.patch.object(rx_handler, "save_message_to_db") as save, \
+                     mock.patch.object(rx_handler.time, "time", return_value=1800000000):
+                    rx_handler.on_receive(packet, interface=None)
+                self.assertEqual(save.call_args.kwargs["timestamp"], expected)
+                message_time = datetime.fromtimestamp(expected)
+                self.assertEqual(ui_state.all_messages["Primary"][0][0],
+                                 message_time.strftime("-- %Y-%m-%d %H:00 --"))
+                self.assertTrue(ui_state.all_messages["Primary"][-1][0].startswith(
+                    message_time.strftime("[%H:%M:%S] ")))
 
     def test_on_receive_trims_packet_buffer_even_when_packet_is_undecoded(self) -> None:
         ui_state.packet_buffer = list(range(25))

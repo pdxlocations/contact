@@ -81,19 +81,18 @@ class UtilsTests(unittest.TestCase):
     def test_add_new_message_groups_messages_by_hour(self) -> None:
         ui_state.all_messages = {"MediumFast": []}
 
-        with mock.patch("contact.utilities.utils.time.time", side_effect=[1000, 1000]):
-            with mock.patch("contact.utilities.utils.time.strftime", return_value="[00:16:40] "):
-                with mock.patch("contact.utilities.utils.datetime.datetime") as mocked_datetime:
-                    mocked_datetime.fromtimestamp.return_value.strftime.return_value = "2025-02-04 17:00"
-                    add_new_message("MediumFast", ">> Test: ", "First")
-                    add_new_message("MediumFast", ">> Test: ", "Second")
+        from datetime import datetime
+        timestamp = datetime(2025, 2, 4, 17, 16, 40).timestamp()
+        with mock.patch("contact.utilities.utils.time.time", return_value=timestamp):
+            add_new_message("MediumFast", ">> Test: ", "First")
+            add_new_message("MediumFast", ">> Test: ", "Second")
 
         self.assertEqual(
             ui_state.all_messages["MediumFast"],
             [
                 ("-- 2025-02-04 17:00 --", ""),
-                ("[00:16:40] >> Test: ", "First"),
-                ("[00:16:40] >> Test: ", "Second"),
+                ("[17:16:40] >> Test: ", "First"),
+                ("[17:16:40] >> Test: ", "Second"),
             ],
         )
 

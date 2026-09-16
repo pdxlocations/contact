@@ -135,6 +135,10 @@ def on_receive(packet: Dict[str, Any], interface: Any) -> None:
                     maybe_store_nodeinfo_in_db(packet)
 
             elif packet["decoded"]["portnum"] == "TEXT_MESSAGE_APP":
+                # Queued packets retain the time the node received them.
+                timestamp = packet.get("rxTime")
+                if not isinstance(timestamp, int) or timestamp <= 0:
+                    timestamp = int(time.time())
                 hop_start = packet.get('hopStart', 0)
                 hop_limit = packet.get('hopLimit', 0)
 
@@ -189,6 +193,7 @@ def on_receive(packet: Dict[str, Any], interface: Any) -> None:
                     f"{config.message_prefix} [{hops}] {message_from_string} ",
                     f"{reply_context}{message_string}",
                     packet_id=packet.get("id"),
+                    timestamp=timestamp,
                 )
 
                 if refresh_channels:
@@ -206,6 +211,7 @@ def on_receive(packet: Dict[str, Any], interface: Any) -> None:
                     message_string,
                     packet_id=packet.get("id"),
                     reply_id=reply_id,
+                    timestamp=timestamp,
                 )
 
         except KeyError as e:

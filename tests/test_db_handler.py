@@ -1,3 +1,4 @@
+from datetime import datetime
 import os
 import sqlite3
 import tempfile
@@ -44,6 +45,18 @@ class DbHandlerTests(unittest.TestCase):
             row = conn.execute('SELECT user_id, message_text, ack_type FROM "123_Primary_messages"').fetchone()
 
         self.assertEqual(row, ("123", "hello", "Ack"))
+
+    def test_receive_timestamp_survives_history_reload(self) -> None:
+        timestamp = 1700000000
+        result = db_handler.save_message_to_db("Primary", "456", "queued", timestamp=timestamp)
+        self.assertEqual(result, timestamp)
+        with sqlite3.connect(config.db_file_path) as conn:
+            stored = conn.execute('SELECT timestamp FROM "123_Primary_messages"').fetchone()[0]
+        self.assertEqual(stored, timestamp)
+        db_handler.load_messages_from_db()
+        prefix, message = ui_state.all_messages["Primary"][-1]
+        self.assertEqual(message, "queued")
+        self.assertTrue(prefix.startswith(datetime.fromtimestamp(timestamp).strftime("[%H:%M:%S]")))
 
     def test_message_ids_are_migrated_and_reloaded_with_history(self) -> None:
         db_handler.ensure_table_exists(

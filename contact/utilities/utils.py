@@ -224,7 +224,7 @@ def get_reply_context(reply_id):
     return ""
 
 
-def add_new_message(channel_id, prefix, message, packet_id=None):
+def add_new_message(channel_id, prefix, message, packet_id=None, timestamp=None):
     if channel_id not in ui_state.all_messages:
         ui_state.all_messages[channel_id] = []
 
@@ -233,8 +233,10 @@ def add_new_message(channel_id, prefix, message, packet_id=None):
         packet_ids.append(None)
 
     # Timestamp handling
-    current_timestamp = time.time()
-    current_hour = datetime.datetime.fromtimestamp(current_timestamp).strftime("%Y-%m-%d %H:00")
+    if timestamp is None:
+        timestamp = time.time()
+    message_time = datetime.datetime.fromtimestamp(timestamp)
+    current_hour = message_time.strftime("%Y-%m-%d %H:00")
 
     # Retrieve the last timestamp if available
     channel_messages = ui_state.all_messages[channel_id]
@@ -255,7 +257,7 @@ def add_new_message(channel_id, prefix, message, packet_id=None):
         packet_ids.append(None)
 
     # Add the message
-    ts_str = time.strftime("[%H:%M:%S] ")
+    ts_str = message_time.strftime("[%H:%M:%S] ")
     ui_state.all_messages[channel_id].append((f"{ts_str}{prefix}", message))
     packet_ids.append(packet_id)
 
