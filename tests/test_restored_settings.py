@@ -10,7 +10,7 @@ from unittest import mock
 
 import contact.ui.default_config
 from contact.utilities import input_handlers
-from tests.test_support import reset_singletons
+from tests.test_support import reset_shared_state
 
 
 class RestoredSettingsTests(unittest.TestCase):
@@ -20,8 +20,8 @@ class RestoredSettingsTests(unittest.TestCase):
             (["\x1b"], True, None), (["\n", "\x1b"], False, None),
         ]:
             with self.subTest(keys=keys, allowed=allowed), ExitStack() as stack:
-                reset_singletons()
-                stack.callback(reset_singletons)
+                reset_shared_state()
+                stack.callback(reset_shared_state)
                 win = mock.Mock()
                 win.get_wch.side_effect = keys
                 stack.enter_context(mock.patch.object(input_handlers.curses, "newwin", return_value=win))

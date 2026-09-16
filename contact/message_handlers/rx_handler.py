@@ -60,7 +60,7 @@ from contact.utilities.db_handler import (
 )
 import contact.ui.default_config as config
 
-from contact.utilities.singleton import ui_state, interface_state, app_state, menu_state
+from contact.utilities.shared_state import ui_state, interface_state, app_state, menu_state
 from contact.message_handlers.bot_handler import bot_respond
 
 

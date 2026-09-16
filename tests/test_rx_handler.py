@@ -4,20 +4,20 @@ from unittest import mock
 
 import contact.ui.default_config as config
 from contact.message_handlers import rx_handler
-from contact.utilities.singleton import interface_state, menu_state, ui_state
+from contact.utilities.shared_state import interface_state, menu_state, ui_state
 
-from tests.test_support import reset_singletons, restore_config, snapshot_config
+from tests.test_support import reset_shared_state, restore_config, snapshot_config
 
 
 class RxHandlerTests(unittest.TestCase):
     def setUp(self) -> None:
-        reset_singletons()
+        reset_shared_state()
         self.saved_config = snapshot_config("notification_sound", "message_prefix")
         config.notification_sound = "False"
 
     def tearDown(self) -> None:
         restore_config(self.saved_config)
-        reset_singletons()
+        reset_shared_state()
 
     def test_on_receive_text_message_refreshes_selected_channel(self) -> None:
         interface_state.myNodeNum = 111

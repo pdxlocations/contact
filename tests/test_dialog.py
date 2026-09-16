@@ -2,7 +2,7 @@ import unittest
 from unittest import mock
 
 from contact.ui import dialog as dialog_module
-from contact.utilities.singleton import menu_state, ui_state
+from contact.utilities.shared_state import menu_state, ui_state
 
 
 class _FakeWindow:

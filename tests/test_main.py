@@ -5,19 +5,19 @@ from unittest import mock
 
 import contact.runtime as entrypoint
 import contact.ui.default_config as config
-from contact.utilities.singleton import interface_state, ui_state
+from contact.utilities.shared_state import interface_state, ui_state
 
-from tests.test_support import reset_singletons, restore_config, snapshot_config
+from tests.test_support import reset_shared_state, restore_config, snapshot_config
 
 
 class MainRuntimeTests(unittest.TestCase):
     def setUp(self) -> None:
-        reset_singletons()
+        reset_shared_state()
         self.saved_config = snapshot_config("single_pane_mode")
 
     def tearDown(self) -> None:
         restore_config(self.saved_config)
-        reset_singletons()
+        reset_shared_state()
 
     def test_initialize_runtime_interface_uses_demo_branch(self) -> None:
         args = Namespace(demo_screenshot=True)

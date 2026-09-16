@@ -6,9 +6,9 @@ from unittest import mock
 import contact.ui.default_config as config
 from contact.ui import contact_ui
 from contact.ui.nav_utils import text_width
-from contact.utilities.singleton import ui_state
+from contact.utilities.shared_state import ui_state
 
-from tests.test_support import reset_singletons, restore_config, snapshot_config
+from tests.test_support import reset_shared_state, restore_config, snapshot_config
 
 
 class ContactUiTests(unittest.TestCase):
@@ -59,12 +59,12 @@ class ContactUiTests(unittest.TestCase):
         self.assertEqual(ui_state.current_window, 4)
 
     def setUp(self) -> None:
-        reset_singletons()
+        reset_shared_state()
         self.saved_config = snapshot_config("single_pane_mode")
 
     def tearDown(self) -> None:
         restore_config(self.saved_config)
-        reset_singletons()
+        reset_shared_state()
 
     def test_handle_backtick_refreshes_channels_after_settings_menu(self) -> None:
         stdscr = mock.Mock()

@@ -9,7 +9,7 @@ from contact.ui.nav_utils import move_highlight, draw_arrows, update_help_window
 from contact.utilities.ini_utils import parse_ini_file
 from contact.utilities.input_handlers import get_list_input
 from contact.utilities.i18n import t
-from contact.utilities.singleton import menu_state, ui_state
+from contact.utilities.shared_state import menu_state, ui_state
 
 
 MAX_MENU_WIDTH = 80  # desired max; will shrink on small terminals

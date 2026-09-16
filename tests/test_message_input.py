@@ -3,19 +3,19 @@ from contextlib import ExitStack
 from unittest import mock
 
 from contact.ui import contact_ui
-from contact.utilities.singleton import ui_state
-from tests.test_support import reset_singletons
+from contact.utilities.shared_state import ui_state
+from tests.test_support import reset_shared_state
 
 
 class MessageInputTests(unittest.TestCase):
     def setUp(self):
-        reset_singletons()
+        reset_shared_state()
         ui_state.current_window = 1
         for name in ("refresh_message_highlight", "refresh_main_window", "get_color"):
             patcher = mock.patch.object(contact_ui, name, return_value=1)
             patcher.start()
             self.addCleanup(patcher.stop)
-        self.addCleanup(reset_singletons)
+        self.addCleanup(reset_shared_state)
 
     def test_keyboard_loop_sends_edited_draft_after_resize(self):
         win = mock.Mock()

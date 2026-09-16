@@ -6,7 +6,7 @@ from contact.ui.colors import get_color
 from contact.utilities.i18n import t
 from contact.utilities.control_utils import transform_menu_path
 from typing import Any, Optional, List, Dict
-from contact.utilities.singleton import interface_state, ui_state
+from contact.utilities.shared_state import interface_state, ui_state
 
 
 def get_node_color(node_index: int, reverse: bool = False):

@@ -36,7 +36,7 @@ from contact.ui.nav_utils import (
     text_width,
     slice_to_width,
 )
-from contact.utilities.singleton import ui_state, interface_state, menu_state, app_state
+from contact.utilities.shared_state import ui_state, interface_state, menu_state, app_state
 
 
 MIN_COL = 1  # "effectively zero" without breaking curses

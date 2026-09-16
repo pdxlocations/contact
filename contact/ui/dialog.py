@@ -3,7 +3,7 @@ import curses
 from contact.utilities.i18n import t_text
 from contact.ui.colors import get_color
 from contact.ui.nav_utils import draw_main_arrows, slice_to_width, text_width
-from contact.utilities.singleton import menu_state, ui_state
+from contact.utilities.shared_state import menu_state, ui_state
 
 
 def dialog(title: str, message: str) -> None:

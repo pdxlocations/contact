@@ -9,7 +9,7 @@ from google.protobuf.message import DecodeError
 from meshtastic import protocols
 from meshtastic.protobuf import config_pb2, portnums_pb2
 import contact.ui.default_config as config
-from contact.utilities.singleton import ui_state, interface_state
+from contact.utilities.shared_state import ui_state, interface_state
 import contact.utilities.telemetry_beautifier as tb
 
 NEW_MODEM_PRESET_NAMES = {

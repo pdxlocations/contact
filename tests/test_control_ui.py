@@ -5,16 +5,16 @@ import unittest
 from unittest import mock
 
 from contact.ui import control_ui
-from contact.utilities.singleton import app_state, interface_state
+from contact.utilities.shared_state import app_state, interface_state
 
-from tests.test_support import reset_singletons
+from tests.test_support import reset_shared_state
 
 
 class ControlUiTests(unittest.TestCase):
     def test_channel_list_renders_names_without_changing_slot_keys(self):
         from meshtastic.protobuf import channel_pb2, config_pb2, module_config_pb2
         from contact.ui.menus import generate_menu_from_protobuf
-        from contact.utilities.singleton import app_state, menu_state
+        from contact.utilities.shared_state import app_state, menu_state
 
         channels = [channel_pb2.Channel(settings=channel_pb2.ChannelSettings(name=name))
                     for name in ("Local", "Local", "", "   ")]
@@ -42,10 +42,10 @@ class ControlUiTests(unittest.TestCase):
         self.assertEqual(list(menu_state.current_menu), [f"Channel {i}" for i in range(1, 5)])
 
     def setUp(self) -> None:
-        reset_singletons()
+        reset_shared_state()
 
     def tearDown(self) -> None:
-        reset_singletons()
+        reset_shared_state()
 
     def test_reconnect_interface_with_splash_replaces_interface(self) -> None:
         old_interface = mock.Mock()

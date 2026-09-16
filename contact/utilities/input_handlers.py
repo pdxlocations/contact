@@ -9,7 +9,7 @@ from contact.ui.nav_utils import move_highlight, draw_arrows, wrap_text
 from contact.ui.dialog import dialog
 from contact.utilities.i18n import t, t_text
 from contact.utilities.validation_rules import get_validation_for
-from contact.utilities.singleton import menu_state
+from contact.utilities.shared_state import menu_state
 
 # Dialogs should be at most 80 cols, but shrink on small terminals
 MAX_DIALOG_WIDTH = 80
@@ -370,7 +370,7 @@ def get_admin_key_input(current_value: List[bytes]) -> Optional[List[str]]:
                 pass  # Ignore invalid character inputs
 
 
-from contact.utilities.singleton import menu_state  # Required if not already imported
+from contact.utilities.shared_state import menu_state  # Required if not already imported
 
 
 def get_repeated_input(current_value: List[str]) -> Optional[str]:
@@ -460,7 +460,7 @@ def get_repeated_input(current_value: List[str]) -> Optional[str]:
                 pass
 
 
-from contact.utilities.singleton import menu_state  # Ensure this is imported
+from contact.utilities.shared_state import menu_state  # Ensure this is imported
 
 
 def get_fixed32_input(current_value: int) -> int:

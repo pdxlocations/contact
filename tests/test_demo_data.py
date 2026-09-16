@@ -6,19 +6,19 @@ import contact.runtime as entrypoint
 import contact.ui.default_config as config
 from contact.utilities.db_handler import get_name_from_database
 from contact.utilities.demo_data import DEMO_CHANNELS, DEMO_LOCAL_NODE_NUM, build_demo_interface, configure_demo_database
-from contact.utilities.singleton import interface_state, ui_state
+from contact.utilities.shared_state import interface_state, ui_state
 
-from tests.test_support import reset_singletons, restore_config, snapshot_config
+from tests.test_support import reset_shared_state, restore_config, snapshot_config
 
 
 class DemoDataTests(unittest.TestCase):
     def setUp(self) -> None:
-        reset_singletons()
+        reset_shared_state()
         self.saved_config = snapshot_config("db_file_path", "node_sort", "single_pane_mode")
 
     def tearDown(self) -> None:
         restore_config(self.saved_config)
-        reset_singletons()
+        reset_shared_state()
 
     def test_build_demo_interface_exposes_expected_shape(self) -> None:
         interface = build_demo_interface()

@@ -7,7 +7,7 @@ from meshtastic.protobuf import admin_pb2, config_pb2, module_config_pb2
 from contact.ui import control_ui
 from contact.ui.menus import generate_menu_from_protobuf, update_ham_fields
 from contact.utilities.save_to_radio import save_changes
-from tests.test_support import reset_singletons
+from tests.test_support import reset_shared_state
 
 
 class HamSettingsTests(unittest.TestCase):
@@ -82,7 +82,7 @@ class HamSettingsTests(unittest.TestCase):
         node.setOwner.assert_called_once_with('KD2ABC', 'HAM', False, False)
 
     def test_edit_through_normal_menu_after_selecting_licensed(self):
-        reset_singletons()
+        reset_shared_state()
         interface, node = self.build_interface()
         win = Mock()
         # Open User Settings, select licensed, edit the now-visible callsign, save.
@@ -106,7 +106,7 @@ class HamSettingsTests(unittest.TestCase):
             self.assertTrue(saved['isLicensed'])
             self.assertEqual(saved['tx_power'], 20)
         finally:
-            reset_singletons()
+            reset_shared_state()
 
     def test_new_library_fields_are_discovered_edited_and_saved(self):
         from google.protobuf import descriptor_pb2, descriptor_pool, message_factory

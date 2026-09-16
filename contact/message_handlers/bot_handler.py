@@ -5,7 +5,7 @@ import time
 from typing import Any, Dict
 
 import contact.ui.default_config as config
-from contact.utilities.singleton import app_state, interface_state
+from contact.utilities.shared_state import app_state, interface_state
 from contact.utilities.utils import get_reply_context
 from contact.message_handlers.tx_handler import send_message
 

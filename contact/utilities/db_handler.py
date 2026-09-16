@@ -8,7 +8,7 @@ from contact.utilities.utils import build_reply_prefix, decimal_to_hex
 import contact.ui.default_config as config
 
 
-from contact.utilities.singleton import ui_state, interface_state
+from contact.utilities.shared_state import ui_state, interface_state
 
 
 MESSAGE_PAGE_SIZE = 100

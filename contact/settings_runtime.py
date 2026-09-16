@@ -14,7 +14,7 @@ from contact.utilities.i18n import t
 from contact.utilities.input_handlers import get_list_input
 from contact.utilities.interfaces import initialize_interface, reconnect_interface
 from contact.utilities.logging_utils import configure_logging
-from contact.utilities.singleton import app_state
+from contact.utilities.shared_state import app_state
 
 
 def close_interface(interface: object) -> None:

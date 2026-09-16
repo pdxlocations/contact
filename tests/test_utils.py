@@ -5,7 +5,7 @@ from meshtastic.protobuf import config_pb2, mesh_pb2, telemetry_pb2
 
 import contact.ui.default_config as config
 from contact.utilities.demo_data import DEMO_LOCAL_NODE_NUM, build_demo_interface
-from contact.utilities.singleton import interface_state, ui_state
+from contact.utilities.shared_state import interface_state, ui_state
 from contact.utilities.utils import (
     _get_channel_name,
     _get_modem_preset_name,
@@ -15,7 +15,7 @@ from contact.utilities.utils import (
     parse_protobuf,
 )
 
-from tests.test_support import reset_singletons, restore_config, snapshot_config
+from tests.test_support import reset_shared_state, restore_config, snapshot_config
 
 
 class UtilsTests(unittest.TestCase):
@@ -59,13 +59,13 @@ class UtilsTests(unittest.TestCase):
         self.assertIn("🛰️ 8", rendered)
 
     def setUp(self) -> None:
-        reset_singletons()
+        reset_shared_state()
         _get_modem_preset_name.cache_clear()
         self.saved_config = snapshot_config("node_sort")
 
     def tearDown(self) -> None:
         restore_config(self.saved_config)
-        reset_singletons()
+        reset_shared_state()
 
     def test_get_node_list_keeps_local_first_and_ignored_last(self) -> None:
         config.node_sort = "lastHeard"

@@ -6,21 +6,21 @@ from meshtastic import BROADCAST_NUM
 
 import contact.ui.default_config as config
 from contact.message_handlers import tx_handler
-from contact.utilities.singleton import interface_state, ui_state
+from contact.utilities.shared_state import interface_state, ui_state
 
-from tests.test_support import reset_singletons, restore_config, snapshot_config
+from tests.test_support import reset_shared_state, restore_config, snapshot_config
 
 
 class TxHandlerTests(unittest.TestCase):
     def setUp(self) -> None:
-        reset_singletons()
+        reset_shared_state()
         tx_handler.ack_naks.clear()
         self.saved_config = snapshot_config("sent_message_prefix", "ack_str", "ack_implicit_str", "nak_str", "ack_unknown_str")
 
     def tearDown(self) -> None:
         tx_handler.ack_naks.clear()
         restore_config(self.saved_config)
-        reset_singletons()
+        reset_shared_state()
 
     def test_send_message_on_named_channel_tracks_ack_request(self) -> None:
         interface = mock.Mock()

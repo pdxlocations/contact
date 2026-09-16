@@ -5,8 +5,8 @@ import types
 from unittest import mock
 
 import contact.ui.default_config as config
-from contact.utilities.singleton import interface_state
-from tests.test_support import reset_singletons
+from contact.utilities.shared_state import interface_state
+from tests.test_support import reset_shared_state
 
 
 class BotHandlerTests(unittest.TestCase):
@@ -19,11 +19,11 @@ class BotHandlerTests(unittest.TestCase):
         cls.bot_handler = importlib.import_module("contact.message_handlers.bot_handler")
 
     def setUp(self) -> None:
-        reset_singletons()
+        reset_shared_state()
         self.bot_handler.send_message.reset_mock()
 
     def tearDown(self) -> None:
-        reset_singletons()
+        reset_shared_state()
 
     def test_is_bot_message_uses_configured_catch_words(self) -> None:
         with mock.patch.object(config, "ping_bot_catch_words", "ping; test; pong"):

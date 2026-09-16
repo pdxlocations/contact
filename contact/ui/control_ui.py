@@ -27,7 +27,7 @@ from contact.ui.dialog import dialog
 from contact.ui.menus import generate_menu_from_protobuf, update_ham_fields
 from contact.ui.nav_utils import move_highlight, draw_arrows, update_help_window
 from contact.ui.user_config import json_editor
-from contact.utilities.singleton import app_state, interface_state, menu_state
+from contact.utilities.shared_state import app_state, interface_state, menu_state
 
 # Setup Variables
 MAX_MENU_WIDTH = 80  # desired max; will shrink on small terminals

@@ -3,7 +3,7 @@ from unittest import mock
 
 from contact.ui import nav_utils
 from contact.ui.nav_utils import truncate_with_ellipsis, wrap_text
-from contact.utilities.singleton import ui_state
+from contact.utilities.shared_state import ui_state
 
 
 class NavUtilsTests(unittest.TestCase):

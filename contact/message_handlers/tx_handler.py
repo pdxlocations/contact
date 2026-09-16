@@ -15,7 +15,7 @@ from contact.utilities.db_handler import (
 )
 import contact.ui.default_config as config
 
-from contact.utilities.singleton import ui_state, interface_state, app_state
+from contact.utilities.shared_state import ui_state, interface_state, app_state
 
 from contact.utilities.utils import add_new_message
 

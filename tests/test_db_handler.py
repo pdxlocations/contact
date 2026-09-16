@@ -7,15 +7,15 @@ import unittest
 import contact.ui.default_config as config
 from contact.utilities import db_handler
 from contact.utilities.demo_data import DEMO_LOCAL_NODE_NUM, build_demo_interface
-from contact.utilities.singleton import interface_state, ui_state
+from contact.utilities.shared_state import interface_state, ui_state
 from contact.utilities.utils import decimal_to_hex
 
-from tests.test_support import reset_singletons, restore_config, snapshot_config
+from tests.test_support import reset_shared_state, restore_config, snapshot_config
 
 
 class DbHandlerTests(unittest.TestCase):
     def setUp(self) -> None:
-        reset_singletons()
+        reset_shared_state()
         self.saved_config = snapshot_config(
             "db_file_path",
             "message_prefix",
@@ -32,7 +32,7 @@ class DbHandlerTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.tempdir.cleanup()
         restore_config(self.saved_config)
-        reset_singletons()
+        reset_shared_state()
 
     def test_save_message_to_db_and_update_ack_roundtrip(self) -> None:
         timestamp = db_handler.save_message_to_db("Primary", "123", "hello")

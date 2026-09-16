@@ -38,7 +38,7 @@ from contact.ui.dialog import dialog
 from contact.utilities.interfaces import initialize_interface, reconnect_interface
 from contact.utilities.logging_utils import configure_logging
 from contact.utilities.utils import get_channels, get_nodeNum, get_node_list
-from contact.utilities.singleton import ui_state, interface_state, app_state
+from contact.utilities.shared_state import ui_state, interface_state, app_state
 
 # ------------------------------------------------------------------------------
 # Environment & Logging Setup
