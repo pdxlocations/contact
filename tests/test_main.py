@@ -59,7 +59,7 @@ class MainRuntimeTests(unittest.TestCase):
         self.assertIs(result, good_interface)
         get_list_input.assert_called_once()
         bad_interface.close.assert_called_once_with()
-        draw_splash.assert_called_once_with(stdscr)
+        draw_splash.assert_called_once_with(stdscr, version_str=entrypoint.__version__)
 
     def test_initialize_runtime_interface_with_retry_returns_none_when_user_closes(self) -> None:
         args = Namespace(demo_screenshot=False)
@@ -91,7 +91,7 @@ class MainRuntimeTests(unittest.TestCase):
 
         set_region.assert_called_once_with(old_interface)
         old_interface.close.assert_called_once_with()
-        draw_splash.assert_called_once_with(stdscr)
+        draw_splash.assert_called_once_with(stdscr, version_str=entrypoint.__version__)
         reconnect.assert_called_once_with(args)
         self.assertIs(interface_state.interface, new_interface)
 

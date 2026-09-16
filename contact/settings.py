@@ -10,7 +10,7 @@ from contact.ui.colors import setup_colors
 from contact.ui.control_ui import set_region, settings_menu
 from contact.ui.dialog import dialog
 from contact.ui.splash import draw_splash
-from contact.utilities.arg_parser import setup_parser
+from contact.utilities.arg_parser import __version__, setup_parser
 from contact.utilities.i18n import t
 from contact.utilities.input_handlers import get_list_input
 from contact.utilities.interfaces import initialize_interface, reconnect_interface
@@ -31,13 +31,13 @@ def main(stdscr: curses.window) -> None:
         with contextlib.redirect_stdout(output_capture), contextlib.redirect_stderr(output_capture):
             setup_colors()
             ensure_min_rows(stdscr)
-            draw_splash(stdscr)
+            draw_splash(stdscr, version_str=__version__)
             curses.curs_set(0)
             stdscr.keypad(True)
 
             parser = setup_parser()
             args = parser.parse_args()
-            interface = initialize_interface(args, status_callback=lambda status: draw_splash(stdscr, status))
+            interface = initialize_interface(args, status_callback=lambda status: draw_splash(stdscr, status, version_str=__version__))
 
             if interface.localNode.localConfig.lora.region == 0:
                 confirmation = get_list_input(
@@ -48,7 +48,7 @@ def main(stdscr: curses.window) -> None:
                 if confirmation == "Yes":
                     set_region(interface)
                     close_interface(interface)
-                    draw_splash(stdscr)
+                    draw_splash(stdscr, version_str=__version__)
                     interface = reconnect_interface(args)
             stdscr.clear()
             stdscr.refresh()
@@ -85,6 +85,10 @@ def ensure_min_rows(stdscr: curses.window, min_rows: int = 11) -> None:
 configure_logging(logging.WARNING)
 
 if __name__ == "__main__":
+    if "--version" in sys.argv or "-V" in sys.argv:
+        print(__version__)
+        sys.exit(0)
+
     log_file = config.log_file_path
     log_f = open(log_file, "a", buffering=1)  # Enable line-buffering for immediate log writes
 

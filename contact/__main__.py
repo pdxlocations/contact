@@ -31,7 +31,7 @@ from contact.settings import set_region
 from contact.ui.colors import setup_colors
 from contact.ui.contact_ui import main_ui
 from contact.ui.splash import draw_splash
-from contact.utilities.arg_parser import setup_parser
+from contact.utilities.arg_parser import __version__, setup_parser
 from contact.utilities.db_handler import init_nodedb, load_messages_from_db
 from contact.utilities.demo_data import build_demo_interface, configure_demo_database, seed_demo_messages
 from contact.utilities.input_handlers import get_list_input
@@ -69,7 +69,7 @@ def prompt_region_if_unset(args: object, stdscr: Optional[curses.window] = None)
         set_region(interface_state.interface)
         close_interface(interface_state.interface)
         if stdscr is not None:
-            draw_splash(stdscr)
+            draw_splash(stdscr, version_str=__version__)
         interface_state.interface = reconnect_interface(args)
 
 
@@ -128,7 +128,7 @@ def initialize_runtime_interface_with_retry(stdscr: curses.window, args: object)
         if choice == "Close":
             return None
 
-        draw_splash(stdscr)
+        draw_splash(stdscr, version_str=__version__)
 
 
 def initialize_globals(seed_demo: bool = False) -> None:
@@ -160,7 +160,7 @@ def initialize_runtime_interface(args: object, stdscr=None):
         configure_demo_database()
         return build_demo_interface()
     if stdscr is not None:
-        return initialize_interface(args, status_callback=lambda status: draw_splash(stdscr, status))
+        return initialize_interface(args, status_callback=lambda status: draw_splash(stdscr, status, version_str=__version__))
     return initialize_interface(args)
 
 
@@ -171,7 +171,7 @@ def main(stdscr: curses.window) -> None:
     try:
         setup_colors()
         ensure_min_rows(stdscr)
-        draw_splash(stdscr)
+        draw_splash(stdscr, version_str=__version__)
 
         args = setup_parser().parse_args()
 
@@ -231,6 +231,10 @@ def start() -> None:
 
     if "--help" in sys.argv or "-h" in sys.argv:
         setup_parser().print_help()
+        sys.exit(0)
+
+    if "--version" in sys.argv or "-V" in sys.argv:
+        print(__version__)
         sys.exit(0)
 
     interrupted = False
