@@ -1,5 +1,4 @@
 import os
-import json
 import curses
 from typing import Any, List, Dict, Optional
 
@@ -429,22 +428,15 @@ def json_editor(stdscr: curses.window, menu_state: Any) -> bool:
     menu_state.selected_index = 0  # Track the selected option
     made_changes = False  # Track if any changes were made
 
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    parent_dir = os.path.abspath(os.path.join(script_dir, os.pardir))
-    file_path = os.path.join(parent_dir, "config.json")
+    file_path = config.json_file_path
 
     menu_state.show_save_option = True  # Always show the Save button
     menu_state.help_win = None
     menu_state.help_text = {}
 
-    # Ensure the file exists
-    if not os.path.exists(file_path):
-        with open(file_path, "w") as f:
-            json.dump({}, f)
-
-    # Load JSON data
-    with open(file_path, "r", encoding="utf-8") as f:
-        original_data = json.load(f)
+    # Use the same path and defaults as startup, including the writable
+    # fallback for shared installations and CONTACT_CONFIG_ROOT overrides.
+    original_data = config.initialize_config()
 
     data = original_data  # Reference to the original data
     menu_state.current_menu = data  # Track the current level of the menu
