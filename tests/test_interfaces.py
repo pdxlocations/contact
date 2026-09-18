@@ -3,10 +3,41 @@ from types import SimpleNamespace
 import unittest
 from unittest import mock
 
-from contact.utilities.interfaces import reconnect_interface
+from meshtastic.protobuf import localonly_pb2, mesh_pb2
+
+from contact.ui.menus import generate_menu_from_protobuf
+from contact.utilities.interfaces import BLEInterface, SerialInterface, TCPInterface, reconnect_interface
 
 
 class InterfacesTests(unittest.TestCase):
+    def test_received_status_message_appears_in_settings_after_reconnect(self):
+        for transport in (SerialInterface, TCPInterface, BLEInterface):
+            with self.subTest(transport=transport.__name__):
+                # A fresh interface has no cached value from the previous save.
+                interface = transport.__new__(transport)
+                interface.configId = 123
+                interface.localNode = SimpleNamespace(
+                    localConfig=localonly_pb2.LocalConfig(),
+                    moduleConfig=localonly_pb2.LocalModuleConfig(),
+                    getChannelByChannelIndex=lambda _: None,
+                )
+                interface.getMyNodeInfo = lambda: {"position": {}}
+                for status in ("Available", ""):
+                    packet = mesh_pb2.FromRadio()
+                    packet.moduleConfig.statusmessage.node_status = status
+                    interface._handleFromRadio(packet.SerializeToString())
+
+                    # Other module packets must still pass through normally,
+                    # without clearing the status message already received.
+                    packet = mesh_pb2.FromRadio()
+                    packet.moduleConfig.mqtt.enabled = True
+                    interface._handleFromRadio(packet.SerializeToString())
+
+                    self.assertTrue(interface.localNode.moduleConfig.mqtt.enabled)
+                    menu = generate_menu_from_protobuf(interface)
+                    value = menu["Main Menu"]["Module Settings"]["statusmessage"]["node_status"][1]
+                    self.assertEqual(value, status)
+
     def test_reconnect_interface_retries_until_connection_succeeds(self) -> None:
         args = Namespace()
 

@@ -248,7 +248,15 @@ def save_changes(interface, modified_settings, menu_state, node=None):
 
         # Write the configuration changes to the node
         try:
-            node.writeConfig(config_category)
+            if config_category == "statusmessage":
+                # Meshtastic 2.7.11 includes this protobuf but omits it from
+                # writeConfig's dispatch, which exits for unknown categories.
+                message = admin_pb2.AdminMessage()
+                message.set_module_config.statusmessage.CopyFrom(node.moduleConfig.statusmessage)
+                callback = None if node is interface.localNode else node.onAckNak
+                node._sendAdmin(message, onResponse=callback)
+            else:
+                node.writeConfig(config_category)
             logging.info(f"Changes written to config category: {config_category}")
 
             if admin_key_backup is not None:

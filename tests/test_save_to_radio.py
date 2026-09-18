@@ -1,12 +1,41 @@
 from types import SimpleNamespace
 import unittest
 from unittest import mock
-from meshtastic.protobuf import channel_pb2
+from meshtastic.protobuf import channel_pb2, localonly_pb2, module_config_pb2
 
 from contact.utilities.save_to_radio import save_changes
 
 
 class SaveToRadioTests(unittest.TestCase):
+    def test_status_message_saves_for_local_and_remote_nodes(self):
+        for remote in (False, True):
+            with self.subTest(remote=remote):
+                interface, node = self.build_interface()
+                node.localConfig = localonly_pb2.LocalConfig()
+                node.moduleConfig = module_config_pb2.ModuleConfig()
+                node.moduleConfig.statusmessage.node_status = "Old status"
+                interface.localNode = mock.Mock() if remote else node
+                node.writeConfig.side_effect = SystemExit(1)
+                menu_state = SimpleNamespace(
+                    menu_path=["Main Menu", "Module Settings", "Statusmessage"]
+                )
+
+                reconnect = save_changes(
+                    interface, {"node_status": "Available"}, menu_state, node=node
+                )
+
+                self.assertTrue(reconnect)
+                node.writeConfig.assert_not_called()
+                node._sendAdmin.assert_called_once()
+                message = node._sendAdmin.call_args.args[0]
+                self.assertEqual(message.WhichOneof("payload_variant"), "set_module_config")
+                self.assertEqual(message.set_module_config.WhichOneof("payload_variant"), "statusmessage")
+                self.assertEqual(message.set_module_config.statusmessage.node_status, "Available")
+                self.assertEqual(
+                    node._sendAdmin.call_args.kwargs["onResponse"],
+                    node.onAckNak if remote else None,
+                )
+
     def test_channel_enable_disable_and_unrelated_edits_preserve_role(self):
         for index in (0, 1):
             interface, node = self.build_interface()

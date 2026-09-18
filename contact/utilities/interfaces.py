@@ -3,6 +3,30 @@ import contextlib
 import io
 import time
 import meshtastic.serial_interface, meshtastic.tcp_interface, meshtastic.ble_interface
+from meshtastic.protobuf import mesh_pb2
+
+
+class _StatusMessageConfigMixin:
+    """Read status-message config omitted by Meshtastic 2.7.11's receiver."""
+
+    def _handleFromRadio(self, fromRadioBytes):
+        packet = mesh_pb2.FromRadio()
+        packet.ParseFromString(fromRadioBytes)
+        if packet.HasField("moduleConfig") and packet.moduleConfig.HasField("statusmessage"):
+            self.localNode.moduleConfig.statusmessage.CopyFrom(packet.moduleConfig.statusmessage)
+        return super()._handleFromRadio(fromRadioBytes)
+
+
+class SerialInterface(_StatusMessageConfigMixin, meshtastic.serial_interface.SerialInterface):
+    pass
+
+
+class TCPInterface(_StatusMessageConfigMixin, meshtastic.tcp_interface.TCPInterface):
+    pass
+
+
+class BLEInterface(_StatusMessageConfigMixin, meshtastic.ble_interface.BLEInterface):
+    pass
 
 
 def interface_is_connected(interface) -> bool:
@@ -31,7 +55,7 @@ def initialize_interface(args, status_callback=None):
     try:
 
         if args.ble:
-            return meshtastic.ble_interface.BLEInterface(args.ble if args.ble != "any" else None)
+            return BLEInterface(args.ble if args.ble != "any" else None)
 
         elif args.host:
             try:
@@ -40,7 +64,7 @@ def initialize_interface(args, status_callback=None):
                 else:
                     tcp_hostname = args.host
                     tcp_port = meshtastic.tcp_interface.DEFAULT_TCP_PORT
-                return meshtastic.tcp_interface.TCPInterface(tcp_hostname, portNumber=tcp_port)
+                return TCPInterface(tcp_hostname, portNumber=tcp_port)
             except Exception as ex:
                 logging.error(f"Error connecting to {args.host}. {ex}")
         else:
@@ -48,7 +72,7 @@ def initialize_interface(args, status_callback=None):
                 # The library prints its fallback notice directly to stdout,
                 # which would overwrite the curses splash screen.
                 with contextlib.redirect_stdout(io.StringIO()):
-                    client = meshtastic.serial_interface.SerialInterface(args.port)
+                    client = SerialInterface(args.port)
             except FileNotFoundError as ex:
                 logging.error(f"The serial device at '{args.port}' was not found. {ex}")
             except PermissionError as ex:
@@ -63,7 +87,7 @@ def initialize_interface(args, status_callback=None):
                 try:
                     if status_callback:
                         status_callback("No serial device found.\nConnecting via TCP to localhost…")
-                    client = meshtastic.tcp_interface.TCPInterface("localhost")
+                    client = TCPInterface("localhost")
                 except Exception as ex:
                     logging.error(f"Error connecting to localhost:{ex}")
 
