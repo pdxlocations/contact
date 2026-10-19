@@ -89,7 +89,12 @@ def play_sound():
             elif player == "cvlc":
                 cmd = [executable, "--play-and-exit", sound_path]
 
-            subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            if platform.system() == "Windows":
+                su = subprocess.STARTUPINFO()
+                su.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+                subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, creationflags=0x08000000, startupinfo=su)
+            else:
+                subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             return
         logging.warning(
             "No suitable sound player found for notification sound; install ffmpeg (ffplay), mpg123, mpv, or VLC."
