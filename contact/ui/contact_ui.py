@@ -675,11 +675,17 @@ def insert_input_text(draft: str, text: str) -> str:
 
 def draw_message_input(draft: str) -> None:
     """Redraw the whole input row and scroll it to keep the draft cursor visible."""
-    width = entry_win.getmaxyx()[1]
+    # Получаем сразу высоту и ширину для правильного позиционирования счетчика
+    height, width = entry_win.getmaxyx()
     prompt = slice_to_width("Message: ", max(0, width - 3))
     available = max(1, width - 2 - text_width(prompt))
     ui_state.input_cursor = max(0, min(ui_state.input_cursor, len(draft)))
     content = ui_state.reply_context + draft
+    
+    # Считаем именно байты в UTF-8 (важно для кириллицы)
+    byte_count = len(content.encode('utf-8'))
+    counter_str = f" {byte_count}/220b "
+
     cursor = len(ui_state.reply_context) + ui_state.input_cursor
     start = cursor
     used = 0
@@ -689,10 +695,26 @@ def draw_message_input(draft: str) -> None:
     visible = slice_to_width(content[start:], available)
     draw_text_field(entry_win, prompt + visible, get_color("input"))
     paint_frame(entry_win, selected=ui_state.input_focused, refresh=False)
+    
     try:
         hint = " Ctrl+K Help "
         if width >= len(hint) + 4:
             entry_win.addstr(0, width - len(hint) - 2, hint, get_color("commands"))
+            
+        #  меняем цвет, если превышен лимит
+        if byte_count > 220:
+            try:
+                # Используем settings_warning с добавлением жирности шрифта
+                counter_color = get_color("settings_warning", bold=True)
+            except:
+                counter_color = get_color("commands", bold=True, reverse=True)
+        else:
+            counter_color = get_color("commands")
+
+        # Отрисовка счетчика внизу с защитой от краша (height > 2)
+        if width >= len(counter_str) + 4 and height > 2:
+            entry_win.addstr(height - 1, width - len(counter_str) - 2, counter_str, counter_color)
+
         curses.curs_set(1 if ui_state.input_focused else 0)
         entry_win.move(1, min(width - 2, 1 + text_width(prompt) + used))
     except curses.error:
