@@ -214,6 +214,58 @@ class ContactUiTests(unittest.TestCase):
 
         contact_ui.messages_pad.resize.assert_called_once_with(2, 40)
 
+    def test_single_pane_typing_after_switching_to_shorter_conversation(self) -> None:
+        for messages in ([("RX: ", "hello")], [], None):
+            with self.subTest(messages=messages):
+                reset_shared_state()
+                ui_state.single_pane_mode = True
+                ui_state.current_window = 0
+                ui_state.channel_list = [123]
+                ui_state.all_messages = {123: messages} if messages is not None else {}
+                ui_state.highlighted_message_range = (10, 12, 20)
+                ui_state.message_line_ranges = {123: [(10, 12, 20)]}
+                pad = mock.Mock()
+                pad.getmaxyx.return_value = (12, 40)
+
+                def resize_pad(height, width):
+                    pad.getmaxyx.return_value = (height, width)
+
+                def change_attributes(row, column, width, color):
+                    height, columns = pad.getmaxyx()
+                    if not (0 <= row < height and 0 <= column < columns and column + width <= columns):
+                        raise contact_ui.curses.error("chgat() returned ERR")
+
+                pad.resize.side_effect = resize_pad
+                pad.chgat.side_effect = change_attributes
+                win = mock.Mock()
+                win.getmaxyx.return_value = (10, 40)
+                packetlog = mock.Mock()
+                packetlog.getmaxyx.return_value = (1, 40)
+                with ExitStack() as stack:
+                    for name, value in (("messages_pad", pad), ("messages_win", win), ("packetlog_win", packetlog)):
+                        stack.enter_context(mock.patch.object(contact_ui, name, value, create=True))
+                    for name in ("paint_frame", "refresh_pad", "draw_packetlog_win", "draw_window_arrows", "refresh_main_window"):
+                        stack.enter_context(mock.patch.object(contact_ui, name))
+                    stack.enter_context(mock.patch.object(contact_ui, "get_color", return_value=10))
+                    stack.enter_context(mock.patch.object(
+                        contact_ui, "handle_resize", side_effect=lambda *args: contact_ui.draw_messages_window(True)
+                    ))
+                    self.assertEqual(contact_ui.insert_input_text("", "a"), "a")
+
+                self.assertEqual(ui_state.current_window, 1)
+                self.assertTrue(ui_state.input_focused)
+                self.assertEqual(ui_state.highlighted_message_range, ())
+                pad.resize.assert_called_once_with(1, 40)
+                if messages:
+                    self.assertEqual(ui_state.message_line_ranges[123], [(0, 1, 10)])
+                    self.assertEqual(pad.chgat.call_args_list, [
+                        mock.call(0, 1, 38, 10 | contact_ui.curses.A_REVERSE),
+                        mock.call(0, 1, 38, 10),
+                    ])
+                else:
+                    self.assertEqual(ui_state.message_line_ranges[123], [])
+                    pad.chgat.assert_not_called()
+
     def test_build_reply_prefix_includes_sender_and_five_character_excerpt(self) -> None:
         reply = contact_ui.build_reply_prefix(
             "[06:27:25] >> [6] B1G1: ",

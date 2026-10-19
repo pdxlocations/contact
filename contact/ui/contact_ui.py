@@ -1651,14 +1651,17 @@ def draw_messages_window(scroll_to_bottom: bool = False, preserve_selection: boo
         return
 
     messages_pad.erase()
+    # Erasing the pad also removes the old highlight. Its row range may no
+    # longer exist after switching conversations or rewrapping messages.
+    ui_state.highlighted_message_range = ()
 
     channel = ui_state.channel_list[ui_state.selected_channel]
 
     msg_line_count = 0
     message_ranges = []
+    rendered_lines = []
     if channel in ui_state.all_messages:
         messages = ui_state.all_messages[channel]
-        rendered_lines = []
         for prefix, message in messages:
             start_line = len(rendered_lines)
             full_message = normalize_message_text(f"{prefix}{message}")
@@ -1677,10 +1680,10 @@ def draw_messages_window(scroll_to_bottom: bool = False, preserve_selection: boo
                 message_ranges.append((start_line, len(rendered_lines), color))
 
         msg_line_count = len(rendered_lines)
-        messages_pad.resize(max(1, msg_line_count), messages_win.getmaxyx()[1])
-        for row, (line, color) in enumerate(rendered_lines):
-            messages_pad.addstr(row, 1, line, color)
-        ui_state.message_line_ranges[channel] = message_ranges
+    messages_pad.resize(max(1, msg_line_count), messages_win.getmaxyx()[1])
+    for row, (line, color) in enumerate(rendered_lines):
+        messages_pad.addstr(row, 1, line, color)
+    ui_state.message_line_ranges[channel] = message_ranges
 
     paint_frame(messages_win, selected=(ui_state.current_window == 1), refresh=False)
 
