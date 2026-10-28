@@ -2065,34 +2065,41 @@ def refresh_pad(window: int, commit: bool = True) -> None:
 
     # Clamp start_index within the pad's height
     pad_h, pad_w = pad.getmaxyx()
-    if pad_h <= 0:
+    if pad_h <= 0 or pad_w <= 0:
         return
     start_index = max(0, min(start_index, max(0, pad_h - 1)))
 
     top = box_y + 1
     left = box_x + 1
-    bottom = box_y + min(inner_h, lines)  # inclusive
-    right = box_x + min(inner_w, box_w - 2)
+    # A resize can leave the frame larger than its pad or the screen.
+    # noutrefresh requires both source and destination rectangles to fit.
+    bottom = min(top + lines - 1, top + pad_h - start_index - 1, curses.LINES - 1)
+    right = min(left + inner_w - 1, left + pad_w - 1, curses.COLS - 1)
 
     if bottom < top or right < left:
         return
 
     draw_frame_title(box, get_window_title(window))
-    box.noutrefresh()
+    try:
+        box.noutrefresh()
 
-    # The frame overlaps the pad's viewport. Recompose even unchanged pad
-    # rows before committing, so its text cannot flash blank between draws.
-    pad.touchwin()
-    pad.noutrefresh(
-        start_index,
-        0,
-        top,
-        left,
-        bottom,
-        right,
-    )
-    if commit:
-        curses.doupdate()
+        # The frame overlaps the pad's viewport. Recompose even unchanged pad
+        # rows before committing, so its text cannot flash blank between draws.
+        pad.touchwin()
+        pad.noutrefresh(
+            start_index,
+            0,
+            top,
+            left,
+            bottom,
+            right,
+        )
+        if commit:
+            curses.doupdate()
+    except curses.error:
+        # The terminal can resize again between checking bounds and drawing.
+        # Let the next resize/redraw rebuild the windows instead of exiting.
+        ui_state.redraw_full_ui = True
 
 
 def add_notification(channel_number: int) -> None:

@@ -12,6 +12,28 @@ from tests.test_support import reset_shared_state, restore_config, snapshot_conf
 
 
 class ContactUiTests(unittest.TestCase):
+    def test_refresh_pad_clips_to_pad_and_resized_screen(self):
+        for pad_size, screen_size, expected in (
+            ((2, 5), (24, 80), (1, 0, 1, 1, 1, 5)),
+            ((100, 100), (6, 8), (1, 0, 1, 1, 5, 7)),
+        ):
+            with self.subTest(pad_size=pad_size, screen_size=screen_size), ExitStack() as stack:
+                box = mock.Mock()
+                box.getmaxyx.return_value = (40, 100)
+                box.getbegyx.return_value = (0, 0)
+                pad = mock.Mock()
+                pad.getmaxyx.return_value = pad_size
+                ui_state.selected_channel = 38
+                stack.enter_context(mock.patch.object(contact_ui, "channel_win", box, create=True))
+                stack.enter_context(mock.patch.object(contact_ui, "channel_pad", pad, create=True))
+                stack.enter_context(mock.patch.object(contact_ui.curses, "LINES", screen_size[0], create=True))
+                stack.enter_context(mock.patch.object(contact_ui.curses, "COLS", screen_size[1], create=True))
+                contact_ui.refresh_pad(0, commit=False)
+                pad.noutrefresh.assert_called_once_with(*expected)
+                pad.noutrefresh.side_effect = contact_ui.curses.error("resize during refresh")
+                contact_ui.refresh_pad(0, commit=False)
+                self.assertTrue(ui_state.redraw_full_ui)
+
     def test_f5_rebuilds_background_before_staging_after_terminal_resize(self):
         for size in ((24, 80), (50, 140)):
             with self.subTest(size=size), ExitStack() as stack:
@@ -594,6 +616,8 @@ class ContactUiTests(unittest.TestCase):
 
     def test_refresh_pad_draws_selected_channel_title_on_message_frame(self) -> None:
         self.addCleanup(mock.patch.stopall)
+        mock.patch.object(contact_ui.curses, "LINES", 24, create=True).start()
+        mock.patch.object(contact_ui.curses, "COLS", 80, create=True).start()
         mock.patch.object(contact_ui, "packetlog_win", mock.Mock(), create=True).start()
         ui_state.single_pane_mode = True
         ui_state.current_window = 1
