@@ -589,7 +589,7 @@ def main_ui(stdscr: curses.window) -> None:
         elif char in (curses.KEY_F1, curses.KEY_F2, curses.KEY_F3):
             handle_function_keys(char)
 
-        elif char in (chr(curses.KEY_ENTER), chr(10), chr(13)):
+        elif char in (curses.KEY_ENTER, chr(10), chr(13)):
             input_text = handle_enter(input_text)
             ui_state.input_cursor = min(ui_state.input_cursor, len(input_text))
 
@@ -1980,7 +1980,7 @@ def search(win: int) -> None:
             except curses.error:
                 break
 
-            if char in (chr(27), chr(curses.KEY_ENTER), chr(10), chr(13)):
+            if char in (chr(27), curses.KEY_ENTER, chr(10), chr(13)):
                 break
             elif char == "\t":
                 start_idx = ui_state.selected_node + 1 if win == 2 else ui_state.selected_channel + 1

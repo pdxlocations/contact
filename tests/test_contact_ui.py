@@ -12,6 +12,31 @@ from tests.test_support import reset_shared_state, restore_config, snapshot_conf
 
 
 class ContactUiTests(unittest.TestCase):
+    def test_main_ui_accepts_keypad_and_regular_enter(self):
+        for key in (contact_ui.curses.KEY_ENTER, "\n", "\r"):
+            with self.subTest(key=key), ExitStack() as stack:
+                entry = mock.Mock()
+                entry.get_wch.side_effect = [key, "\x1b"]
+                stack.enter_context(mock.patch.object(contact_ui, "entry_win", entry))
+                stack.enter_context(mock.patch.object(contact_ui, "interface_is_connected", return_value=True))
+                for name in ("get_channels", "handle_resize", "process_pending_ui_updates", "draw_message_input"):
+                    stack.enter_context(mock.patch.object(contact_ui, name))
+                enter = stack.enter_context(mock.patch.object(contact_ui, "handle_enter", return_value=""))
+                contact_ui.main_ui(mock.Mock())
+                enter.assert_called_once_with("")
+
+    def test_search_closes_on_keypad_and_regular_enter(self):
+        for key in (contact_ui.curses.KEY_ENTER, "\n", "\r"):
+            with self.subTest(key=key), ExitStack() as stack:
+                entry = mock.Mock()
+                entry.get_wch.side_effect = [key]
+                stack.enter_context(mock.patch.object(contact_ui, "entry_win", entry))
+                stack.enter_context(mock.patch.object(contact_ui, "get_color", return_value=0))
+                stack.enter_context(mock.patch.object(contact_ui, "draw_centered_text_field"))
+                contact_ui.search(2)
+                entry.get_wch.assert_called_once_with()
+                self.assertEqual(entry.timeout.call_args_list, [mock.call(-1), mock.call(200)])
+
     def test_f5_restores_background_when_switching_between_different_size_nodes(self):
         ui_state.node_list = [101, 102]
         ui_state.current_window = 2
