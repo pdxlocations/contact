@@ -1004,12 +1004,12 @@ def handle_f5_key(stdscr: curses.window) -> None:
                 snr = node["snr"]
                 if isinstance(snr, Real):
                     snr_status = (
-                        "🟢 Excellent"
+                        "Excellent"
                         if snr > 10
                         else (
-                            "🟡 Good"
+                            "Good"
                             if snr > 3
-                            else "🟠 Fair" if snr > -10 else "🔴 Poor" if snr > -20 else "💀 Very Poor"
+                            else "Fair" if snr > -10 else "Poor" if snr > -20 else "Very Poor"
                         )
                     )
                     message_parts.append(f"• SNR: {snr}dB {snr_status}")
@@ -1018,11 +1018,10 @@ def handle_f5_key(stdscr: curses.window) -> None:
 
             if node.get("hopsAway") is not None:
                 hops = node["hopsAway"]
-                hop_emoji = "📡" if hops == 0 else "🔄" if hops == 1 else "⏩"
-                message_parts.append(f"• Hops away: {hop_emoji} {hops}")
+                message_parts.append(f"• Hops away: {hops}")
 
             if node.get("lastHeard"):
-                message_parts.append(f"• Last heard: 🕐 {get_time_ago(node['lastHeard'])}")
+                message_parts.append(f"• Last heard: {get_time_ago(node['lastHeard'])}")
 
         if node.get("deviceMetrics"):
             metrics = node["deviceMetrics"]
@@ -1031,28 +1030,23 @@ def handle_f5_key(stdscr: curses.window) -> None:
 
             if metrics.get("batteryLevel") is not None:
                 battery = metrics["batteryLevel"]
-                battery_emoji = "🔴"
-                if isinstance(battery, Real):
-                    battery_emoji = "🟢" if battery > 50 else "🟡" if battery > 20 else "🔴"
                 voltage_info = f" ({metrics['voltage']}v)" if "voltage" in metrics else ""
-                message_parts.append(f"• Battery: {battery_emoji} {battery}%{voltage_info}")
+                message_parts.append(f"• Battery: {battery}%{voltage_info}")
 
             if metrics.get("uptimeSeconds") is not None:
-                message_parts.append(f"• Uptime: ⏱️ {get_readable_duration(metrics['uptimeSeconds'])}")
+                message_parts.append(f"• Uptime: {get_readable_duration(metrics['uptimeSeconds'])}")
 
             if metrics.get("channelUtilization") is not None:
                 util = metrics["channelUtilization"]
                 if isinstance(util, Real):
-                    util_emoji = "🔴" if util > 80 else "🟡" if util > 50 else "🟢"
-                    message_parts.append(f"• Channel utilization: {util_emoji} {util:.2f}%")
+                    message_parts.append(f"• Channel utilization: {util:.2f}%")
                 else:
                     message_parts.append(f"• Channel utilization: {util}%")
 
             if metrics.get("airUtilTx") is not None:
                 air_util = metrics["airUtilTx"]
                 if isinstance(air_util, Real):
-                    air_emoji = "🔴" if air_util > 80 else "🟡" if air_util > 50 else "🟢"
-                    message_parts.append(f"• Air utilization TX: {air_emoji} {air_util:.2f}%")
+                    message_parts.append(f"• Air utilization TX: {air_util:.2f}%")
                 else:
                     message_parts.append(f"• Air utilization TX: {air_util}%")
 
