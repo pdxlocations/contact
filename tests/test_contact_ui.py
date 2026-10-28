@@ -12,6 +12,38 @@ from tests.test_support import reset_shared_state, restore_config, snapshot_conf
 
 
 class ContactUiTests(unittest.TestCase):
+    def test_f5_rebuilds_background_before_staging_after_terminal_resize(self):
+        for size in ((24, 80), (50, 140)):
+            with self.subTest(size=size), ExitStack() as stack:
+                ui_state.node_list = [101]
+                ui_state.current_window = 2
+                interface = SimpleNamespace(nodesByNum={101: {"user": {"shortName": "NODE"}}})
+                stack.enter_context(mock.patch.object(contact_ui.interface_state, "interface", interface))
+                stack.enter_context(mock.patch.object(contact_ui.curses, "LINES", 40, create=True))
+                stack.enter_context(mock.patch.object(contact_ui.curses, "COLS", 100, create=True))
+                win = mock.Mock()
+                def read_key():
+                    if (contact_ui.curses.LINES, contact_ui.curses.COLS) == (40, 100):
+                        contact_ui.curses.LINES, contact_ui.curses.COLS = size
+                        return contact_ui.curses.KEY_RESIZE
+                    return 27
+                win.getch.side_effect = read_key
+                stack.enter_context(mock.patch.object(contact_ui.curses, "newwin", return_value=win))
+                for name in ("curs_set", "update_lines_cols", "doupdate"):
+                    stack.enter_context(mock.patch.object(contact_ui.curses, name))
+                for name in ("get_color", "refresh_node_selection"):
+                    stack.enter_context(mock.patch.object(contact_ui, name, return_value=0))
+                events = []
+                def resize(*args):
+                    events.append(("resize", ui_state.current_window))
+                def stage(*args):
+                    events.append(("stage", ui_state.current_window))
+                stack.enter_context(mock.patch.object(contact_ui, "handle_resize", side_effect=resize))
+                stack.enter_context(mock.patch.object(contact_ui, "stage_node_details_background", side_effect=stage))
+                contact_ui.handle_f5_key(mock.Mock())
+                self.assertEqual(events, [("resize", 2), ("stage", 4), ("resize", 2)])
+                self.assertEqual(ui_state.current_window, 2)
+
     def test_main_ui_accepts_keypad_and_regular_enter(self):
         for key in (contact_ui.curses.KEY_ENTER, "\n", "\r"):
             with self.subTest(key=key), ExitStack() as stack:
