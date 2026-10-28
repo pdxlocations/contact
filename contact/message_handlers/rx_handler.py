@@ -13,6 +13,14 @@ _sound_timer_lock = threading.Lock()
 _last_sound_request = 0.0
 
 
+def chat_is_selected() -> bool:
+    return (
+        ui_state.current_window == 1
+        and not ui_state.display_log
+        and not ui_state.log_viewer_open
+    )
+
+
 def schedule_notification_sound(delay: float = _SOUND_DEBOUNCE_SECONDS) -> None:
     """Schedule a notification sound after a short quiet period.
 
@@ -38,7 +46,8 @@ def schedule_notification_sound(delay: float = _SOUND_DEBOUNCE_SECONDS) -> None:
             with _sound_timer_lock:
                 if expected_request_time != _last_sound_request:
                     return
-            play_sound()
+            if not chat_is_selected():
+                play_sound()
 
         _sound_timer = threading.Timer(delay, _fire, args=(now,))
         _sound_timer.daemon = True
@@ -150,7 +159,10 @@ def on_receive(packet: Dict[str, Any], interface: Any) -> None:
                 hops = hop_start - hop_limit
 
 
-                if str(config.notification_sound).casefold() not in {"none", "false", ""}:
+                if (
+                    not chat_is_selected()
+                    and str(config.notification_sound).casefold() not in {"none", "false", ""}
+                ):
                     schedule_notification_sound()
 
                 message_bytes = packet["decoded"]["payload"]

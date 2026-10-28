@@ -19,6 +19,51 @@ class RxHandlerTests(unittest.TestCase):
         restore_config(self.saved_config)
         reset_shared_state()
 
+    def test_message_sound_depends_on_selected_view(self):
+        config.notification_sound = "alert.mp3"
+        interface_state.myNodeNum = 111
+        ui_state.channel_list = ["Primary", "Other"]
+        for window, packet_log, log_viewer, channel, expected in (
+            (1, False, False, 0, False),
+            (1, False, False, 1, False),
+            (0, False, False, 0, True),
+            (2, False, False, 0, True),
+            (4, False, False, 0, True),
+            (1, True, False, 0, True),
+            (1, False, True, 0, True),
+        ):
+            with self.subTest(window=window, packet_log=packet_log, log_viewer=log_viewer, channel=channel):
+                ui_state.current_window = window
+                ui_state.display_log = packet_log
+                ui_state.log_viewer_open = log_viewer
+                ui_state.all_messages = {"Primary": [], "Other": []}
+                packet = {
+                    "from": 222, "to": 999, "channel": channel,
+                    "decoded": {"portnum": "TEXT_MESSAGE_APP", "payload": b"hello"},
+                }
+                with mock.patch.object(rx_handler, "refresh_node_list", return_value=False), \
+                     mock.patch.object(rx_handler, "request_ui_redraw"), \
+                     mock.patch.object(rx_handler, "get_name_from_database", return_value="NODE"), \
+                     mock.patch.object(rx_handler, "save_message_to_db"), \
+                     mock.patch.object(rx_handler, "schedule_notification_sound") as sound:
+                    rx_handler.on_receive(packet, interface=None)
+                self.assertEqual(sound.call_count, int(expected))
+
+    def test_pending_sound_is_suppressed_if_chat_selected_before_playback(self):
+        with mock.patch.object(rx_handler, "_sound_timer", None), \
+             mock.patch.object(rx_handler, "_last_sound_request", 0.0), \
+             mock.patch.object(rx_handler.threading, "Timer") as timer, \
+             mock.patch.object(rx_handler, "play_sound") as play:
+            rx_handler.schedule_notification_sound()
+            callback = timer.call_args.args[1]
+            callback_args = timer.call_args.kwargs["args"]
+            ui_state.current_window = 1
+            callback(*callback_args)
+            play.assert_not_called()
+            ui_state.current_window = 0
+            callback(*callback_args)
+            play.assert_called_once_with()
+
     def test_on_receive_text_message_refreshes_selected_channel(self) -> None:
         interface_state.myNodeNum = 111
         ui_state.channel_list = ["Primary"]
