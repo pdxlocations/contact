@@ -1089,6 +1089,15 @@ def handle_f5_key(stdscr: curses.window) -> None:
 
             layout = (dialog_height, dialog_width, y, x, ui_state.selected_node, height, width)
             if previous_layout is not None and layout != previous_layout:
+                if (height, width) != previous_layout[-2:]:
+                    # Rebuild the background before staging pads whose old
+                    # screen coordinates may now lie outside the terminal.
+                    ui_state.current_window = previous_window
+                    try:
+                        handle_resize(stdscr, False)
+                    finally:
+                        ui_state.current_window = 4
+                    curses.curs_set(0)
                 stage_node_details_background(stdscr, previous_window)
             previous_layout = layout
 
