@@ -106,7 +106,7 @@ def get_chunks(data):
         elif key == "ground_track":
             value = round(value / 100, 2)
         elif key == "time":
-            value = datetime.datetime.fromtimestamp(int(value)).strftime("%d.%m.%Y %H:%m")
+            value = datetime.datetime.fromtimestamp(int(value)).strftime("%d.%m.%Y %H:%M")
 
         if key in sensors:
             parsed+= f"{sensors[key.strip()]['icon']}{value}{sensors[key]['unit']}  "

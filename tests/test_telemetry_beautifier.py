@@ -1,3 +1,4 @@
+import datetime
 import unittest
 from unittest import mock
 
@@ -25,6 +26,11 @@ class TelemetryBeautifierTests(unittest.TestCase):
             rendered = get_chunks("time:0\n")
 
         self.assertIn("🕔 01.01.1970 00:00", rendered)
+
+    def test_get_chunks_shows_minutes_in_time_values(self) -> None:
+        timestamp = int(datetime.datetime(2026, 3, 1, 12, 34).timestamp())
+
+        self.assertIn("🕔 01.03.2026 12:34", get_chunks(f"time:{timestamp}\n"))
 
     def test_get_chunks_normalizes_keys_and_preserves_unknown_strings(self) -> None:
         rendered = get_chunks('  uptime_seconds: 7200\nunknown: "v1.2:ok"\n')
